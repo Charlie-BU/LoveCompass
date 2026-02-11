@@ -13,12 +13,6 @@ def start_faas_server(app: Robyn):
     # 生产环境需要注释：使用nginx解决跨域
     ALLOW_CORS(app, origins=["*"])
 
-    # 异常处理
-    @app.exception
-    def handle_exception(error):
-        print(f"error msg: {error}")
-        return Response(status_code=500, headers={}, description=f"error msg: {error}")
-
     # 注册路由
     register_routers(app)
 
