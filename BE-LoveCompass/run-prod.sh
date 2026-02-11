@@ -1,2 +1,2 @@
 #!/bin/bash
-uv run robyn -m app --process=4 --workers=3
+uv run robyn -m main --process=4 --workers=3
