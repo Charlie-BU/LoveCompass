@@ -1,0 +1,17 @@
+[project]
+name = "be-lovecompass"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.18.3",
+    "bcrypt>=5.0.0",
+    "dotenv>=0.9.9",
+    "robyn>=0.76.0",
+    "sqlalchemy>=2.0.46",
+    "psycopg2-binary>=2.9.11",
+    "langchain>=1.2.10",
+    "langgraph>=1.0.8",
+    "langchain-openai>=1.1.9",
+]
