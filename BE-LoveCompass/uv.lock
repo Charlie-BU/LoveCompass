@@ -4,16 +4,16 @@ requires-python = ">=3.13"
 
 [[package]]
 name = "alembic"
-version = "1.18.3"
+version = "1.18.4"
 source = { registry = "https://bytedpypi.byted.org/simple/" }
 dependencies = [
     { name = "mako" },
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://bytedpypi.byted.org/packages/alembic/alembic-1.18.3.tar.gz", hash = "sha256:1212aa3778626f2b0f0aa6dd4e99a5f99b94bd25a0c1ac0bba3be65e081e50b0" }
+sdist = { url = "https://bytedpypi.byted.org/packages/alembic/alembic-1.18.4.tar.gz", hash = "sha256:cb6e1fd84b6174ab8dbb2329f86d631ba9559dd78df550b57804d607672cedbc" }
 wheels = [
-    { url = "https://bytedpypi.byted.org/packages/alembic/alembic-1.18.3-py3-none-any.whl", hash = "sha256:12a0359bfc068a4ecbb9b3b02cf77856033abfdb59e4a5aca08b7eacd7b74ddd" },
+    { url = "https://bytedpypi.byted.org/packages/alembic/alembic-1.18.4-py3-none-any.whl", hash = "sha256:a5ed4adcf6d8a4cb575f3d759f071b03cd6e5c7618eb796cb52497be25bfe19a" },
 ]
 
 [[package]]
@@ -104,14 +104,14 @@ wheels = [
 ]
 
 [[package]]
-name = "be-lovetracker"
+name = "be-lovecompass"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "bcrypt" },
     { name = "dotenv" },
-    { name = "langchain-core" },
+    { name = "langchain" },
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "psycopg2-binary" },
@@ -124,8 +124,8 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.3" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
-    { name = "langchain-core", specifier = ">=1.2.9" },
-    { name = "langchain-openai", specifier = ">=1.1.8" },
+    { name = "langchain", specifier = ">=1.2.10" },
+    { name = "langchain-openai", specifier = ">=1.1.9" },
     { name = "langgraph", specifier = ">=1.0.8" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "robyn", specifier = ">=0.76.0" },
@@ -386,8 +386,22 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain"
+version = "1.2.10"
+source = { registry = "https://bytedpypi.byted.org/simple/" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "langgraph" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://bytedpypi.byted.org/packages/langchain/langchain-1.2.10.tar.gz", hash = "sha256:bdcd7218d9c79a413cf15e106e4eb94408ac0963df9333ccd095b9ed43bf3be7" }
+wheels = [
+    { url = "https://bytedpypi.byted.org/packages/langchain/langchain-1.2.10-py3-none-any.whl", hash = "sha256:e07a377204451fffaed88276b8193e894893b1003e25c5bca6539288ccca3698" },
+]
+
+[[package]]
 name = "langchain-core"
-version = "1.2.9"
+version = "1.2.11"
 source = { registry = "https://bytedpypi.byted.org/simple/" }
 dependencies = [
     { name = "jsonpatch" },
@@ -399,23 +413,20 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid-utils" },
 ]
-sdist = { url = "https://bytedpypi.byted.org/packages/langchain-core/langchain_core-1.2.9.tar.gz", hash = "sha256:a3768febc762307241d153b0f8bc58fd4b70c0ff077fda3274606741fca3f5a7" }
-wheels = [
-    { url = "https://bytedpypi.byted.org/packages/langchain-core/langchain_core-1.2.9-py3-none-any.whl", hash = "sha256:7e5ecba5ed7a65852e8d5288e9ceeba05340fa9baf32baf672818b497bbaea8f" },
-]
+sdist = { url = "https://bytedpypi.byted.org/packages/langchain-core/langchain_core-1.2.11.tar.gz", hash = "sha256:f164bb36602dd74a3a50c1334fca75309ad5ed95767acdfdbb9fa95ce28a1e01" }
 
 [[package]]
 name = "langchain-openai"
-version = "1.1.8"
+version = "1.1.9"
 source = { registry = "https://bytedpypi.byted.org/simple/" }
 dependencies = [
     { name = "langchain-core" },
     { name = "openai" },
     { name = "tiktoken" },
 ]
-sdist = { url = "https://bytedpypi.byted.org/packages/langchain-openai/langchain_openai-1.1.8.tar.gz", hash = "sha256:3ff66966812a2362a8ccbcad24b517708f39c42471517abe77b07adc818a2c22" }
+sdist = { url = "https://bytedpypi.byted.org/packages/langchain-openai/langchain_openai-1.1.9.tar.gz", hash = "sha256:fdee25dcf4b0685d8e2f59856f4d5405431ef9e04ab53afe19e2e8360fed8234" }
 wheels = [
-    { url = "https://bytedpypi.byted.org/packages/langchain-openai/langchain_openai-1.1.8-py3-none-any.whl", hash = "sha256:c37d99eac78700cca2bef8d503cf367065685e1ac4cbdf674056046f3bebf118" },
+    { url = "https://bytedpypi.byted.org/packages/langchain-openai/langchain_openai-1.1.9-py3-none-any.whl", hash = "sha256:ca2482b136c45fb67c0db84a9817de675e0eb8fb2203a33914c1b7a96f273940" },
 ]
 
 [[package]]
@@ -934,7 +945,7 @@ wheels = [
 
 [[package]]
 name = "robyn"
-version = "0.76.0"
+version = "0.77.0"
 source = { registry = "https://bytedpypi.byted.org/simple/" }
 dependencies = [
     { name = "inquirerpy" },
@@ -945,22 +956,22 @@ dependencies = [
     { name = "watchdog" },
 ]
 wheels = [
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:55ee35e474feed1fcef18ba11d39d9950ad8fee52a078956275ac860429419ff" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:e766d2cd89ce1dc870e74e9dd12e38de47870d2a9b237ac554432821c6873a57" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:ac71ce29e9a9803e29119a26ad56663efa8030138d6f5bd6d025137ae0ab7f17" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6a0d6487f0e9b372a7c136442b248fbdee7c72a6dfdf6704599d3e27fb4e4492" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d9425676ff302862f45465a7034573fb5af44eb79e564b6375bc00f1e89c1cb2" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:02d94c3b00ba6e935ee7fc346e812dbb901764ef6d9c690cca67ae11c2129dbd" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-win32.whl", hash = "sha256:d3e294d8629dea8b97b3123a342749400e2302f286e404c3d1bcd3e880d77ac4" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp313-cp313-win_amd64.whl", hash = "sha256:39b9b1eaea26c0bca420c2eda7d9e6bb5852e483006a7f5ade2b81ff7969fb20" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:ed07c7c898fb5bda4bcb7f053ff453bc6de3002a70dbc1c09e0d2afb8ec14922" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:3667caee2e7be2085174bff41bad67823139f08b3fb8110a581b18014b76beb5" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:72bc73e1dad90a39169a386f68b47ad9b65985962f1d3514e4a9774b17a91e71" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b71b8525f135b1afdaf4916c3655f674ebddfdd83cba3f0ad1232fa25638dcdd" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:6c4183724770ca48722487a255d65d9f25547432a3fd829dc5ee3e258a88112b" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bd086547a927c281f67c697ed0a951eaa0c6ddc5e1f4c22fb2d6957760305869" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-win32.whl", hash = "sha256:40feb31931213386c2af5a8dd2a8f1f174c8a56a7b116768b21923e5d6ee4894" },
-    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.76.0-cp314-cp314-win_amd64.whl", hash = "sha256:65c03b151e0c6b756e48875420f8f62e4127f6ba642be6774f060c3f035a0a4a" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:42223b3f92d7e84ecc261c4b6acf0156765ee190fd9924ee64743d44e0552c34" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:e8335c378cf26c36039de7b0ebf9238fcdd33b0361657b29536849c87764144f" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:03169279136dcd2f8d9c88095d9c90f1f5422f4bc367d1c5ecb47430843b446a" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1e6a3efc8bf6327d8fa409122b9daa2fd5abf50cf300a033e970f86036c8cc10" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d76714fdd93cbfd9435daf1ee2f6abafdf9135460ab49454fc26dfdc7698561b" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b734a2f09139975dc815951467aae36de53b1fca4238d611cb2fb6bb869f2a66" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-win32.whl", hash = "sha256:e1948487c85202c6d18f79138dab6f1da693ce50d080bb66b701d7c125723d04" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp313-cp313-win_amd64.whl", hash = "sha256:8313098c09eab5a5873e0e0e1e35e8fc33ab2d3415f903cd6b736f1c6be99706" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:e272e9c0aa811509b4835df8a1e49fb6b064f0571b217ad3006adcc1a0ae28cc" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:f461fc4c43a525aa587418e140ea6858106f3016f0551878906397ca466a0633" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:dfbeae5e0a15fb449000982f728d807edfc6661f1a12fb935d9b6d014e4adf71" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:538a50fbe87fcea919009df1c3d1e91d82ea9fb19cec24a098fc7770de9c991c" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:1be2ec4636eeb9ec3c4acfd2c8f88a257a5eb3fbc985bf5004dd529791dd5e0e" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aa497a0ded899326ad6c1378d2a8263229c7e01b324273b314077b0c1763cda0" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-win32.whl", hash = "sha256:2c4f9a3cfce4f3cf55df7f65433f9ee477661839a4237a540d0d85d4bbd548bb" },
+    { url = "https://bytedpypi.byted.org/packages/robyn/robyn-0.77.0-cp314-cp314-win_amd64.whl", hash = "sha256:de845813576840247ac4cf7b16e49872386b28e13998f6aa0937a1d894db241e" },
 ]
 
 [[package]]
@@ -1187,11 +1198,11 @@ wheels = [
 
 [[package]]
 name = "wcwidth"
-version = "0.5.3"
+version = "0.6.0"
 source = { registry = "https://bytedpypi.byted.org/simple/" }
-sdist = { url = "https://bytedpypi.byted.org/packages/wcwidth/wcwidth-0.5.3.tar.gz", hash = "sha256:53123b7af053c74e9fe2e92ac810301f6139e64379031f7124574212fb3b4091" }
+sdist = { url = "https://bytedpypi.byted.org/packages/wcwidth/wcwidth-0.6.0.tar.gz", hash = "sha256:cdc4e4262d6ef9a1a57e018384cbeb1208d8abbc64176027e2c2455c81313159" }
 wheels = [
-    { url = "https://bytedpypi.byted.org/packages/wcwidth/wcwidth-0.5.3-py3-none-any.whl", hash = "sha256:d584eff31cd4753e1e5ff6c12e1edfdb324c995713f75d26c29807bb84bf649e" },
+    { url = "https://bytedpypi.byted.org/packages/wcwidth/wcwidth-0.6.0-py3-none-any.whl", hash = "sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad" },
 ]
 
 [[package]]
