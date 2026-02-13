@@ -4,7 +4,7 @@ from agent.index import wrap_chat
 
 
 # Expose a function to register this router (optional, or just import 'router' directly)
-def register_routers(app, ReAct_agent):
+async def register_routers(app, ReAct_agent):
     # 全局异常处理
     @app.exception
     def handle_exception(error):
@@ -12,4 +12,4 @@ def register_routers(app, ReAct_agent):
 
     app.get("/ping")(lambda: "pong")
     # chat_completions
-    app.post("/api/v3/bots/chat/completions")(wrap_chat(ReAct_agent))
+    app.post("/api/v3/bots/chat/completions")(await wrap_chat(ReAct_agent))

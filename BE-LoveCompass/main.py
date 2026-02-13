@@ -1,11 +1,12 @@
 import asyncio
-from json import load
+import os
 from dotenv import load_dotenv
 from robyn import Robyn
 
 from agent.index import create_agent_graph
 from agent.llm import prepare_llm
-from server.faas import start_faas_server
+from agent.mcp import get_mcp_psms_list, init_mcp_tools
+from server.faas import init_faas_server
 
 
 SYSTEM_PROMPT = """
@@ -34,24 +35,26 @@ You should speak **Chinese** at any time.
 
 load_dotenv()
 
-def main():
-    # 1. Prepare LLM (Infra/ByteDance)
+
+async def main():
+    # 1. Prepare LLM
     llm = prepare_llm()
 
     # 2. Prepare Tools
     # mcp_psms_list = get_mcp_psms_list()
     # tools = await init_mcp_tools(mcp_psms_list)
 
-    # 3. Init Agent (Core)
+    # 3. Init Agent
     ReAct_agent = create_agent_graph(llm=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
     # 4. Prepare Server
     app = Robyn(__file__)
 
-    start_faas_server(app, ReAct_agent)
-    
+    await init_faas_server(app, ReAct_agent)
+    return app
 
 
 if __name__ == "__main__":
-    main()
-    
+    app = asyncio.run(main())
+    PORT = int(os.getenv("PORT") or 1314)
+    app.start(host="0.0.0.0", port=PORT)

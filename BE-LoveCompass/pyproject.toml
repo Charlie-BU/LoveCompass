@@ -14,4 +14,5 @@ dependencies = [
     "langchain>=1.2.10",
     "langgraph>=1.0.8",
     "langchain-openai>=1.1.9",
+    "bytedance-mcp-langgraph-adapter>=1.0.5",
 ]
