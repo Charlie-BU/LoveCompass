@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from pgvector.sqlalchemy import Vector
 from datetime import datetime, timezone
 
 from .enums import (
@@ -154,14 +155,16 @@ class RelationChain(Base, SerializableMixin):
         Integer,
         ForeignKey("user.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         comment="关联用户ID",
     )
     user = relationship("User", backref="relation_chains")
 
     crush_id = Column(
         Integer,
-        ForeignKey("crush.id", ondelete="SET NULL"),
+        ForeignKey("crush.id"),
         nullable=False,
+        index=True,
         comment="关联CrushID",
     )
     crush = relationship("Crush", backref="relation_chains")
@@ -245,11 +248,12 @@ class Context(Base, SerializableMixin):
         Integer,
         ForeignKey("relation_chain.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         comment="关联关系链ID",
     )
     relation_chain = relationship("RelationChain", backref="contexts")
 
-    type = Column(Enum(ContextType), nullable=False, comment="Context类型")
+    type = Column(Enum(ContextType), nullable=False, index=True, comment="Context类型")
     content = Column(
         JSONB,
         server_default=text("'{}'::jsonb"),
@@ -257,7 +261,7 @@ class Context(Base, SerializableMixin):
         comment="Context内容",
     )
     weight = Column(
-        Float, nullable=False, default=1.0, comment="Context 权重（影响力）"
+        Float, nullable=False, index=True, default=1.0, comment="Context 权重（影响力）"
     )
     confidence = Column(
         Float, nullable=False, default=1.0, comment="Context 置信度（可靠性）"
@@ -288,11 +292,15 @@ class Context(Base, SerializableMixin):
         comment="是否有效",
     )
     created_at = Column(
-        DateTime, default=datetime.now(timezone.utc), comment="上下文创建时间"
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="上下文创建时间",
     )
     last_used_at = Column(
         DateTime,
         nullable=True,
+        index=True,
         comment="最后使用时间",
     )
 
@@ -348,3 +356,177 @@ class ContextConflict(Base, SerializableMixin):
 
     def __repr__(self):
         return f"<ContextConflict {self.id}>"
+
+
+# ---- 上下文向量化索引 ----
+class ContextEmbedding(Base, SerializableMixin):
+    __tablename__ = "context_embedding"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    context_id = Column(
+        Integer,
+        ForeignKey("context.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联上下文ID",
+    )
+    context = relationship("Context", backref="embeddings")
+
+    model_name = Column(String(128), nullable=False, comment="Embedding模型名称")
+    embedding = Column(Vector(1536), nullable=False, comment="向量表示")
+    created_at = Column(
+        DateTime, default=datetime.now(timezone.utc), comment="创建时间"
+    )
+
+    def __repr__(self):
+        return f"<ContextEmbedding {self.id}>"
+
+
+# 以下为 Codex 建议新增的数据表，需要后续进一步评估
+# # ---- 会话元数据 ----
+# class Conversation(Base, SerializableMixin):
+#     __tablename__ = "conversation"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     relation_chain_id = Column(
+#         Integer,
+#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联关系链ID",
+#     )
+#     relation_chain = relationship("RelationChain", backref="conversations")
+
+#     channel = Column(String(32), nullable=False, comment="会话渠道")
+#     title = Column(String(128), nullable=True, comment="会话标题")
+#     started_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="会话开始时间"
+#     )
+#     ended_at = Column(DateTime, nullable=True, comment="会话结束时间")
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="会话创建时间"
+#     )
+
+#     def __repr__(self):
+#         return f"<Conversation {self.id}>"
+
+
+# # ---- 上下文来源详情 ----
+# class ContextSourceDetail(Base, SerializableMixin):
+#     __tablename__ = "context_source_detail"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联上下文ID",
+#     )
+#     context = relationship("Context", backref="source_details")
+
+#     source_channel = Column(String(64), nullable=True, comment="来源渠道")
+#     external_ref = Column(String(128), nullable=True, comment="外部引用ID")
+#     raw_payload = Column(
+#         JSONB,
+#         server_default=text("'{}'::jsonb"),
+#         nullable=False,
+#         comment="来源原始数据",
+#     )
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="记录创建时间"
+#     )
+
+#     def __repr__(self):
+#         return f"<ContextSourceDetail {self.id}>"
+
+
+# # ---- 上下文使用记录 ----
+# class ContextUsageLog(Base, SerializableMixin):
+#     __tablename__ = "context_usage_log"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联上下文ID",
+#     )
+#     context = relationship("Context", backref="usage_logs")
+
+#     relation_chain_id = Column(
+#         Integer,
+#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联关系链ID",
+#     )
+#     relation_chain = relationship("RelationChain", backref="context_usage_logs")
+
+#     used_by = Column(String(64), nullable=False, comment="使用方标识")
+#     use_reason = Column(Text, nullable=True, comment="使用原因")
+#     used_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="使用时间"
+#     )
+
+#     def __repr__(self):
+#         return f"<ContextUsageLog {self.id}>"
+
+
+# # ---- 用户偏好 ----
+# class UserPreference(Base, SerializableMixin):
+#     __tablename__ = "user_preference"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     user_id = Column(
+#         Integer,
+#         ForeignKey("user.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联用户ID",
+#     )
+#     user = relationship("User", backref="preferences")
+
+#     category = Column(String(64), nullable=False, comment="偏好分类")
+#     value = Column(
+#         JSONB,
+#         server_default=text("'{}'::jsonb"),
+#         nullable=False,
+#         comment="偏好内容",
+#     )
+#     is_active = Column(Boolean, nullable=False, default=True, comment="是否有效")
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="创建时间"
+#     )
+#     updated_at = Column(
+#         DateTime,
+#         default=datetime.now(timezone.utc),
+#         onupdate=datetime.now(timezone.utc),
+#         comment="更新时间",
+#     )
+
+#     def __repr__(self):
+#         return f"<UserPreference {self.id}>"
+
+
+# # ---- 人物画像快照 ----
+# class PersonaSnapshot(Base, SerializableMixin):
+#     __tablename__ = "persona_snapshot"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     crush_id = Column(
+#         Integer,
+#         ForeignKey("crush.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联CrushID",
+#     )
+#     crush = relationship("Crush", backref="persona_snapshots")
+
+#     summary = Column(Text, nullable=True, comment="画像摘要")
+#     snapshot = Column(
+#         JSONB,
+#         server_default=text("'{}'::jsonb"),
+#         nullable=False,
+#         comment="画像快照内容",
+#     )
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="快照创建时间"
+#     )
+
+#     def __repr__(self):
+#         return f"<PersonaSnapshot {self.id}>"
