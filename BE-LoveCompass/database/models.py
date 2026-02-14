@@ -24,7 +24,7 @@ from .enums import (
     RelationStage,
     ContextType,
     ContextSource,
-    ConflictResolutionStatus
+    ConflictResolutionStatus,
 )
 from bcrypt import hashpw, gensalt, checkpw
 
