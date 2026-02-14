@@ -30,7 +30,7 @@ def create_agent_graph(
     )
 
 
-def wrap_chat(ReAct_agent):
+async def wrap_chat(ReAct_agent):
     async def chat(request: Request):
         body = request.json()
         is_stream = body.get("stream", True)

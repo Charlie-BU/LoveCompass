@@ -1,7 +1,6 @@
 import requests
 import json
 
-# 确保端口号与您启动的服务一致（默认 1314）
 url = "http://localhost:1314/api/v3/bots/chat/completions"
 headers = {"Content-Type": "application/json"}
 data = {
