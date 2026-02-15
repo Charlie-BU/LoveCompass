@@ -10,6 +10,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     UniqueConstraint,
+    Index,
     text,
 )
 from sqlalchemy.orm import relationship, declarative_base
@@ -25,6 +26,7 @@ from .enums import (
     RelationStage,
     ContextType,
     ContextSource,
+    ConflictType,
     ConflictResolutionStatus,
 )
 from bcrypt import hashpw, gensalt, checkpw
@@ -238,6 +240,35 @@ class ChainStageHistory(Base, SerializableMixin):
         return f"<ChainStageHistory {self.id}>"
 
 
+# ---- 静态知识库（用作全局上下文） ----
+class Knowledge(Base, SerializableMixin):
+    __tablename__ = "knowledge"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(
+        JSONB, server_default=text("'{}'::jsonb"), nullable=False, comment="知识库内容"
+    )
+    weight = Column(
+        Float, nullable=False, index=True, default=1.0, comment="知识库权重（影响力）"
+    )
+    summary = Column(Text, nullable=True, comment="知识库摘要")
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="知识库创建时间",
+    )
+    updated_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        comment="知识库更新时间",
+    )
+
+    def __repr__(self):
+        return f"<Knowledge {self.summary}>"
+
+
 # ---- 上下文 ----
 # 注意：Context 添加后内容不可修改
 class Context(Base, SerializableMixin):
@@ -283,7 +314,7 @@ class Context(Base, SerializableMixin):
         Boolean,
         nullable=False,
         default=False,
-        comment="是否与其他上下文冲突",
+        comment="是否与其他上下文冲突（包括静态知识库）",
     )
     is_active = Column(
         Boolean,
@@ -305,7 +336,7 @@ class Context(Base, SerializableMixin):
     )
 
     def __repr__(self):
-        return f"<Context {self.id}>"
+        return f"<Context {self.summary}>"
 
 
 # ---- 上下文冲突 ----
@@ -321,13 +352,29 @@ class ContextConflict(Base, SerializableMixin):
     )
     relation_chain = relationship("RelationChain", backref="context_conflicts")
 
+    type = Column(Enum(ConflictType), nullable=False, index=True, comment="冲突类型")
+
+    # 与已有上下文冲突时，前者上下文ID
     former_context_id = Column(
         Integer,
         ForeignKey("context.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
         comment="前者上下文ID",
     )
-    former_context = relationship("Context", backref="former_conflicts")
+    former_context = relationship(
+        "Context",
+        foreign_keys=[former_context_id],
+        backref="former_conflicts",
+    )
+
+    # 与静态知识库冲突时，静态知识库ID
+    former_knowledge_id = Column(
+        Integer,
+        ForeignKey("knowledge.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="前者静态知识库ID",
+    )
+    former_knowledge = relationship("Knowledge", backref="former_conflicts")
 
     latter_context_id = Column(
         Integer,
@@ -335,7 +382,11 @@ class ContextConflict(Base, SerializableMixin):
         nullable=False,
         comment="后者上下文ID",
     )
-    latter_context = relationship("Context", backref="latter_conflicts")
+    latter_context = relationship(
+        "Context",
+        foreign_keys=[latter_context_id],
+        backref="latter_conflicts",
+    )
 
     conflict_reason = Column(Text, nullable=True, comment="冲突原因")
     resolution_status = Column(
@@ -361,6 +412,15 @@ class ContextConflict(Base, SerializableMixin):
 # ---- 上下文向量化索引 ----
 class ContextEmbedding(Base, SerializableMixin):
     __tablename__ = "context_embedding"
+    # 使用HNSW索引加速余弦相似度向量检索
+    __table_args__ = (
+        Index(
+            "ix_context_embedding_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     context_id = Column(
