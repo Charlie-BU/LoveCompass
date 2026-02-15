@@ -89,6 +89,7 @@ async def register(request: Request):
     nickname = data["nickname"]
     gender = data["gender"]
     email = data["email"]
+    mbti = data["mbti"]
     password = data["password"]
     with session() as db:
         res = userRegister(
@@ -97,6 +98,7 @@ async def register(request: Request):
             nickname=nickname,
             gender=gender,
             email=email,
+            mbti=mbti,
             password=password,
         )
     return res
