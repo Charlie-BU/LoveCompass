@@ -361,7 +361,11 @@ class ContextConflict(Base, SerializableMixin):
         nullable=True,
         comment="前者上下文ID",
     )
-    former_context = relationship("Context", backref="former_conflicts")
+    former_context = relationship(
+        "Context",
+        foreign_keys=[former_context_id],
+        backref="former_conflicts",
+    )
 
     # 与静态知识库冲突时，静态知识库ID
     former_knowledge_id = Column(
@@ -378,7 +382,11 @@ class ContextConflict(Base, SerializableMixin):
         nullable=False,
         comment="后者上下文ID",
     )
-    latter_context = relationship("Context", backref="latter_conflicts")
+    latter_context = relationship(
+        "Context",
+        foreign_keys=[latter_context_id],
+        backref="latter_conflicts",
+    )
 
     conflict_reason = Column(Text, nullable=True, comment="冲突原因")
     resolution_status = Column(
