@@ -10,3 +10,6 @@ wheels/
 .venv
 .env
 .DS_Store
+
+# Alembic migrations
+BE-LoveCompass/alembic/versions/

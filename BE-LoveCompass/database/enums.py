@@ -62,6 +62,11 @@ class ContextSource(enum.Enum):
     EXTERNAL_API = "external_api"  # 外部 API 上传
 
 
+class ConflictType(enum.Enum):
+    WITH_CONTEXT = "with_context"  # 与已有上下文冲突
+    WITH_KNOWLEDGE = "with_knowledge"  # 与静态知识库冲突
+
+
 class ConflictResolutionStatus(enum.Enum):
     PENDING = "pending"  # 待解决
     RESOLVED_KEEP_NEW = "resolved_keep_new"  # 解决并保留新上下文
