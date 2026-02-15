@@ -300,16 +300,6 @@ class Context(Base, SerializableMixin):
     summary = Column(Text, nullable=True, comment="Context 摘要")
     source = Column(Enum(ContextSource), nullable=False, comment="Context 来源")
 
-    derived_from_context_id = Column(
-        Integer,
-        ForeignKey("context.id", ondelete="CASCADE"),
-        nullable=True,
-        comment="来源上下文ID（如果是派生上下文）",
-    )
-    derived_from_context = relationship(
-        "Context", backref="child_contexts", remote_side=[id]
-    )
-
     is_conflicted = Column(
         Boolean,
         nullable=False,
