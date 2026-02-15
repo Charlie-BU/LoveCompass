@@ -4,13 +4,12 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from jose import jwt
 import os
-# from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
 from database.models import User
+from database.enums import parse_enum, UserGender, MBTI
 
-# 加载 .env 文件
-# load_dotenv()
+
 ALGORITHM = os.getenv("ALGORITHM")
 SECRET_KEY = os.getenv("LOGIN_SECRET")
 
@@ -119,7 +118,13 @@ def userLogin(db: Session, username: str, password: str) -> dict:
 
 # 用户注册
 def userRegister(
-    db: Session, username: str, nickname: str, gender: str, email: str, password: str
+    db: Session,
+    username: str,
+    nickname: str,
+    gender: str,
+    email: str,
+    mbti: str,
+    password: str,
 ) -> dict:
     existing_user = (
         db.query(User)
@@ -131,11 +136,20 @@ def userRegister(
             "status": -1,
             "message": "Username or email already registered",
         }
+    try:
+        gender = parse_enum(UserGender, gender)
+    except ValueError:
+        return {"status": -2, "message": "Invalid gender"}
+    try:
+        mbti = parse_enum(MBTI, mbti)
+    except ValueError:
+        return {"status": -3, "message": "Invalid mbti"}
     user = User(
         username=username,
         nickname=nickname,
         gender=gender,
         email=email,
+        mbti=mbti,
         password=User.hashPassword(password),
     )
     db.add(user)

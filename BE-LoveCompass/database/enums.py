@@ -1,6 +1,12 @@
 import enum
 
 
+def parse_enum(enum_cls, value: str):
+    if value in enum_cls.__members__:  # value为枚举键
+        return enum_cls[value]
+    return enum_cls(value)  # value为枚举值
+
+
 # 用户性别
 class UserGender(enum.Enum):
     MALE = "男"
@@ -46,12 +52,13 @@ class RelationStage(enum.Enum):
     FAILED = "failed"
 
 
+# todo：不同类型上下文内容应当具有固定的schema
 class ContextType(enum.Enum):
-    STATIC_PROFILE = "static_profile"  # 静态个人信息
+    STATIC_PROFILE = "static_profile"  # 长期稳定信息
     CHAT_LOG = "chat_log"  # 聊天记录
-    INTERACTION_SIGNAL = "interaction_signal"  # 交互信号
-    DERIVED_INSIGHT = "derived_insight"  # 其他上下文派生
-    STAGE_EVENT = "stage_event"  # 阶段事件
+    INTERACTION_SIGNAL = "interaction_signal"  # 互动信号
+    DERIVED_INSIGHT = "derived_insight"  # 推断/洞察
+    STAGE_EVENT = "stage_event"  # 阶段性事件
     SYSTEM_ANALYSIS = "system_analysis"  # 系统推理分析
 
 
