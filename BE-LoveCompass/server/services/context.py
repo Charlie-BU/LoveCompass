@@ -1,11 +1,37 @@
 import os
+import json
 from datetime import datetime, timezone
 from typing import Any
 from sqlalchemy.orm import Session
 from langchain_openai import OpenAIEmbeddings
 
-from database.models import Context, ContextEmbedding, RelationChain
+from database.models import Context, ContextEmbedding, RelationChain, Knowledge
 from database.enums import parse_enum, ContextType, ContextSource
+
+
+def contextAddKnowledge(
+    db: Session,
+    content: str,
+    weight: float,
+) -> dict:
+    try:
+        json_content = json.loads(content)
+        if not isinstance(json_content, dict):
+            json_content = {"content": json_content}
+    except json.JSONDecodeError:
+        json_content = {"text": content}
+
+    # todo：sumary
+
+    knowledge = Knowledge(
+        content=json_content,
+        weight=weight,
+    )
+    db.add(knowledge)
+    db.commit()
+    db.refresh(knowledge)
+
+    return knowledge.toJson()
 
 
 def _get_embedding_config():

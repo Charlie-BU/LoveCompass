@@ -4,7 +4,7 @@ from robyn.authentication import BearerGetter
 
 from ..authentication import AuthHandler
 from database.database import session
-from ..services.context import contextCreateWithEmbedding
+from ..services.context import contextAddKnowledge, contextCreateWithEmbedding
 
 contextRouter = SubRouter(__file__, prefix="/context")
 
@@ -17,6 +17,20 @@ def handle_exception(error):
 
 # 鉴权中间件
 contextRouter.configure_authentication(AuthHandler(token_getter=BearerGetter()))
+
+
+@contextRouter.get("/addKnowledge", auth_required=True)
+async def addKnowledge(request: Request):
+    data = request.json()
+    content = data["content"]
+    weight = data.get("weight", "1.0")
+    with session() as db:
+        res = contextAddKnowledge(
+            db=db,
+            content=content,
+            weight=float(weight),
+        )
+    return res
 
 
 # todo: 建议按type拆分，不同类型上下文收集应当采用不同api
