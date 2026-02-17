@@ -5,7 +5,7 @@ from .subRouters.context import contextRouter
 from agent.index import wrap_chat
 
 
-async def register_routers(app, ReAct_agent):
+async def register_routers(app, ReActAgent):
     # 全局异常处理
     @app.exception
     def handle_exception(error):
@@ -15,4 +15,4 @@ async def register_routers(app, ReAct_agent):
     app.include_router(contextRouter)
     app.get("/ping")(lambda: "pong")
     # chat_completions
-    app.post("/api/v3/bots/chat/completions")(await wrap_chat(ReAct_agent))
+    app.post("/api/v3/bots/chat/completions")(await wrap_chat(ReActAgent))
