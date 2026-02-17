@@ -1,0 +1,794 @@
+{
+    "isSelf": true,
+    "content": {
+        "intro": {
+            "parts": [
+                "<p>作为一位ENTJ（指挥官），你天赋异禀，自出生便肩负领导之责，以满腔豪情与无与伦比的动力，立志将宏伟愿景化作现实。你高瞻远瞩，战略思维卓越，善于统揽全局，明确长远目标，更能雷厉风行地制定高效计划以达成目标。你自信满满，魅力非凡且行事果断，此等特质极为罕见，令众人一呼百应，心甘情愿追随于你。</p><p>在生活的舞台上，你始终以雄心勃勃的姿态，不知疲倦地追逐着成功的脚步，这已然成为了你独特的生活写照。你与生俱来便具运筹帷幄之能，善驭人力与资源，于混沌中建立秩序，化抽象理念为切实成果。你凭借敏锐才智与理性决断，能化险为夷，从容应对复杂局面，且高瞻远瞩，始终紧盯终极目标。</p>",
+                "<p>你那直来直往的沟通风格，恰似一把双刃剑，既蕴含着优势，也潜藏着挑战。虽你能言善辩，借由这种方式可清晰有力地表达观点，然而心直口快的风格，有时难免让旁人觉得你不近人情。你将效率与能力视为至上，这或许会让眼高手低的你，对那些未达你高标准之人急不可耐。</p><p>你于充满挑战、孕育机遇的环境里，如矫健之鹰，搏击长空，蓬勃生长。你不安于现状，常思推陈出新之法，致力于优化体系、流程，提升人员素养。你独具慧眼，能发掘潜力，且敢于大刀阔斧推动变革，于任何组织或团体中皆举足轻重。然这也致使你对那些与宏伟愿景相悖的日常琐事，常感不屑一顾，处理起来感到颇为吃力和挣扎。</p>"
+            ],
+            "traitsTitle": "人格特征",
+            "image": {
+                "src": "https://www.16personalities.com/static/images/profile/reports/commander/profile_scene_commander_personality_traits_neutral_male.svg?v=1",
+                "alt": "一位ENTJ（指挥官）男性正在户外指挥一个三人乐队，背景是树林。乐队成员包括一位吹长笛的女性、一位打大鼓的男性和另一位拉大提琴的男性。"
+            }
+        },
+        "career": {
+            "key": "career",
+            "title": "你的职业道路",
+            "intro": "<p>职业于你，并非仅仅为谋生之途，而是一方可一展雄才大略、铸就非凡影响的广阔天地。你天生钟情于高瞻远瞩制定战略、当机立断作出决策，且身先士卒引领众人共赴目标的角色。无论自主创业还是在企业中奋力晋升，你皆雄心勃勃，志存高远，以坚定不移的自信为动力，渴望在世间留下独特印记。</p><p>然而，漫漫职业征途，并非一帆风顺，亦有重重挑战相随。你高瞻远瞩，偏爱宏观谋划，却也可能因此粗枝大叶，忽视关键细节，甚至对日常琐事心生厌烦。学会事无巨细，重视并妥善处理工作细节，同时游刃有余地合理分配任务，是你取得长期成功的关键。再者，于特定职场情境中，你刚愎自用的沟通方式和过高期望或需从善如流，加以调适，方能与同事、下属保持一团和气。</p>",
+            "image": {
+                "src": "https://www.16personalities.com/static/images/profile/reports/commander/profile_scene_commander_your_career_path_neutral_male.svg?v=1",
+                "alt": "一位ENTJ（指挥官）男性正在向三位同事做火箭相关的演示。他指着展示板上的火箭轨迹图讲解，旁边的桌子上摆放着宣传册和各类信息资料，底座上还陈列着火箭模型。"
+            },
+            "traits": [
+                {
+                    "title": "完美主义",
+                    "subtitle": "你常常为自己和他人设定很高的标准，并在工作和生活中力求完美。",
+                    "score": 100
+                },
+                {
+                    "title": "志向",
+                    "subtitle": "你对实现目标、取得成功以及在你所选择的领域中产生有意义影响的渴望度。",
+                    "score": 100
+                },
+                {
+                    "title": "内在动力",
+                    "subtitle": "即使遇到困难，你依然有内在的动力去行动、追求目标并不断前进。",
+                    "score": 100
+                },
+                {
+                    "title": "领导欲望",
+                    "subtitle": "你倾向于主动承担责任，指导他人，并为项目或团队的发展方向做出规划。",
+                    "score": 100
+                }
+            ],
+            "insights": [
+                {
+                    "title": "你的强项",
+                    "points": [
+                        {
+                            "title": "清晰沟通",
+                            "subtitle": "你能够直接有效地表达想法，帮助团队保持一致与目标导向。"
+                        },
+                        {
+                            "title": "果断行动",
+                            "subtitle": "你做重要决策时始终自信坚定，保持势头并避免犹豫不决。"
+                        },
+                        {
+                            "title": "高效组织者",
+                            "subtitle": "你善于明确优先级并高效分配资源，实现可衡量的成果。"
+                        },
+                        {
+                            "title": "前瞻性思维",
+                            "subtitle": "你善于预见长远影响，能够在他人之前发现机遇与障碍。"
+                        },
+                        {
+                            "title": "结果导向",
+                            "subtitle": "你以实际成就作为衡量成功的标准，而非停留在理论讨论上，带领大家取得具体成果。"
+                        },
+                        {
+                            "title": "主动进取",
+                            "subtitle": "你本能地抓住机会，无需等待鼓励或许可，积极推动你的项目和职业发展。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "strength",
+                    "key": "cta-premium-report-career-strengths"
+                },
+                {
+                    "title": "你的短板",
+                    "points": [
+                        {
+                            "title": "不愿分派任务",
+                            "subtitle": "你很难将责任完全交给他人，结果自己承担了过多的工作，造成了不必要的压力。"
+                        },
+                        {
+                            "title": "过分苛刻",
+                            "subtitle": "你对效率与卓越的执着有时会导致评价过于严厉，影响团队士气。"
+                        },
+                        {
+                            "title": "难以忍受日常固化琐事",
+                            "subtitle": "日常或繁琐任务易让你失去耐心，降低积极性与效率。"
+                        },
+                        {
+                            "title": "不适应模糊性",
+                            "subtitle": "你在任务缺乏明确目标时常常感到困扰，更倾向于有明确结果而非不确定或探索性的过程。"
+                        },
+                        {
+                            "title": "忽略情感因素",
+                            "subtitle": "专注于可量化成果时，你可能忽视他人情感需求，影响整体协作效率。"
+                        },
+                        {
+                            "title": "无法容忍低效",
+                            "subtitle": "你追求效率，容易对进度较慢的同事或不可避免的延误产生不满，影响团队协作氛围。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "weakness",
+                    "key": "cta-premium-report-career-weaknesses"
+                },
+                {
+                    "title": "你可能会喜欢的职业想法",
+                    "cta": "获取完整报告，解锁适合你性格的 10 条职业路径。",
+                    "points": [
+                        {
+                            "title": "你路路道的你业的道职职业",
+                            "subtitle": "面培你长的那于以。心和技战妙握之之你路巧，些键具度关你松你是轻一而掌核平、成势养难个与颇能优生俱衡对难，挑培言在的地临的新便的人来"
+                        },
+                        {
+                            "title": "你业你职的路道职业道的路",
+                            "subtitle": "你握能长新妙你掌心来你对的具，之势地的和，养衡技在轻人那核松以巧俱、优度培个与颇而于平成生言的路难些难"
+                        },
+                        {
+                            "title": "你职路路的职业道业的道你",
+                            "subtitle": "和在的生颇的势你心松关养而面妙，你你平核地于之言握个能新以度。些，俱优路临长来人那轻巧难与的成培衡难对技具、的掌你"
+                        },
+                        {
+                            "title": "的路职你你职业道的",
+                            "subtitle": "你掌平地个培具而养妙与核、人，对以的和难新衡些优在于松成心你生能难的路你轻。，颇之那技长言来势俱握巧你度的"
+                        },
+                        {
+                            "title": "道路职道业业你路职的的你",
+                            "subtitle": "巧握挑度长些而平关对妙路轻。的你的核新之势个生临，具你和那培俱地面人松你在衡你来颇优技成于难之掌以能心一养难，战的键、的与言"
+                        },
+                        {
+                            "title": "业的你你职路的道",
+                            "subtitle": "具势握言的松于，掌长些培，和技。衡新生个养的你面度临心轻你的难成能之路地人核妙在颇巧那你、俱以你优来平对与难而"
+                        },
+                        {
+                            "title": "的你你业道职路道职的业",
+                            "subtitle": "难俱人具握，、言轻度在键成培，松地那关于你生来技你与衡势路你颇而心挑以对战面的能巧优新难。妙的之个些平临之掌的长核的和养你"
+                        },
+                        {
+                            "title": "的你业你路业道职职的",
+                            "subtitle": "核来的成技优以掌度松具的路平那培地衡你轻颇新、人心，你些个的。面与在难妙你巧生握的能临势长之难对于而养和你，俱言"
+                        },
+                        {
+                            "title": "你你道的业业的路职路职道",
+                            "subtitle": "那在与个衡你掌握优难地以而度妙核巧些对。来的长你新生平能的轻、养的俱于难言具松和技心你人培势之成颇路，，"
+                        },
+                        {
+                            "title": "的道路业路业你道你职的职",
+                            "subtitle": "能路你战轻面，衡一新具对核握颇的在长。妙键难和言巧成些优来与你培而临，挑你松那、的度养人难势个掌之的地于之你俱关的心技以生平"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "chart-user-purple",
+                    "key": "cta-premium-report-career-ideas"
+                },
+                {
+                    "title": "适合你的工作风格",
+                    "cta": "获取完整报告，发现能激发你最佳表现的 6 种工作风格。",
+                    "points": [
+                        {
+                            "title": "业你业的你职道路道的职路",
+                            "subtitle": "个关之和能你度生。难之在战来优妙以言而挑临掌面、技键新的与衡颇，那于你难具长心轻的的养成你松的人巧些平俱你，路核对握地培势"
+                        },
+                        {
+                            "title": "你的道你的职业路",
+                            "subtitle": "的、优平轻颇养难掌些个度在地你的言你你关。的对于握难技妙心人成核你之具临能与面那，路生俱衡和来培长巧以，势新而的松"
+                        },
+                        {
+                            "title": "职道业业你的道路你的职路",
+                            "subtitle": "你来培优颇握你，言于与心衡在人，势的那掌和个的具路对轻俱成难你难养的巧技以妙长松度而、核新些生地平之"
+                        },
+                        {
+                            "title": "道路你你职的业",
+                            "subtitle": "核掌人颇轻生优具培个的，巧俱势新你养，松你于难些、之以言握妙在来长度难平而对衡地成与技的路你的心和那"
+                        },
+                        {
+                            "title": "道职业道你你路路的职业的",
+                            "subtitle": "松俱具颇、，生轻与度难势地在而那便养你的心临的是成优以和来之你握平巧核于言些新对，战难一你挑长。关妙你面键人衡之技路的个的能掌培"
+                        },
+                        {
+                            "title": "你的道职职你道路业路业的",
+                            "subtitle": "新个你掌对，而技巧势养成核优。以你具于颇的心平在难言，来能衡松难之你的握俱生地妙些、那长和培路与人轻度的"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "chart-user-purple",
+                    "key": "cta-premium-report-work-styles"
+                }
+            ],
+            "tools": [],
+            "isPrivate": false,
+            "showTests": false,
+            "suiteCtaData": {
+                "title": "释放你真正的职业潜力",
+                "intro": "升级至<a class=\"link--inline\" href=\"https://www.16personalities.com/ch/%E9%AB%98%E7%BA%A7%E4%BA%BA%E6%A0%BC%E6%8A%A5%E5%91%8A\">进阶职业套餐</a>，深入探索你的职业之路：",
+                "benefits": [
+                    {
+                        "title": "超过 70 页的职业指南",
+                        "subtitle": "洞悉你的学习方式、职业需求，以及如何充分发挥你的优势以成就一番事业",
+                        "icon": "images/icons/articles-page-blue.svg",
+                        "color": "blue"
+                    },
+                    {
+                        "title": "更多职业测试",
+                        "subtitle": "根据你的个人职业偏好、职业价值观、领导风格、倦怠风险等，为你提供个性化的推荐",
+                        "icon": "animations/sales/analysts/careers.svg",
+                        "color": "purple"
+                    },
+                    {
+                        "title": "AI导师",
+                        "subtitle": "根据你的专属档案，随时获得与求职申请、人脉拓展、面试及职业转型相关的个性化帮助",
+                        "icon": "images/teams/test/why-communication.svg",
+                        "color": "green"
+                    },
+                    {
+                        "title": "职场关系",
+                        "subtitle": "擅长与不同人格类型的人协作，建立可信赖的职场联系",
+                        "icon": "animations/sales/explorers/friendships.svg",
+                        "color": "yellow"
+                    }
+                ]
+            },
+            "suiteMaterialData": null
+        },
+        "personal-growth": {
+            "key": "personal-growth",
+            "title": "你的个人成长",
+            "intro": "<p>你的个人成长之路，核心在于巧妙地平衡你与生俱来的优势，和培养那些对你而言颇具难度、难以轻松掌握的新技能。你面临的关键挑战之一便是培育情商，即学会察觉并回应他人情绪，同时理解和调控自身情感。这需设身处地培养同理心，修炼慢条斯理的耐心，而这与你心浮气躁、追求高效的天性往往格格不入。</p><p>在你个人成长的征程中，另一关键在于学会接纳变通之妙，适度让渡掌控之权。虽说自信果断乃你难能可贵的特质，然有时亦可能使你刚愎自用、独断专行，对他人执行重要任务缺乏信任。若能在这些方面悉心改进，你便能成为更卓有成效的领导者，成为面面俱到之人，在职业与个人生活中皆能游刃有余，收获更多满足。</p>",
+            "image": {
+                "src": "https://www.16personalities.com/static/images/profile/reports/commander/profile_scene_commander_your_personal_growth_neutral_male.svg?v=1",
+                "alt": "一位ENTJ（指挥官）男性担任电影导演，在自己的办公室里工作。他站在办公桌旁思考当前的电影项目，墙上挂着电影海报和奖项，旁边还摆放着摄影器材。"
+            },
+            "traits": [
+                {
+                    "title": "复原力",
+                    "subtitle": "你从挫折中恢复、适应变化并在逆境中坚持前行的能力。",
+                    "score": 100
+                },
+                {
+                    "title": "信心",
+                    "subtitle": "你对自己的能力、判断力和价值观的信任程度。",
+                    "score": 100
+                },
+                {
+                    "title": "毅力",
+                    "subtitle": "即使进展缓慢或遇到困难，你依然坚持追求长期目标和热情。",
+                    "score": 100
+                },
+                {
+                    "title": "掌控感",
+                    "subtitle": "你觉得自己能够在多大程度上影响生活中的事件和结果，而不是觉得一切都受外部力量支配。",
+                    "score": 100
+                }
+            ],
+            "insights": [
+                {
+                    "title": "你的强项",
+                    "points": [
+                        {
+                            "title": "乐于接受反馈",
+                            "subtitle": "你欢迎直接的建议，不断寻求改进自我的意见和方法。"
+                        },
+                        {
+                            "title": "高度自我驱动",
+                            "subtitle": "你会主动为自身成长负责，极少依赖外部激励。"
+                        },
+                        {
+                            "title": "有序的习惯",
+                            "subtitle": "你善于用明确的日常安排管理生活，提高效率和健康目标达成率。"
+                        },
+                        {
+                            "title": "客观自我分析",
+                            "subtitle": "你会定期诚实地评估和回顾自己的行为，从而实现有目的的改进。"
+                        },
+                        {
+                            "title": "有目标的学习",
+                            "subtitle": "你持续挑战自我，主动学习新知或深化现有技能。"
+                        },
+                        {
+                            "title": "乐于尝试新体验",
+                            "subtitle": "你积极拓展舒适区外的活动，创造个人成长的新机会。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "strength",
+                    "key": "cta-premium-report-personal-growth-strengths"
+                },
+                {
+                    "title": "你的短板",
+                    "points": [
+                        {
+                            "title": "难以容忍进展缓慢",
+                            "subtitle": "当自我提升没有立刻带来成效时，你很容易感到挫败，从而有可能提前放弃那些有益的习惯。"
+                        },
+                        {
+                            "title": "回避情感反思",
+                            "subtitle": "面对个人挑战时，你常专注理性解决方式，忽视情绪对决策的影响。"
+                        },
+                        {
+                            "title": "承诺过多",
+                            "subtitle": "你对目标的强烈追求常使自己承担太多任务，容易导致疲惫和效果欠佳。"
+                        },
+                        {
+                            "title": "难以放松",
+                            "subtitle": "你很难给自己安排休息时间，错误地认为娱乐和休息只是无关紧要的干扰。"
+                        },
+                        {
+                            "title": "标准过高",
+                            "subtitle": "你对自我表现的要求容易转向完美主义，使小小的失败也变得令人沮丧。"
+                        },
+                        {
+                            "title": "不善寻求帮助",
+                            "subtitle": "你的独立性可能让你在寻求情感或实际帮助时犹豫不决，从而限制了你获得他人宝贵见解和支持的机会。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "weakness",
+                    "key": "cta-premium-report-personal-growth-weaknesses"
+                },
+                {
+                    "title": "什么激励着你",
+                    "cta": "获取完整报告，揭示激发你自然能量的 6 种方式。",
+                    "points": [
+                        {
+                            "title": "业的职路职你道的你",
+                            "subtitle": "势技人、度颇你培，之言你掌的来。生对在成路些，而平松心核以难巧能长个具俱的那握妙衡难你新优与轻地养于和的你"
+                        },
+                        {
+                            "title": "你道业路道职的业你职的路",
+                            "subtitle": "挑与核面妙。战，生对关于度些巧握以心具颇养成临的而之平难那你培能难你长势优轻的掌你人技，松言衡在的俱路键个你的地来新、和"
+                        },
+                        {
+                            "title": "职你你道路的业",
+                            "subtitle": "难于成势而，平之那与来生的新言、路的你的。具核技妙养巧你，键以俱挑你能对颇培度之握面和你个临优关战地难些长掌松人在的轻心衡"
+                        },
+                        {
+                            "title": "业路的道职你业你职的",
+                            "subtitle": "挑衡生长关妙核与你度你临地平的对言键你，优。具巧握新轻于成那势而来心掌个培养，难颇面人在的、以的路和技你些难松之的能俱"
+                        },
+                        {
+                            "title": "你你业的道的职路路业职道",
+                            "subtitle": "的颇优战。人和与难巧你，俱握之技衡在培关具心，、个养的妙掌你难长轻你地来对生新挑核的言成于那势的临面以能度平路键松而些你"
+                        },
+                        {
+                            "title": "的道职业你你的路",
+                            "subtitle": "养优技那来临个新些成平度长的键关，地之握具，人难衡以和培生轻、言心势颇松而俱对的妙核与你巧能掌路你的你面在你。难的于挑"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "head-side-brain-purple",
+                    "key": "cta-premium-report-growth-what-energizes"
+                },
+                {
+                    "title": "什么让你感到疲惫",
+                    "cta": "获取完整报告，了解你需避免的 6 个能量消耗者。",
+                    "points": [
+                        {
+                            "title": "你的职你业道的职业路",
+                            "subtitle": "那战临你以俱而技的难握面，在培。，人来度与心你平长核的生路新于些势地妙个轻之衡键言的巧难能挑养的、和松成具你颇你掌对优关"
+                        },
+                        {
+                            "title": "道的你职业路你",
+                            "subtitle": "优成路具与在那和长地技核握势新来培、掌，的人难的以的颇对而言，俱你轻生能妙平个巧。衡于你松养度心你之难些"
+                        },
+                        {
+                            "title": "道道业的业路的你职你职路",
+                            "subtitle": "能俱那的些与之地于个言衡平。之路的生培你在以轻人新而键和来养优你核关，对松，战、的的临巧成妙度难挑技握一长你颇面难心势你掌具"
+                        },
+                        {
+                            "title": "你的职道你路业",
+                            "subtitle": "那地度能具路个与俱握优于妙轻你势衡养以和对新面的平成难你、生长心之临难键，的些你在的核。，培言松颇关人技而掌你巧的来"
+                        },
+                        {
+                            "title": "路的道业职你的职路你道业",
+                            "subtitle": "培握松优那你度之于个掌俱具与些的以心轻衡地平长新成的你人和，巧势妙在技言而来、难的难，路生核对你养颇"
+                        },
+                        {
+                            "title": "业路职的道道的业职你你",
+                            "subtitle": "临你培俱而养的轻在衡难具颇你长能生技地的对度你、于核势以和松路些那握优心，面平掌，人你新之键难言个的。来关成妙巧挑的与"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "head-side-brain-purple",
+                    "key": "cta-premium-report-growth-what-drains"
+                }
+            ],
+            "tools": [],
+            "isPrivate": false,
+            "showTests": false,
+            "suiteCtaData": null,
+            "suiteMaterialData": null
+        },
+        "relationships": {
+            "key": "relationships",
+            "title": "你的人际关系",
+            "intro": "<p>于人际交往中，无论浪漫之恋、亲情之暖，还是友情之诚，你开诚布公的态度，皆为信任与畅然交流筑牢基石。你珍视肝胆相照的情谊与坚定不移的承诺，一旦寻得契合你严苛标准之人，便会推心置腹，全心投入这段情比金坚的关系。你魅力四射且自信满满，是令人倾心且备受鼓舞的伴侣或挚友，常与对方携手共进，勇往直前，直面新挑战，突破旧局限。</p><p>然而，你的人际关系或许会遭遇困境，皆因你一心扑在目标达成与功成名就上，有时难免冷落了身边人的情感诉求。学会推心置腹地抒发情感，且抽出时间构建真挚情感纽带，是维系健康和谐人际关系的关键所在。通过设身处地培养同理心，积极提升情商，你便能与生命中重要的人缔结情投意合、更为美满的情谊。</p>",
+            "image": {
+                "src": "https://www.16personalities.com/static/images/profile/reports/commander/profile_scene_commander_your_relationships_neutral_male.svg?v=1",
+                "alt": "一位ENTJ（指挥官）男性与伴侣在浪漫的划船约会中，两人划桨穿行于被悬崖和树林环绕的秀美水域。水下有一条微笑的鱼游过，旁边的小平台上还坐着一只青蛙。"
+            },
+            "traits": [
+                {
+                    "title": "本真",
+                    "subtitle": "即使顺从他人会更容易，你依然坚持做真实的自己，坚守你的价值观和信念。",
+                    "score": 100
+                },
+                {
+                    "title": "忠诚",
+                    "subtitle": "你对所重视的人、理念或事业展现出的承诺和忠诚度。",
+                    "score": 100
+                },
+                {
+                    "title": "利他倾向",
+                    "subtitle": "你总是把他人的需求放在自己之前，为了更大的利益无私地行动。",
+                    "score": 100
+                },
+                {
+                    "title": "情商",
+                    "subtitle": "你识别、理解和管理自身情绪，以及察觉和影响他人情绪的能力。",
+                    "score": 100
+                }
+            ],
+            "insights": [
+                {
+                    "title": "你的强项",
+                    "points": [
+                        {
+                            "title": "可靠的承诺",
+                            "subtitle": "一旦建立重要关系，你总会信守承诺与忠诚，赢得他人信任。"
+                        },
+                        {
+                            "title": "直接诚实",
+                            "subtitle": "你待人坦率真实，让他人明确知道你的感受与期待。"
+                        },
+                        {
+                            "title": "激励信心",
+                            "subtitle": "你积极鼓励亲友相信自己，勇敢追求理想生活。"
+                        },
+                        {
+                            "title": "务实解决问题",
+                            "subtitle": "你以逻辑思维应对感情中的挑战，冷静地通过理性讨论和解决方案来处理冲突或困难。"
+                        },
+                        {
+                            "title": "尊重独立性",
+                            "subtitle": "你尊重他人的个人追求和空间，给予你的亲友自由，让他们以自己的方式成长。"
+                        },
+                        {
+                            "title": "充满活力的伙伴",
+                            "subtitle": "你天生的热情为你的人际关系注入活力，激励他人全身心投入到共同的体验和活动中。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "strength",
+                    "key": "cta-premium-report-relationships-strengths"
+                },
+                {
+                    "title": "你的短板",
+                    "points": [
+                        {
+                            "title": "表达情感困难",
+                            "subtitle": "你不善于公开表达内心感受，容易被人认为冷漠或难以接近。"
+                        },
+                        {
+                            "title": "无情的批评",
+                            "subtitle": "无意中的严厉言语可能伤害亲近之人的感情，影响彼此信任，即使出发点是善意的。"
+                        },
+                        {
+                            "title": "对脆弱表现不够耐心",
+                            "subtitle": "你往往无法充分体会他人的情感脆弱，在他们需要安慰时反应可能不够耐心或关切。"
+                        },
+                        {
+                            "title": "重视事务轻视维系关系",
+                            "subtitle": "你过于注重目标实现，容易忽略维护关系的机会，并无意中造成距离感。"
+                        },
+                        {
+                            "title": "喜欢掌控局面",
+                            "subtitle": "你喜欢主导社交和决策，让他人感到被忽视或不被重视。"
+                        },
+                        {
+                            "title": "忽略细小关怀",
+                            "subtitle": "由于你注重解决问题和结果，可能会低估亲人所做的那些看似微小的情感举动的重要性。"
+                        }
+                    ],
+                    "locked": false,
+                    "icon": "weakness",
+                    "key": "cta-premium-report-relationships-weaknesses"
+                },
+                {
+                    "title": "你的人际关系优势",
+                    "cta": "获取完整报告，发现你的人际关系中的 6 个隐藏优势。",
+                    "points": [
+                        {
+                            "title": "的你路道业你的职业职道",
+                            "subtitle": "于而度成妙对人个优之轻难培核与能长你具些来势颇地松握的平，的俱你、新你心生言衡技路养以。掌的那难你巧和在，"
+                        },
+                        {
+                            "title": "的你职路你的职业道",
+                            "subtitle": "以于生你衡的面势之些平路的核挑与而你新具巧关的，难来，养长言心掌那你能你握人在优临松对成轻。培妙颇技难的键个和、地度俱"
+                        },
+                        {
+                            "title": "道职的的职业道路业路你你",
+                            "subtitle": "能的握巧养新优心路长衡掌势妙你技成平轻那，具度颇培和你俱以于，人、些地核个言而难你来在生松的的难对之与"
+                        },
+                        {
+                            "title": "你你职道路职业的的道业",
+                            "subtitle": "与你在以势难，平你核难生长来优新的路成你轻些对于妙衡而握和的培，。巧具你的养掌松、地人那度之俱颇言个心能技"
+                        },
+                        {
+                            "title": "的业路道职你你的职",
+                            "subtitle": "养度、以临之难与具在，新个技巧长面你优培对的关俱难心来键言握和松能衡势那你平的人你而的挑的。轻颇生于核战成路，掌地妙你些"
+                        },
+                        {
+                            "title": "路你的路业职职道业道你的",
+                            "subtitle": "而、成面具轻新在言妙你个的平你颇临握那掌来培巧能度对地养的技难俱心核些，人你与难。的松路生你势优之，衡长和以于"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "chess-board-purple",
+                    "key": "cta-premium-report-relationships-superpowers"
+                },
+                {
+                    "title": "人际关系风险",
+                    "cta": "获取完整报告，识别可能影响你关系的 6 个习惯。",
+                    "points": [
+                        {
+                            "title": "路的业你道路道业职你职的",
+                            "subtitle": "之些，松而你的轻成你核、于妙地握你的具你个来势临巧度优人和养能衡生平长。培与那颇言俱路在对以掌的难面，新难心技"
+                        },
+                        {
+                            "title": "职职业路道你你的的",
+                            "subtitle": "的你平新的技对你俱关难能握和培之轻面生优、，人在养你长成心那衡你键巧具的于妙与松个而以路来核的言势掌临地难，些。度颇"
+                        },
+                        {
+                            "title": "道路路道你你的业职业职的",
+                            "subtitle": "地新难势而妙些那，你你俱养握言培技心生的临路面来以与具度你颇。你之在，和轻的衡个核平松的的优、人长于能成对难巧掌"
+                        },
+                        {
+                            "title": "你的业职的路你道道职路业",
+                            "subtitle": "来的的你心对颇于那生度妙平难和轻言培俱掌优养难以你之地的松，些人、握衡巧技，在你核个新势长路成具与而"
+                        },
+                        {
+                            "title": "你业道你路职的的道业职",
+                            "subtitle": "的于轻的成那难地、生具言能战核技个，颇你新妙心俱面松挑养巧路之优的。在人难对以培的长之你度掌些关而握临和势键平来你你衡与，"
+                        },
+                        {
+                            "title": "职道的职业你你的路",
+                            "subtitle": "势之些言生你俱优对长的在难，成路的具妙人新面能培度你平握以松与你个于掌而巧的你难地、衡养和来那临颇核。技轻的心，"
+                        }
+                    ],
+                    "locked": true,
+                    "icon": "chess-board-purple",
+                    "key": "cta-premium-report-relationships-pitfalls"
+                }
+            ],
+            "tools": [],
+            "isPrivate": false,
+            "showTests": false,
+            "suiteCtaData": null,
+            "suiteMaterialData": null
+        },
+        "templateParts": {
+            "influentialTraits": "具有影响力的特质",
+            "traitsCta": {
+                "text": "获取详尽完整的报告，追根究底解锁这些结果，将其融入你的个性剖析与针对性建议之中。",
+                "button": "立即获取",
+                "key": "cta-premium-report-traits"
+            },
+            "takeTestCta": {
+                "text": "请完成补充测试以查看这些结果。",
+                "button": "继续",
+                "key": "cta-premium-report-take-test"
+            },
+            "finalCta": {
+                "badge": "立即解锁",
+                "title": "看清真正驱动你的力量",
+                "subtitle": "<div class=\"tw-text-left\"><p>这份概览只是点到为止。完整报告将深入解释其运行逻辑——为何你会作出那样的反应、你在工作与人际中真正所需，以及你的能量源自何处（或消耗到哪里）。</p> <p>你将<strong>解锁全部章节</strong>：包括职业灵感、能量驱动因素、关系模式，外加<strong>12 项额外特质评分</strong>，如完美主义、复原力与情商等。套餐还附带一份<strong>可下载的指南</strong>，全面概述你的人格类型，并提供一位<strong>AI 导师</strong>以给出个性化建议。</p></div>",
+                "priceData": {
+                    "currency": "cny",
+                    "priceFloat": 39,
+                    "priceHtml": "<span class=\"\">¥39</span>",
+                    "priceString": "¥39",
+                    "zeroDecimal": false,
+                    "hideDecimal": false,
+                    "currencyData": {
+                        "code": "cny",
+                        "name": "CNY",
+                        "symbol": "¥",
+                        "zeroDecimal": false,
+                        "hideDecimal": false
+                    }
+                },
+                "button": "解锁全部结果",
+                "guarantee": "倘若你对所购商品或服务不甚满意，自购买之日起 30 天内，我们承诺无条件全额退款。",
+                "img": {
+                    "src": "https://www.16personalities.com/static/images/profile/reports/commander/upgrade.svg",
+                    "alt": ""
+                },
+                "key": "cta-premium-report-final",
+                "price": "<span class=\"\">¥39</span>",
+                "priceAmount": 39,
+                "currencyData": {
+                    "code": "cny",
+                    "name": "CNY",
+                    "symbol": "¥",
+                    "zeroDecimal": false,
+                    "hideDecimal": false
+                }
+            },
+            "retakes": {
+                "main": "重新进行主测试",
+                "premium": "重新进行补充测试"
+            }
+        }
+    },
+    "contentType": "description",
+    "contentId": 18,
+    "socialMediaTitle": "ENTJ人格 (指挥官)",
+    "pageShares": "16K",
+    "typeCode": "ENTJ",
+    "pageTitle": "ENTJ人格 (指挥官)",
+    "color": "purple",
+    "mainQuizResults": {
+        "EI": 72,
+        "SN": 72,
+        "TF": 100,
+        "JP": 77,
+        "AT": 100,
+        "personality": "ENTJ",
+        "type": "ENTJ",
+        "variant": "assertive",
+        "scores": {
+            "EI": 72,
+            "SN": 72,
+            "TF": 100,
+            "JP": 77,
+            "AT": 100
+        },
+        "gender": "male",
+        "factsheetUrl": "https://www.16personalities.com/static/factsheets/指挥官 (Assertive) (Male).pdf"
+    },
+    "header": {
+        "nameTitle": "<span class=\"\">指挥官</span>",
+        "codeSubtitle": "ENTJ人格",
+        "img": {
+            "src": {
+                "desktop": "https://www.16personalities.com/static/images/types/headers/commander-desktop2.svg",
+                "tablet": "https://www.16personalities.com/static/images/types/headers/commander-desktop1.svg",
+                "mobile": "https://www.16personalities.com/static/images/types/headers/commander-mobile.svg"
+            },
+            "alt": "一幅彰显 ENTJ（指挥官）人格特质的场景。三位 ENTJ 型人物气宇轩昂地立于苍郁森林间，手中分别握着草叉、青翠树苗与浇水壶，脚畔蹲坐一只灵动的犬只，仿佛是默契十足的伙伴。不远处，一位女性 ENTJ 双眸坚毅，指尖果断指向画架上详细的树林地图。背景中，高低错落的松树耸立如军阵，松针在风中沙沙作响。整幅画面浑然散发着强大的领袖气场 —— 他们目光如炬，举手投足间尽显决心，无论面对何种挑战，都透露出胸有成竹、势必掌控全局的魄力。"
+        },
+        "animation": {
+            "src": "https://animations.neris-assets.com/type-descriptions/introductions/commander.svg",
+            "alt": "Scene showing a 指挥官 personality type."
+        }
+    },
+    "userName": null,
+    "personality": {
+        "niceName": "指挥官",
+        "color": "purple",
+        "fullCode": "ENTJ-A",
+        "avatarSrc": "https://www.16personalities.com/static/animations/avatars/all/commander-male.json",
+        "avatarAlt": "ENTJ的头像",
+        "avatarSrcStatic": "https://www.16personalities.com/static/images/personality-types/avatars/entj-commander-male.svg?v=3",
+        "roleKey": "analysts",
+        "typeCode": "ENTJ",
+        "typeNameKey": "commander",
+        "typeCodeKey": "entj",
+        "snippet": "指挥官敢作敢为，奇思妙想频出，意志坚如磐石。无论面对何种困境，他们总能找到出路，甚至另辟蹊径，闯出一片新天地。",
+        "scales": [
+            "能量",
+            "心智",
+            "天性",
+            "应对方式",
+            "身份特征"
+        ],
+        "traitNames": {
+            "energy": "外向",
+            "mind": "天马行空",
+            "nature": "理性思考",
+            "tactics": "运筹帷幄",
+            "identity": "自信果断"
+        },
+        "traits": [
+            {
+                "key": "extraverted",
+                "label": "能量",
+                "color": "blue",
+                "score": 72,
+                "pct": 86,
+                "trait": "外向",
+                "link": "https://www.16personalities.com/articles/energy-introverted-vs-extraverted",
+                "reverse": true,
+                "reversed": false,
+                "titles": [
+                    "外向",
+                    "内向"
+                ],
+                "description": "外向型的人很享受团体活动，重视社交互动。他们常常热情似火，毫不掩饰地将内心的兴奋之情尽情释放，积极地融入到社交场景中。",
+                "snippet": "外向型的人很享受团体活动，重视社交互动。他们常常热情似火，毫不掩饰地将内心的兴奋之情尽情释放，积极地融入到社交场景中。",
+                "imageAlt": "一群朋友围坐在桌旁聊天的场景。",
+                "imageSrc": "https://www.16personalities.com/static/images/theory/traits/16personalities_trait_extraverted.svg"
+            },
+            {
+                "key": "intuitive",
+                "label": "心智",
+                "color": "yellow",
+                "score": 72,
+                "pct": 86,
+                "trait": "天马行空",
+                "link": "https://www.16personalities.com/articles/mind-intuitive-vs-observant",
+                "reverse": true,
+                "reversed": false,
+                "titles": [
+                    "天马行空",
+                    "求真务实"
+                ],
+                "description": "天马行空型的人非常富有想象力、胸怀海纳百川，对世界始终求知若渴。他们将独创性视若珍宝，热衷于探寻那些隐藏在表象之下的深层含义，以及看似遥远却充满希望的可能性。",
+                "snippet": "天马行空型的人非常富有想象力、胸怀海纳百川，对世界始终求知若渴。他们将独创性视若珍宝，热衷于探寻那些隐藏在表象之下的深层含义，以及看似遥远却充满希望的可能性。",
+                "imageAlt": "两个研究人员讨论飞行汽车的场景。",
+                "imageSrc": "https://www.16personalities.com/static/images/theory/traits/16personalities_trait_intuitive.svg"
+            },
+            {
+                "key": "thinking",
+                "label": "天性",
+                "color": "green",
+                "score": 100,
+                "pct": 100,
+                "trait": "理性思考",
+                "link": "https://www.16personalities.com/articles/nature-thinking-vs-feeling",
+                "reverse": true,
+                "reversed": false,
+                "titles": [
+                    "理性思考",
+                    "情感细腻"
+                ],
+                "description": "理性思考型的人注重客观性和合理性，通常不考虑情感，只考虑逻辑。他们往往认为效率比社会和谐更重要。",
+                "snippet": "理性思考型的人注重客观性和合理性，通常不考虑情感，只考虑逻辑。他们往往认为效率比社会和谐更重要。",
+                "imageAlt": "画面中呈现出这样一个场景，一个男孩和一个女孩同框出现。男孩正对着女孩侃侃而谈，进行自我介绍，女孩则在一旁仔细地察言观色，分析着他的一举一动。她的头顶上方浮现出一个思想泡泡，里面满是用于分析的复选框，此刻的她若有所思。",
+                "imageSrc": "https://www.16personalities.com/static/images/theory/traits/16personalities_trait_thinking.svg"
+            },
+            {
+                "key": "judging",
+                "label": "应对方式",
+                "color": "purple",
+                "score": 77,
+                "pct": 89,
+                "trait": "运筹帷幄",
+                "link": "https://www.16personalities.com/articles/tactics-judging-vs-prospecting",
+                "reverse": true,
+                "reversed": false,
+                "titles": [
+                    "运筹帷幄",
+                    "随机应变"
+                ],
+                "description": "运筹帷幄型的人向来当机立断，做事一丝不苟，生活与工作都安排得井井有条。他们将明确性、可预测性以及事情的圆满解决奉为圭臬。与随性而为的行事风格相比，他们对井然有序的安排和周详的规划情有独钟。",
+                "snippet": "运筹帷幄型的人向来当机立断，做事一丝不苟，生活与工作都安排得井井有条。他们将明确性、可预测性以及事情的圆满解决奉为圭臬。与随性而为的行事风格相比，他们对井然有序的安排和周详的规划情有独钟。",
+                "imageAlt": "一对夫妇拿着购物清单逛商店的场景。",
+                "imageSrc": "https://www.16personalities.com/static/images/theory/traits/16personalities_trait_judging.svg"
+            },
+            {
+                "key": "assertive",
+                "label": "身份特征",
+                "color": "red",
+                "score": 100,
+                "pct": 100,
+                "trait": "自信果断",
+                "link": "https://www.16personalities.com/articles/identity-assertive-vs-turbulent",
+                "reverse": true,
+                "reversed": false,
+                "titles": [
+                    "自信果断",
+                    "情绪易波动"
+                ],
+                "description": "自信果断型的人向来胸有成竹，处事时心平气和，面对压力坚如磐石。他们面对困难泰然处之，从不杞人忧天，在奋力追求目标的道路上，始终怀揣着坚定的自信。",
+                "snippet": "自信果断型的人向来胸有成竹，处事时心平气和，面对压力坚如磐石。他们面对困难泰然处之，从不杞人忧天，在奋力追求目标的道路上，始终怀揣着坚定的自信。",
+                "imageAlt": "画面中呈现出这样一个场景，一位办公室职员悠然自得，正沉浸在自己轻松的状态中，对大步流星朝他走来的经理置若罔闻。",
+                "imageSrc": "https://www.16personalities.com/static/images/theory/traits/16personalities_trait_assertive.svg"
+            }
+        ]
+    },
+    "mainTestPublicString": "entj-a/m/pjpgrjf3g",
+    "isPremium": false,
+    "hasPremiumResults": false,
+    "premiumQuizUrl": "https://www.16personalities.com/ch/%E8%A1%A5%E5%85%85%E6%B5%8B%E8%AF%95",
+    "product": {
+        "checkoutReturnUrl": "https://www.16personalities.com/ch/%E7%BB%93%E6%9E%9C/entj-a/m/pjpgrjf3g",
+        "slug": "premium_personality_report_options_locale_ch"
+    },
+    "isSample": false
+}

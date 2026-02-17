@@ -1,3 +1,4 @@
+import json
 from robyn import SubRouter
 from robyn.robyn import Request, Response
 from robyn.authentication import BearerGetter
@@ -19,15 +20,15 @@ def handle_exception(error):
 contextRouter.configure_authentication(AuthHandler(token_getter=BearerGetter()))
 
 
-@contextRouter.get("/addKnowledge", auth_required=True)
+@contextRouter.post("/addKnowledge", auth_required=True)
 async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
     weight = data.get("weight", "1.0")
     with session() as db:
-        res = contextAddKnowledge(
+        res = await contextAddKnowledge(
             db=db,
-            content=content,
+            content=json.dumps(content) if isinstance(content, dict) else content,
             weight=float(weight),
         )
     return res

@@ -1,3 +1,4 @@
+import os
 from robyn.robyn import Request, Identity
 from robyn.authentication import AuthenticationHandler
 
@@ -11,6 +12,10 @@ API_PERMISSION_MAP = {}
 
 class AuthHandler(AuthenticationHandler):
     def authenticate(self, request: Request):
+        # dev环境下，鉴权豁免
+        if os.getenv("CURRENT_ENV") == "dev":
+            with session() as db:
+                return Identity(claims={"user": f"{ userGetUserById(db, 1)['user'] }"})
         token = self.token_getter.get_token(request)
         try:
             payload = decodeAccessToken(token or "")

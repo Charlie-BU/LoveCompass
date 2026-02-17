@@ -5,33 +5,38 @@ from typing import Any
 from sqlalchemy.orm import Session
 from langchain_openai import OpenAIEmbeddings
 
+from .ai import summarize_context
 from database.models import Context, ContextEmbedding, RelationChain, Knowledge
 from database.enums import parse_enum, ContextType, ContextSource
 
 
-def contextAddKnowledge(
+async def contextAddKnowledge(
     db: Session,
     content: str,
     weight: float,
 ) -> dict:
+    if weight < 0 or weight > 1:
+        return {"status": -1, "message": "Weight must be between 0 and 1"}
     try:
         json_content = json.loads(content)
         if not isinstance(json_content, dict):
             json_content = {"content": json_content}
     except json.JSONDecodeError:
         json_content = {"text": content}
-
-    # todo：sumary
+    summary = await summarize_context(json.dumps(json_content), "knowledge")
 
     knowledge = Knowledge(
         content=json_content,
         weight=weight,
+        summary=summary,
     )
     db.add(knowledge)
     db.commit()
-    db.refresh(knowledge)
-
-    return knowledge.toJson()
+    return {
+        "status": 200,
+        "message": "Knowledge added",
+        "knowledge": knowledge.toJson(),
+    }
 
 
 def _get_embedding_config():

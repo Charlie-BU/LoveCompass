@@ -8,7 +8,7 @@
 
 - 性能优化 (Performance) ：
     - LLM 初始化昂贵 ： prepare_llm() 会初始化 ChatOpenAI 客户端，这通常涉及连接池的建立。频繁创建销毁会增加延迟。
-    - 图编译开销 ： create_agent_graph 涉及 LangGraph 的图编译过程（包括状态定义的校验），这是一个计算密集型操作。单例模式只需在启动时执行一次。
+    - 图编译开销 ： create_agent 涉及 LangGraph 的图编译过程（包括状态定义的校验），这是一个计算密集型操作。单例模式只需在启动时执行一次。
 
 - 并发安全 (Thread Safety) ：
     - LangGraph 的 CompiledStateGraph 本身是不可变的（Immutable）。
