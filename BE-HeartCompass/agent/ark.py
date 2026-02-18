@@ -1,6 +1,6 @@
 import os
 from functools import lru_cache
-from volcenginesdkarkruntime import Ark
+from volcenginesdkarkruntime import AsyncArk
 
 
 # 全局单例
@@ -12,7 +12,7 @@ def ark_client():
         embedding_endpoint_id and api_key
     ), "required 'EMBEDDING_ENDPOINT_ID' and 'ENDPOINT_API_KEY' for AI Agent!!!"
 
-    client = Ark(
+    client = AsyncArk(
         api_key=api_key,
     )
     return client

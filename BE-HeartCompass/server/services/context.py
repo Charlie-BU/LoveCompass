@@ -53,7 +53,7 @@ def _build_embedding_text(
     return "\n".join(parts)
 
 
-def _create_or_update_embedding(
+async def _create_or_update_embedding(
     db: Session,
     from_where: Literal["knowledge", "context"],
     context: Context = None,
@@ -86,7 +86,7 @@ def _create_or_update_embedding(
     )
     # 2. 生成向量
     try:
-        vector = vectorize_text(text)
+        vector = await vectorize_text(text)
     except Exception as e:
         return {"status": -2, "message": f"Embedding generation failed: {str(e)}"}
 
@@ -122,6 +122,9 @@ def _create_or_update_embedding(
     }
 
 
+# def 
+
+
 async def contextAddKnowledge(
     db: Session,
     content: str,
@@ -152,7 +155,7 @@ async def contextAddKnowledge(
         "message": "Embedding not created",
     }
     if with_embedding:
-        embedding_result = _create_or_update_embedding(
+        embedding_result = await _create_or_update_embedding(
             db, from_where="knowledge", knowledge=knowledge
         )
 
@@ -164,7 +167,7 @@ async def contextAddKnowledge(
     }
 
 
-def contextCreateContext(
+async def contextCreateContext(
     db: Session,
     relation_chain_id: int,
     type: str,
@@ -207,7 +210,7 @@ def contextCreateContext(
         "message": "Embedding not created",
     }
     if with_embedding:
-        embedding_result = _create_or_update_embedding(
+        embedding_result = await _create_or_update_embedding(
             db, from_where="context", context=context
         )
 

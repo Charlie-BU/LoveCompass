@@ -172,8 +172,8 @@ async def ask_with_no_context(prompt: str, ReActAgent: CompiledStateGraph) -> st
 
 # 注意⚠️：多模态向量化能力模型不支持 OpenAI API，使用Ark SDK调用
 # 向量化文本
-def vectorize_text(text: str) -> list[float]:
-    resp = _ark_client.multimodal_embeddings.create(
+async def vectorize_text(text: str) -> list[float]:
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=[
             {"type": "text", "text": text},
@@ -184,8 +184,8 @@ def vectorize_text(text: str) -> list[float]:
 
 
 # 向量化图片
-def vectorize_image(image_url: str) -> list[float]:
-    resp = _ark_client.multimodal_embeddings.create(
+async def vectorize_image(image_url: str) -> list[float]:
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=[
             {
@@ -199,11 +199,11 @@ def vectorize_image(image_url: str) -> list[float]:
 
 
 # 向量化混合输入
-def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
+async def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
     input_list = [{"type": "text", "text": t} for t in text] + [
         {"type": "image_url", "image_url": {"url": u}} for u in image_url
     ]
-    resp = _ark_client.multimodal_embeddings.create(
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=input_list,
         dimensions=1024,

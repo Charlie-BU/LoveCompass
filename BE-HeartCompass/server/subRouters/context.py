@@ -50,7 +50,7 @@ async def createContext(request: Request):
     confidence = data.get("confidence", "1.0")
     with_embedding = data["with_embedding"]
     with session() as db:
-        res = contextCreateContext(
+        res = await contextCreateContext(
             db=db,
             relation_chain_id=int(relation_chain_id),
             type=context_type,
