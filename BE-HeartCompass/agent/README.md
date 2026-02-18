@@ -7,13 +7,13 @@
     - 因此，没有必要为每个请求重新编译这个图。
 
 - 性能优化 (Performance) ：
-    - LLM 初始化昂贵 ： prepare_llm() 会初始化 ChatOpenAI 客户端，这通常涉及连接池的建立。频繁创建销毁会增加延迟。
+    - LLM 初始化昂贵 ： prepareLLM() 会初始化 ChatOpenAI 客户端，这通常涉及连接池的建立。频繁创建销毁会增加延迟。
     - 图编译开销 ： create_agent 涉及 LangGraph 的图编译过程（包括状态定义的校验），这是一个计算密集型操作。单例模式只需在启动时执行一次。
 
 - 并发安全 (Thread Safety) ：
     - LangGraph 的 CompiledStateGraph 本身是不可变的（Immutable）。
     - 当你调用 astream 或 ainvoke 时，LangGraph 会为这次特定的执行创建一个新的 Runner 。
-    - 状态隔离 ：我在 agent/adapter.py 中确认了 convert_req_to_messages 函数的存在，这证明了 对话状态（Context）是随请求传入的 ，而不是存储在 Agent 实例内部。因此，多个用户并发调用同一个 Agent 单例互不干扰。
+    - 状态隔离 ：我在 agent/adapter.py 中确认了 convertReqToMessages 函数的存在，这证明了 对话状态（Context）是随请求传入的 ，而不是存储在 Agent 实例内部。因此，多个用户并发调用同一个 Agent 单例互不干扰。
 
 ### 2. 实现方式
 

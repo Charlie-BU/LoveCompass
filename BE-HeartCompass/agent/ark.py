@@ -5,7 +5,7 @@ from volcenginesdkarkruntime import AsyncArk
 
 # 全局单例
 @lru_cache
-def ark_client():
+def arkClient():
     embedding_endpoint_id = os.getenv("EMBEDDING_ENDPOINT_ID", "")
     api_key = os.getenv("ENDPOINT_API_KEY", "")
     assert (

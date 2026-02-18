@@ -12,7 +12,7 @@ from .namespaces import (
 )
 
 
-def convert_req_to_messages(req: dict) -> list:
+def convertReqToMessages(req: dict) -> list:
     new_messages = []
     for msg in req["messages"]:
         if "role" in msg:
@@ -38,7 +38,7 @@ def convert_req_to_messages(req: dict) -> list:
     return new_messages
 
 
-def from_ai_message(msg: AIMessage, debug: bool = False) -> LLMChunkResponse:
+def fromAIMessage(msg: AIMessage, debug: bool = False) -> LLMChunkResponse:
     response_meta = msg.response_metadata or {}
     finish_reason = response_meta.get("finish_reason", None)
     content = msg.content
@@ -53,7 +53,7 @@ def from_ai_message(msg: AIMessage, debug: bool = False) -> LLMChunkResponse:
     )
 
 
-def from_tool_message(message: ToolMessage, debug: bool = False) -> LLMChunkResponse:
+def fromToolMessage(message: ToolMessage, debug: bool = False) -> LLMChunkResponse:
     content = message.content
     tool_call_function = ChoiceDeltaToolCallFunction(
         name=message.name,
@@ -72,7 +72,7 @@ def from_tool_message(message: ToolMessage, debug: bool = False) -> LLMChunkResp
     )
 
 
-def end_stop_message() -> LLMChunkResponse:
+def endStopMessage() -> LLMChunkResponse:
     delta = ChoiceDelta(content="", role="assistant")
     choice = Choice(index=0, delta=delta, finish_reason="stop")
     return LLMChunkResponse(
@@ -85,7 +85,7 @@ def end_stop_message() -> LLMChunkResponse:
     )
 
 
-def from_error_message(err: str) -> LLMChunkResponse:
+def fromErrorMessage(err: str) -> LLMChunkResponse:
     delta = ChoiceDelta(content=f"ERROR: {err}", role="assistant")
     choice = Choice(index=0, delta=delta, finish_reason="stop")
     return LLMChunkResponse(
@@ -97,16 +97,16 @@ def from_error_message(err: str) -> LLMChunkResponse:
     )
 
 
-def from_astream_model_message(
+def fromAstreamModelMessage(
     invoke: tuple, debug: bool = False
 ) -> Optional[LLMChunkResponse]:
     """Convert Chunk an LLMChunkResponse."""
     message = invoke[0]
     try:
         if isinstance(message, AIMessage):
-            return from_ai_message(message, debug)
+            return fromAIMessage(message, debug)
         elif isinstance(message, ToolMessage):
-            return from_tool_message(message, debug)
+            return fromToolMessage(message, debug)
         elif isinstance(message, HumanMessage):
             return None
     except Exception as e:
@@ -115,7 +115,7 @@ def from_astream_model_message(
     raise ValueError(f"Unsupported message type: {type(message)}")
 
 
-def process_response_message(msg: LLMChunkResponse):
+def processResponseMessage(msg: LLMChunkResponse):
     if not (
         msg.choices[0].delta.content
         or msg.choices[0].delta.reasoning_content
@@ -126,14 +126,14 @@ def process_response_message(msg: LLMChunkResponse):
     return f"data:{msg.model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
 
 
-def from_ainvoke_model_messages(
+def fromAinvokeModelMessages(
     messages, debug: bool = False
 ) -> list[LLMChunkResponse]:
     """Convert a list of messages to a list of LLMChunkResponse."""
     res = []
     for message in messages:
         if isinstance(message, AIMessage):
-            res.append(from_ai_message(message, debug))
+            res.append(fromAIMessage(message, debug))
         elif isinstance(message, ToolMessage):
-            res.append(from_tool_message(message, debug))
+            res.append(fromToolMessage(message, debug))
     return res

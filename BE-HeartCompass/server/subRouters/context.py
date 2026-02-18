@@ -12,7 +12,7 @@ contextRouter = SubRouter(__file__, prefix="/context")
 
 # 全局异常处理
 @contextRouter.exception
-def handle_exception(error):
+def handleException(error):
     return Response(status_code=500, description=f"error msg: {error}", headers={})
 
 
