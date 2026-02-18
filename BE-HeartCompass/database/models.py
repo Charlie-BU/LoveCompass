@@ -437,7 +437,6 @@ class ContextEmbedding(Base, SerializableMixin):
     model_name = Column(
         String(128),
         nullable=False,
-        default=os.getenv("EMBEDDING_MODEL_NAME"),
         comment="Embedding模型名称",
     )
     embedding = Column(

@@ -1,11 +1,11 @@
 import json
-from datetime import datetime, timezone
+import os
 from typing import Any, Literal
 from sqlalchemy.orm import Session
 
 
 from .ai import summarize_context
-from agent.index import get_embedder
+from agent.index import vectorize_text
 from database.models import Context, ContextEmbedding, RelationChain, Knowledge
 from database.enums import parse_enum, ContextType, ContextSource, EmbeddingType
 
@@ -84,11 +84,9 @@ def _create_or_update_embedding(
         summary=target_obj.summary,
         content=target_obj.content,
     )
-
     # 2. 生成向量
-    embedder = get_embedder()
     try:
-        vector = embedder.embed_query(text)
+        vector = vectorize_text(text)
     except Exception as e:
         return {"status": -2, "message": f"Embedding generation failed: {str(e)}"}
 
@@ -111,6 +109,7 @@ def _create_or_update_embedding(
         embedding = ContextEmbedding(
             type=embedding_type,
             embedding=vector,
+            model_name=os.getenv("EMBEDDING_MODEL_NAME"),
             # 根据来源设置外键
             knowledge_id=knowledge.id if from_where == "knowledge" else None,
             context_id=context.id if from_where == "context" else None,
@@ -160,7 +159,7 @@ async def contextAddKnowledge(
     return {
         "status": 200,
         "message": "Knowledge added",
-        "knowledge": knowledge.toJson(),
+        # "knowledge": knowledge.toJson(),
         "embedding": embedding_result,
     }
 

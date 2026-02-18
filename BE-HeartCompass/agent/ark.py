@@ -1,7 +1,10 @@
 import os
+from functools import lru_cache
 from volcenginesdkarkruntime import Ark
 
 
+# 全局单例
+@lru_cache
 def ark_client():
     embedding_endpoint_id = os.getenv("EMBEDDING_ENDPOINT_ID", "")
     api_key = os.getenv("ENDPOINT_API_KEY", "")

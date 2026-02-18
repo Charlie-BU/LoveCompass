@@ -1,13 +1,14 @@
 from re import L
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from typing import List
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
+from functools import lru_cache
 import logging
 import os
 
@@ -81,20 +82,18 @@ SYSTEM_PROMPT = """
 """
 
 # 全局单例
-_agent_instance: CompiledStateGraph = None
 _ark_client = ark_client()
 
 
+@lru_cache
 def get_agent():
-    global _agent_instance
-    if _agent_instance is None:
-        # 1. Prepare LLM
-        llm: ChatOpenAI = prepare_llm()
-        # 2. Prepare Tools
-        # mcp_psms_list = get_mcp_psms_list()
-        # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
-        # 3. Init Agent
-        _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
+    # 1. Prepare LLM
+    llm: ChatOpenAI = prepare_llm()
+    # 2. Prepare Tools
+    # mcp_psms_list = get_mcp_psms_list()
+    # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
+    # 3. Init Agent
+    _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
     return _agent_instance
 
@@ -179,8 +178,9 @@ def vectorize_text(text: str) -> list[float]:
         input=[
             {"type": "text", "text": text},
         ],
+        dimensions=1024,
     )
-    return resp.data[0].embedding
+    return resp.data.embedding
 
 
 # 向量化图片
@@ -193,8 +193,9 @@ def vectorize_image(image_url: str) -> list[float]:
                 "image_url": {"url": image_url},
             },
         ],
+        dimensions=1024,
     )
-    return resp.data[0].embedding
+    return resp.data.embedding
 
 
 # 向量化混合输入
@@ -205,5 +206,6 @@ def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
     resp = _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=input_list,
+        dimensions=1024,
     )
-    return resp.data[0].embedding
+    return resp.data.embedding
