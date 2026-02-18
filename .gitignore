@@ -12,4 +12,4 @@ wheels/
 .DS_Store
 
 # Alembic migrations
-BE-LoveCompass/alembic/versions/
+BE-HeartCompass/alembic/versions/

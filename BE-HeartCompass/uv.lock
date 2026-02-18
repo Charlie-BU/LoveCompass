@@ -104,7 +104,7 @@ wheels = [
 ]
 
 [[package]]
-name = "be-lovecompass"
+name = "be-heartcompass"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
