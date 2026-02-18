@@ -1,0 +1,2 @@
+- 执行`uv run database/db-migrate.sh`数据库迁移时，生成的version文件没有自动`import pgvector`，需要手动添加
+- 另外，若报错`sqlalchemy.exc.ProgrammingError: (psycopg2.errors.DuplicateObject) type "xxx" already exists`，则需要在`upgrade()`函数中添加`DROP TYPE IF EXISTS xxx`
