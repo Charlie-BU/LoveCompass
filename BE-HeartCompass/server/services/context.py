@@ -1,19 +1,73 @@
-import os
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 from sqlalchemy.orm import Session
-from langchain_openai import OpenAIEmbeddings
+
 
 from .ai import summarize_context
+from agent.index import get_embedder
 from database.models import Context, ContextEmbedding, RelationChain, Knowledge
 from database.enums import parse_enum, ContextType, ContextSource
+
+
+# todo：逻辑需要再确认
+def _build_embedding_text(
+    context_type: ContextType, summary: str | None, content: Any
+) -> str:
+    if summary:
+        return f"[{context_type.value}] {summary}"
+    if isinstance(content, str):
+        return f"[{context_type.value}] {content}"
+    if isinstance(content, dict):
+        text = content.get("text")
+        if isinstance(text, str) and text.strip():
+            return f"[{context_type.value}] {text}"
+        parts = []
+        for key, value in content.items():
+            parts.append(f"{key}: {value}")
+        return f"[{context_type.value}] " + "; ".join(parts)
+    return f"[{context_type.value}] {str(content)}"
+
+
+def _create_or_update_embedding(
+    db: Session, from_where: Literal["knowledge", "context"], context: Context
+) -> dict:
+    embedder = get_embedder()
+    # 1. 准备文本：把 context 的类型、摘要、内容拼成一个完整的字符串。
+    text = _build_embedding_text(context.type, context.summary, context.content)
+    # 2. 生成向量：调用远程 AI 接口，把文本变成向量（如 [0.01, -0.2, ...]）。
+    vector = embedder.embed_query(text)
+
+    if not isinstance(vector, list) or not vector:
+        return {"status": -1, "message": "invalid embedding result"}
+
+    existing = (
+        db.query(ContextEmbedding)
+        .filter(
+            ContextEmbedding.context_id == context.id,
+        )
+        .first()
+    )
+    if existing:
+        existing.embedding = vector
+    else:
+        embedding = ContextEmbedding(
+            context_id=context.id,
+            embedding=vector,
+        )
+        db.add(embedding)
+    db.commit()
+    return {
+        "status": 200,
+        "message": "embedding created",
+    }
 
 
 async def contextAddKnowledge(
     db: Session,
     content: str,
     weight: float,
+    with_embedding: bool,
 ) -> dict:
     if weight < 0 or weight > 1:
         return {"status": -1, "message": "Weight must be between 0 and 1"}
@@ -37,70 +91,6 @@ async def contextAddKnowledge(
         "message": "Knowledge added",
         "knowledge": knowledge.toJson(),
     }
-
-
-def _get_embedding_config():
-    base_url = os.getenv("ARK_BASE_URL", "")
-    model_name = os.getenv("EMBEDDING_MODEL", "") or os.getenv(
-        "EMBEDDING_ENDPOINT_ID", ""
-    )
-    api_key = os.getenv("EMBEDDING_API_KEY", "") or os.getenv("ENDPOINT_API_KEY", "")
-    if not model_name:
-        model_name = os.getenv("ENDPOINT_ID", "")
-    return base_url, model_name, api_key
-
-
-# todo：逻辑需要再确认
-def _build_embedding_text(
-    context_type: ContextType, summary: str | None, content: Any
-) -> str:
-    if summary:
-        return f"[{context_type.value}] {summary}"
-    if isinstance(content, str):
-        return f"[{context_type.value}] {content}"
-    if isinstance(content, dict):
-        text = content.get("text")
-        if isinstance(text, str) and text.strip():
-            return f"[{context_type.value}] {text}"
-        parts = []
-        for key, value in content.items():
-            parts.append(f"{key}: {value}")
-        return f"[{context_type.value}] " + "; ".join(parts)
-    return f"[{context_type.value}] {str(content)}"
-
-
-def _create_or_update_embedding(db: Session, context: Context, model_name: str) -> dict:
-    base_url, _, api_key = _get_embedding_config()
-    if not model_name or not api_key:
-        return {"status": "skipped", "reason": "embedding config missing"}
-
-    embedder = OpenAIEmbeddings(model=model_name, api_key=api_key, base_url=base_url)
-    text = _build_embedding_text(context.type, context.summary, context.content)
-    vector = embedder.embed_query(text)
-
-    if not isinstance(vector, list) or not vector:
-        return {"status": "failed", "reason": "invalid embedding result"}
-
-    existing = (
-        db.query(ContextEmbedding)
-        .filter(
-            ContextEmbedding.context_id == context.id,
-            ContextEmbedding.model_name == model_name,
-        )
-        .first()
-    )
-    if existing:
-        existing.embedding = vector
-        existing.created_at = datetime.now(timezone.utc)
-    else:
-        embedding = ContextEmbedding(
-            context_id=context.id,
-            model_name=model_name,
-            embedding=vector,
-        )
-        db.add(embedding)
-    db.commit()
-    return {"status": "created", "model_name": model_name}
 
 
 def contextCreateWithEmbedding(
@@ -142,8 +132,7 @@ def contextCreateWithEmbedding(
     db.commit()
     db.refresh(context)
 
-    _, model_name, _ = _get_embedding_config()
-    embedding_result = _create_or_update_embedding(db, context, model_name)
+    embedding_result = _create_or_update_embedding(db, context)
 
     return {
         "status": 200,

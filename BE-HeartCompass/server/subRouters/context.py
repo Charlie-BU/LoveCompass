@@ -25,11 +25,13 @@ async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
     weight = data.get("weight", "1.0")
+    with_embedding = data["with_embedding"]
     with session() as db:
         res = await contextAddKnowledge(
             db=db,
             content=json.dumps(content) if isinstance(content, dict) else content,
             weight=float(weight),
+            with_embedding=bool(with_embedding),
         )
     return res
 

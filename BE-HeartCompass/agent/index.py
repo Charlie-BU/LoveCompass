@@ -1,6 +1,6 @@
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
@@ -11,6 +11,8 @@ import logging
 
 
 from .llm import prepare_llm
+from .embedder import prepare_embedder
+
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
 from .adapter import (
@@ -78,6 +80,7 @@ SYSTEM_PROMPT = """
 
 # 全局单例
 _agent_instance: CompiledStateGraph = None
+_embedder_instance: OpenAIEmbeddings = None
 
 
 def get_agent():
@@ -85,15 +88,20 @@ def get_agent():
     if _agent_instance is None:
         # 1. Prepare LLM
         llm: ChatOpenAI = prepare_llm()
-
         # 2. Prepare Tools
         # mcp_psms_list = get_mcp_psms_list()
         # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
-
         # 3. Init Agent
         _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
     return _agent_instance
+
+
+def get_embedder():
+    global _embedder_instance
+    if _embedder_instance is None:
+        _embedder_instance = prepare_embedder()
+    return _embedder_instance
 
 
 # 处理chat_completions请求
