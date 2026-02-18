@@ -1,7 +1,7 @@
 import enum
 
 
-def parse_enum(enum_cls, value: str):
+def parseEnum(enum_cls, value: str):
     if value in enum_cls.__members__:  # value为枚举键
         return enum_cls[value]
     return enum_cls(value)  # value为枚举值

@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 logger = logging.getLogger(__name__)
 
 
-def prepare_llm() -> ChatOpenAI:
+def prepareLLM() -> ChatOpenAI:
     ARK_BASE_URL = os.getenv("ARK_BASE_URL", "")
     assert ARK_BASE_URL, "required 'ARK_BASE_URL' for AI Agent!!!"
     logger.info(f"ARK_BASE_URL={ARK_BASE_URL}")

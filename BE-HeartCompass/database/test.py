@@ -1,4 +1,4 @@
-def modify_user():
+def modifyUser():
     with session() as db:
         charlie = db.query(User).filter(User.username == "Charlie").first()
         charlie.personality_tags = ["Optimistic", "Creative"]
@@ -6,7 +6,7 @@ def modify_user():
         print(charlie.toJson())
 
 
-async def add_mbti_to_knowledge():
+async def addMBTIKnowledgeToKnowledgeBase():
     # Calculate path to mbti.json
     project_root = Path(__file__).resolve().parent.parent
     json_path = project_root / "mbti.json"
@@ -29,7 +29,9 @@ async def add_mbti_to_knowledge():
 
             # Add to knowledge base
             try:
-                result = await contextAddKnowledge(db=db, content=content, weight=1.0, with_embedding=True)
+                result = await contextAddKnowledge(
+                    db=db, content=content, weight=1.0, with_embedding=True
+                )
                 print(f"Result for {mbti_type}: {result}")
             except Exception as e:
                 print(f"Failed to add {mbti_type}: {e}")
@@ -49,4 +51,4 @@ if __name__ == "__main__":
     from database.database import session
     from database.models import User
 
-    asyncio.run(add_mbti_to_knowledge())
+    asyncio.run(addMBTIKnowledgeToKnowledgeBase())

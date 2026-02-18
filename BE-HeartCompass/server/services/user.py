@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from database.models import User
-from database.enums import parse_enum, UserGender, MBTI
+from database.enums import parseEnum, UserGender, MBTI
 
 
 ALGORITHM = os.getenv("ALGORITHM")
@@ -137,11 +137,11 @@ def userRegister(
             "message": "Username or email already registered",
         }
     try:
-        gender = parse_enum(UserGender, gender)
+        gender = parseEnum(UserGender, gender)
     except ValueError:
         return {"status": -2, "message": "Invalid gender"}
     try:
-        mbti = parse_enum(MBTI, mbti)
+        mbti = parseEnum(MBTI, mbti)
     except ValueError:
         return {"status": -3, "message": "Invalid mbti"}
     user = User(

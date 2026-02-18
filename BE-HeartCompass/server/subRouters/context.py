@@ -5,14 +5,18 @@ from robyn.authentication import BearerGetter
 
 from ..authentication import AuthHandler
 from database.database import session
-from ..services.context import contextAddKnowledge, contextCreateContext
+from ..services.context import (
+    contextAddKnowledge,
+    contextAddContext,
+)
+from ..services.embedding import recallEmbedding
 
 contextRouter = SubRouter(__file__, prefix="/context")
 
 
 # 全局异常处理
 @contextRouter.exception
-def handle_exception(error):
+def handleException(error):
     return Response(status_code=500, description=f"error msg: {error}", headers={})
 
 
@@ -37,8 +41,8 @@ async def addKnowledge(request: Request):
 
 
 # todo: 建议按type拆分，不同类型上下文收集应当采用不同api
-@contextRouter.post("/createContext", auth_required=True)
-async def createContext(request: Request):
+@contextRouter.post("/addContext", auth_required=True)
+async def addContext(request: Request):
     data = request.json()
     relation_chain_id = data["relation_chain_id"]
     context_type = data["type"]
@@ -50,7 +54,7 @@ async def createContext(request: Request):
     confidence = data.get("confidence", "1.0")
     with_embedding = data["with_embedding"]
     with session() as db:
-        res = contextCreateContext(
+        res = await contextAddContext(
             db=db,
             relation_chain_id=int(relation_chain_id),
             type=context_type,
@@ -60,5 +64,23 @@ async def createContext(request: Request):
             weight=float(weight),
             confidence=float(confidence),
             with_embedding=bool(with_embedding),
+        )
+    return res
+
+
+@contextRouter.get("/recallContext", auth_required=True)
+async def recallContext(request: Request):
+    text = request.query_params.get("text", None)
+    top_k = request.query_params.get("top_k", "5")
+    recall_from = request.query_params.get("recall_from", "both")
+    relation_chain_id = request.query_params.get("relation_chain_id", None)
+
+    with session() as db:
+        res = await recallEmbedding(
+            db=db,
+            text=text,
+            top_k=int(top_k),
+            recall_from=recall_from,
+            relation_chain_id=(int(relation_chain_id) if relation_chain_id else None),
         )
     return res

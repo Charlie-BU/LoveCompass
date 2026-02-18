@@ -1,11 +1,11 @@
 from typing import Literal
 
-from agent.index import get_agent, ask_with_no_context
+from agent.index import getAgent, askWithNoContext
 
-ReactAgent = get_agent()
+ReactAgent = getAgent()
 
 
-async def summarize_context(content: str, where: Literal["context", "knowledge"]) -> str:
+async def summarizeContext(content: str, where: Literal["context", "knowledge"]) -> str:
     task_desc = "上下文记录(Context)" if where == "context" else "知识库条目(Knowledge)"
 
     prompt = f"""
@@ -25,4 +25,4 @@ async def summarize_context(content: str, where: Literal["context", "knowledge"]
 
     请直接输出摘要：
     """
-    return await ask_with_no_context(prompt, ReactAgent)
+    return await askWithNoContext(prompt, ReactAgent)

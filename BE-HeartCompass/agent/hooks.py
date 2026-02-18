@@ -1,5 +1,5 @@
+# 暂弃用
 import logging
-
 from typing import Any
 
 from bytedance.mcp import (
