@@ -1,8 +1,9 @@
 import json
 from sqlalchemy.orm import Session
+from typing import Literal
 
-from .embedding import createOrUpdateEmbedding
 from .ai import summarizeContext
+from .embedding import createOrUpdateEmbedding
 from database.models import Context, RelationChain, Knowledge
 from database.enums import parseEnum, ContextType, ContextSource
 
@@ -49,7 +50,7 @@ async def contextAddKnowledge(
     }
 
 
-async def contextCreateContext(
+async def contextAddContext(
     db: Session,
     relation_chain_id: int,
     type: str,
