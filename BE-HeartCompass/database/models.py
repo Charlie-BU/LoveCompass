@@ -19,7 +19,6 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from pgvector.sqlalchemy import Vector
 from bcrypt import hashpw, gensalt, checkpw
 from datetime import datetime, timezone
-import os
 
 from .enums import (
     UserGender,

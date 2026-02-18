@@ -18,7 +18,7 @@ userRouter = SubRouter(__file__, prefix="/user")
 
 # 全局异常处理
 @userRouter.exception
-def handle_exception(error):
+def handleException(error):
     return Response(status_code=500, description=f"error msg: {error}", headers={})
 
 

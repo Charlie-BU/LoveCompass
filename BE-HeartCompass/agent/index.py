@@ -13,18 +13,18 @@ import logging
 import os
 
 
-from .ark import ark_client
-from .llm import prepare_llm
+from .ark import arkClient
+from .llm import prepareLLM
 
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
 from .adapter import (
-    convert_req_to_messages,
-    from_astream_model_message,
-    process_response_message,
-    end_stop_message,
-    from_error_message,
-    from_ainvoke_model_messages,
+    convertReqToMessages,
+    fromAstreamModelMessage,
+    processResponseMessage,
+    endStopMessage,
+    fromErrorMessage,
+    fromAinvokeModelMessages,
 )
 
 load_dotenv()
@@ -82,50 +82,50 @@ SYSTEM_PROMPT = """
 """
 
 # 全局单例
-_ark_client = ark_client()
+_ark_client = arkClient()
 
 
 @lru_cache
-def get_agent():
+def getAgent():
     # 1. Prepare LLM
-    llm: ChatOpenAI = prepare_llm()
+    llm: ChatOpenAI = prepareLLM()
     # 2. Prepare Tools
     # mcp_psms_list = get_mcp_psms_list()
     # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
     # 3. Init Agent
-    _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
+    agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
-    return _agent_instance
+    return agent_instance
 
 
 # 处理chat_completions请求
-async def wrap_chat(ReActAgent: CompiledStateGraph):
+async def wrapChat(ReActAgent: CompiledStateGraph):
     async def chat(request: Request):
         body = request.json()
         is_stream = body.get("stream", True)
 
-        async def event_generator():
+        async def eventGenerator():
             try:
                 callbacks = []
-                input_message = convert_req_to_messages(body)
+                input_message = convertReqToMessages(body)
                 if is_stream:
                     async for resp in ReActAgent.astream(
                         {"messages": input_message},
                         stream_mode="messages",
                         config=RunnableConfig(callbacks=callbacks),
                     ):
-                        resp_msg = from_astream_model_message(resp, False)
+                        resp_msg = fromAstreamModelMessage(resp, False)
                         # to adapter the ark ui
                         if not resp_msg:
                             continue
 
                         if isinstance(resp_msg, list):
                             for item in resp_msg:
-                                result = process_response_message(item)
+                                result = processResponseMessage(item)
                                 if result:
                                     yield result
                         else:
-                            result = process_response_message(resp_msg)
+                            result = processResponseMessage(resp_msg)
                             if result:
                                 yield result
                 else:
@@ -133,28 +133,26 @@ async def wrap_chat(ReActAgent: CompiledStateGraph):
                         {"messages": input_message},
                         config=RunnableConfig(callbacks=callbacks),
                     )
-                    resp_msg = from_ainvoke_model_messages(
-                        resp.get("messages", []), False
-                    )
+                    resp_msg = fromAinvokeModelMessages(resp.get("messages", []), False)
                     if resp_msg:
                         for item in resp_msg:
-                            result = process_response_message(item)
+                            result = processResponseMessage(item)
                             if result:
                                 yield result
                 # [DONE] means end.
                 logger.info("-----------chat done--------")
-                yield f"data:{end_stop_message().model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
+                yield f"data:{endStopMessage().model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
                 yield "data:[DONE]\r\n\r\n"
 
             except Exception as e:
                 logger.error(f"failed to chat, {e}", exc_info=True)
-                yield process_response_message(from_error_message(str(e)))
-                yield f"data:{end_stop_message().model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
+                yield processResponseMessage(fromErrorMessage(str(e)))
+                yield f"data:{endStopMessage().model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
                 yield "data:[DONE]\r\n\r\n"
 
         # Wrap the async generator in a StreamingResponse to properly stream the response
         return StreamingResponse(
-            event_generator(),
+            eventGenerator(),
             media_type="text/event-stream",
         )
 
@@ -162,7 +160,7 @@ async def wrap_chat(ReActAgent: CompiledStateGraph):
 
 
 # 无上下文直接调用agent
-async def ask_with_no_context(prompt: str, ReActAgent: CompiledStateGraph) -> str:
+async def askWithNoContext(prompt: str, ReActAgent: CompiledStateGraph) -> str:
     messages = [HumanMessage(content=prompt)]
     resp = await ReActAgent.ainvoke({"messages": messages})
     if resp and "messages" in resp and len(resp["messages"]) > 0:
@@ -172,8 +170,8 @@ async def ask_with_no_context(prompt: str, ReActAgent: CompiledStateGraph) -> st
 
 # 注意⚠️：多模态向量化能力模型不支持 OpenAI API，使用Ark SDK调用
 # 向量化文本
-def vectorize_text(text: str) -> list[float]:
-    resp = _ark_client.multimodal_embeddings.create(
+async def vectorizeText(text: str) -> list[float]:
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=[
             {"type": "text", "text": text},
@@ -184,8 +182,8 @@ def vectorize_text(text: str) -> list[float]:
 
 
 # 向量化图片
-def vectorize_image(image_url: str) -> list[float]:
-    resp = _ark_client.multimodal_embeddings.create(
+async def vectorizeImage(image_url: str) -> list[float]:
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=[
             {
@@ -199,11 +197,11 @@ def vectorize_image(image_url: str) -> list[float]:
 
 
 # 向量化混合输入
-def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
+async def vectorizeMixed(text: List[str], image_url: List[str]) -> list[float]:
     input_list = [{"type": "text", "text": t} for t in text] + [
         {"type": "image_url", "image_url": {"url": u}} for u in image_url
     ]
-    resp = _ark_client.multimodal_embeddings.create(
+    resp = await _ark_client.multimodal_embeddings.create(
         model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
         input=input_list,
         dimensions=1024,
