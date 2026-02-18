@@ -79,3 +79,8 @@ class ConflictResolutionStatus(enum.Enum):
     RESOLVED_KEEP_NEW = "resolved_keep_new"  # 解决并保留新上下文
     RESOLVED_KEEP_OLD = "resolved_keep_old"  # 解决并保留旧上下文
     BOTH_DOWNGRADED = "both_downgraded"  # 双方都降级
+
+
+class EmbeddingType(enum.Enum):
+    FROM_CONTEXT = "from_context"  # 从上下文生成
+    FROM_KNOWLEDGE = "from_knowledge"  # 从静态知识库生成

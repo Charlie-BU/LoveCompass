@@ -1,3 +1,4 @@
+from re import L
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
 from langchain_openai import ChatOpenAI
@@ -7,10 +8,14 @@ from langchain_core.tools import BaseTool
 from typing import List
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
+from functools import lru_cache
 import logging
+import os
 
 
+from .ark import ark_client
 from .llm import prepare_llm
+
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
 from .adapter import (
@@ -27,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
 # Role
-你是由 LoveCompass 开发的“恋爱军师”核心智能引擎。
+你是由 HeartCompass 开发的“恋爱军师”核心智能引擎。
 你需要同时扮演两个角色：
 1. **面向用户**：一位精通恋爱心理学、博弈论与 MBTI 人格分析的资深情感咨询师。
 2. **面向系统**：一位严谨的数据分析师，负责从非结构化信息中提取上下文（Context）、构建人物画像（Profile）、推断关系信号并输出结构化数据。
@@ -77,21 +82,18 @@ SYSTEM_PROMPT = """
 """
 
 # 全局单例
-_agent_instance: CompiledStateGraph = None
+_ark_client = ark_client()
 
 
+@lru_cache
 def get_agent():
-    global _agent_instance
-    if _agent_instance is None:
-        # 1. Prepare LLM
-        llm: ChatOpenAI = prepare_llm()
-
-        # 2. Prepare Tools
-        # mcp_psms_list = get_mcp_psms_list()
-        # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
-
-        # 3. Init Agent
-        _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
+    # 1. Prepare LLM
+    llm: ChatOpenAI = prepare_llm()
+    # 2. Prepare Tools
+    # mcp_psms_list = get_mcp_psms_list()
+    # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
+    # 3. Init Agent
+    _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
     return _agent_instance
 
@@ -166,3 +168,44 @@ async def ask_with_no_context(prompt: str, ReActAgent: CompiledStateGraph) -> st
     if resp and "messages" in resp and len(resp["messages"]) > 0:
         return resp["messages"][-1].content
     return ""
+
+
+# 注意⚠️：多模态向量化能力模型不支持 OpenAI API，使用Ark SDK调用
+# 向量化文本
+def vectorize_text(text: str) -> list[float]:
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=[
+            {"type": "text", "text": text},
+        ],
+        dimensions=1024,
+    )
+    return resp.data.embedding
+
+
+# 向量化图片
+def vectorize_image(image_url: str) -> list[float]:
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=[
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url},
+            },
+        ],
+        dimensions=1024,
+    )
+    return resp.data.embedding
+
+
+# 向量化混合输入
+def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
+    input_list = [{"type": "text", "text": t} for t in text] + [
+        {"type": "image_url", "image_url": {"url": u}} for u in image_url
+    ]
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=input_list,
+        dimensions=1024,
+    )
+    return resp.data.embedding

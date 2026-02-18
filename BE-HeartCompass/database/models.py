@@ -17,7 +17,9 @@ from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from pgvector.sqlalchemy import Vector
+from bcrypt import hashpw, gensalt, checkpw
 from datetime import datetime, timezone
+import os
 
 from .enums import (
     UserGender,
@@ -28,8 +30,8 @@ from .enums import (
     ContextSource,
     ConflictType,
     ConflictResolutionStatus,
+    EmbeddingType,
 )
-from bcrypt import hashpw, gensalt, checkpw
 
 Base = declarative_base()
 # 数据库表名和列名的命名规范
@@ -304,7 +306,7 @@ class Context(Base, SerializableMixin):
         Boolean,
         nullable=False,
         default=False,
-        comment="是否与其他上下文冲突（包括静态知识库）",
+        comment="是否与其他上下文冲突（包括知识库）",
     )
     is_active = Column(
         Boolean,
@@ -357,12 +359,12 @@ class ContextConflict(Base, SerializableMixin):
         backref="former_conflicts",
     )
 
-    # 与静态知识库冲突时，静态知识库ID
+    # 与知识库冲突时，知识ID
     former_knowledge_id = Column(
         Integer,
         ForeignKey("knowledge.id", ondelete="SET NULL"),
         nullable=True,
-        comment="前者静态知识库ID",
+        comment="前者知识ID",
     )
     former_knowledge = relationship("Knowledge", backref="former_conflicts")
 
@@ -399,7 +401,7 @@ class ContextConflict(Base, SerializableMixin):
         return f"<ContextConflict {self.id}>"
 
 
-# ---- 上下文向量化索引 ----
+# ---- 向量化上下文 ----
 class ContextEmbedding(Base, SerializableMixin):
     __tablename__ = "context_embedding"
     # 使用HNSW索引加速余弦相似度向量检索
@@ -413,18 +415,41 @@ class ContextEmbedding(Base, SerializableMixin):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+
+    type = Column(Enum(EmbeddingType), nullable=False, index=True, comment="类型")
+    # 从上下文生成时，关联上下文ID
     context_id = Column(
         Integer,
-        ForeignKey("context.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("context.id", ondelete="SET NULL"),
+        nullable=True,
         comment="关联上下文ID",
     )
     context = relationship("Context", backref="embeddings")
+    # 从静态知识库生成时，关联知识ID
+    knowledge_id = Column(
+        Integer,
+        ForeignKey("knowledge.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联知识ID",
+    )
+    knowledge = relationship("Knowledge", backref="embeddings")
 
-    model_name = Column(String(128), nullable=False, comment="Embedding模型名称")
-    embedding = Column(Vector(1536), nullable=False, comment="向量表示")
+    model_name = Column(
+        String(128),
+        nullable=False,
+        comment="Embedding模型名称",
+    )
+    embedding = Column(
+        Vector(1024), nullable=False, comment="向量表示"
+    )  # 重要：模型只支持1024、2048维向量，但hnsw索引要求维度必须小于2000
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="创建时间"
+    )
+    updated_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        comment="更新时间",
     )
 
     def __repr__(self):

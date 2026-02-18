@@ -5,7 +5,7 @@ from robyn.authentication import BearerGetter
 
 from ..authentication import AuthHandler
 from database.database import session
-from ..services.context import contextAddKnowledge, contextCreateWithEmbedding
+from ..services.context import contextAddKnowledge, contextCreateContext
 
 contextRouter = SubRouter(__file__, prefix="/context")
 
@@ -25,11 +25,13 @@ async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
     weight = data.get("weight", "1.0")
+    with_embedding = data["with_embedding"]
     with session() as db:
         res = await contextAddKnowledge(
             db=db,
             content=json.dumps(content) if isinstance(content, dict) else content,
             weight=float(weight),
+            with_embedding=bool(with_embedding),
         )
     return res
 
@@ -46,9 +48,9 @@ async def createContext(request: Request):
     summary = data.get("summary")
     weight = data.get("weight", "1.0")
     confidence = data.get("confidence", "1.0")
-    derived_from_context_id = data.get("derived_from_context_id")
+    with_embedding = data["with_embedding"]
     with session() as db:
-        res = contextCreateWithEmbedding(
+        res = contextCreateContext(
             db=db,
             relation_chain_id=int(relation_chain_id),
             type=context_type,
@@ -57,6 +59,6 @@ async def createContext(request: Request):
             source=source,
             weight=float(weight),
             confidence=float(confidence),
-            derived_from_context_id=int(derived_from_context_id),
+            with_embedding=bool(with_embedding),
         )
     return res

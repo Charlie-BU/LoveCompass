@@ -1,5 +1,5 @@
 [project]
-name = "be-lovecompass"
+name = "be-heartcompass"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -17,4 +17,5 @@ dependencies = [
     "langchain-openai>=1.1.9",
     "requests>=2.32.0",
     "pgvector>=0.3.6",
+    "volcengine-python-sdk[ark]>=5.0.9",
 ]
