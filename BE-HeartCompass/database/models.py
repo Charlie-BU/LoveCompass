@@ -440,7 +440,9 @@ class ContextEmbedding(Base, SerializableMixin):
         default=os.getenv("EMBEDDING_MODEL_NAME"),
         comment="Embedding模型名称",
     )
-    embedding = Column(Vector(1536), nullable=False, comment="向量表示")
+    embedding = Column(
+        Vector(1024), nullable=False, comment="向量表示"
+    )  # 重要：模型只支持1024、2048维向量，但hnsw索引要求维度必须小于2000
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="创建时间"
     )

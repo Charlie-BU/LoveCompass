@@ -1,3 +1,4 @@
+from re import L
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -8,10 +9,11 @@ from typing import List
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
 import logging
+import os
 
 
+from .ark import ark_client
 from .llm import prepare_llm
-from .embedder import prepare_embedder
 
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
@@ -80,7 +82,7 @@ SYSTEM_PROMPT = """
 
 # 全局单例
 _agent_instance: CompiledStateGraph = None
-_embedder_instance: OpenAIEmbeddings = None
+_ark_client = ark_client()
 
 
 def get_agent():
@@ -95,13 +97,6 @@ def get_agent():
         _agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
 
     return _agent_instance
-
-
-def get_embedder():
-    global _embedder_instance
-    if _embedder_instance is None:
-        _embedder_instance = prepare_embedder()
-    return _embedder_instance
 
 
 # 处理chat_completions请求
@@ -174,3 +169,41 @@ async def ask_with_no_context(prompt: str, ReActAgent: CompiledStateGraph) -> st
     if resp and "messages" in resp and len(resp["messages"]) > 0:
         return resp["messages"][-1].content
     return ""
+
+
+# 注意⚠️：多模态向量化能力模型不支持 OpenAI API，使用Ark SDK调用
+# 向量化文本
+def vectorize_text(text: str) -> list[float]:
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=[
+            {"type": "text", "text": text},
+        ],
+    )
+    return resp.data[0].embedding
+
+
+# 向量化图片
+def vectorize_image(image_url: str) -> list[float]:
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=[
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url},
+            },
+        ],
+    )
+    return resp.data[0].embedding
+
+
+# 向量化混合输入
+def vectorize_mixed(text: List[str], image_url: List[str]) -> list[float]:
+    input_list = [{"type": "text", "text": t} for t in text] + [
+        {"type": "image_url", "image_url": {"url": u}} for u in image_url
+    ]
+    resp = _ark_client.multimodal_embeddings.create(
+        model=os.getenv("EMBEDDING_ENDPOINT_ID", ""),
+        input=input_list,
+    )
+    return resp.data[0].embedding
