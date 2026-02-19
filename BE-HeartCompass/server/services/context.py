@@ -1,4 +1,5 @@
 import json
+import logging
 from sqlalchemy.orm import Session
 from typing import Literal
 
@@ -6,6 +7,8 @@ from .ai import summarizeContext, normalizeContext
 from .embedding import createOrUpdateEmbedding
 from database.models import Context, RelationChain, Knowledge
 from database.enums import parseEnum, ContextType
+
+logger = logging.getLogger(__name__)
 
 
 async def contextAddKnowledge(
@@ -21,7 +24,7 @@ async def contextAddKnowledge(
         if not isinstance(json_content, dict):
             json_content = {"content": json_content}
     except json.JSONDecodeError:
-        json_content = {"text": content}
+        json_content = {"content": content}
     try:
         summary = await summarizeContext(json.dumps(json_content), "knowledge")
     except Exception as e:
@@ -52,6 +55,7 @@ async def contextAddKnowledge(
     }
 
 
+# todo：太慢，寻找优化方向？
 async def contextAddContextByNaturalLanguage(
     db: Session,
     relation_chain_id: int,
@@ -62,24 +66,28 @@ async def contextAddContextByNaturalLanguage(
     relation_chain = db.get(RelationChain, relation_chain_id)
     if relation_chain is None:
         return {"status": -1, "message": "Relation chain not found"}
-
+    if not content or content.strip() == "":
+        return {"status": -2, "message": "Content is empty"}
+        
     try:
         normalized_context = json.loads(await normalizeContext(content))
     except json.JSONDecodeError:
-        return {"status": -2, "message": "Failed to normalize context"}
+        return {"status": -3, "message": "Failed to normalize context"}
 
     if not isinstance(normalized_context, dict):
-        return {"status": -2, "message": "Failed to normalize context"}
+        return {"status": -3, "message": "Failed to normalize context"}
+
+    # logger.info("normalized_context=%s", normalized_context)    # 生产环境记得注释掉
 
     STATIC_PROFILE = normalized_context.get("STATIC_PROFILE")
     STAGE_EVENT = normalized_context.get("STAGE_EVENT")
     if STATIC_PROFILE is None and STAGE_EVENT is None:
-        return {"status": -3, "message": "No valid context found"}
+        return {"status": -4, "message": "No valid context found"}
 
     if STATIC_PROFILE is not None and not isinstance(STATIC_PROFILE, dict):
-        return {"status": -4, "message": "Invalid STATIC_PROFILE format"}
+        return {"status": -5, "message": "Invalid STATIC_PROFILE format"}
     if STAGE_EVENT is not None and not isinstance(STAGE_EVENT, dict):
-        return {"status": -5, "message": "Invalid STAGE_EVENT format"}
+        return {"status": -6, "message": "Invalid STAGE_EVENT format"}
 
     safe_weight = weight if weight is not None else 1.0
     new_context_STATIC_PROFILE = None
@@ -93,7 +101,7 @@ async def contextAddContextByNaturalLanguage(
                 json.dumps(STATIC_PROFILE), "context"
             )
         except Exception as e:
-            return {"status": -2, "message": f"Error summarizing context: {e}"}
+            return {"status": -7, "message": f"Error summarizing context: {e}"}
 
     if STAGE_EVENT is not None:
         stage_STAGE_EVENT = STAGE_EVENT.get("summary")
@@ -103,11 +111,12 @@ async def contextAddContextByNaturalLanguage(
                     json.dumps(STAGE_EVENT), "context"
                 )
             except Exception as e:
-                return {"status": -2, "message": f"Error summarizing context: {e}"}
+                return {"status": -7, "message": f"Error summarizing context: {e}"}
 
     try:
         # 使用事务一次性写入两类 Context，避免部分成功导致数据不一致
-        with db.begin():
+        transaction_ctx = db.begin_nested() if db.in_transaction() else db.begin()
+        with transaction_ctx:
             if STATIC_PROFILE is not None:
                 new_context_STATIC_PROFILE = Context(
                     relation_chain_id=relation_chain_id,
@@ -130,7 +139,7 @@ async def contextAddContextByNaturalLanguage(
                 db.add(new_context_STAGE_EVENT)
             db.flush()
     except Exception as e:
-        return {"status": -2, "message": f"Error saving context: {e}"}
+        return {"status": -8, "message": f"Error saving context: {e}"}
 
     if new_context_STATIC_PROFILE is not None:
         db.refresh(new_context_STATIC_PROFILE)
@@ -166,6 +175,7 @@ async def contextAddContextByNaturalLanguage(
     return {
         "status": 200,
         "message": "Create context success",
+        "normalized_context": normalized_context,
         "embedding": embedding_result,
     }
 
