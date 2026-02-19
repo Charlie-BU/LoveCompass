@@ -51,7 +51,7 @@ async def normalizeContext(content: str) -> str:
     }};
     // 事件
     STAGE_EVENT: {{
-        event: string;  // 事件内容
+        event: string;  // 事件详细内容和经过
         date?: string;  // 事件日期
         summary: string;  // 事件概要
         outcome: "positive" | "neutral" | "negative" | "unknown";  // 结果导向
@@ -66,12 +66,13 @@ async def normalizeContext(content: str) -> str:
     4. 同时涉及两类时，输出两部分。
     5. 两类都未涉及时，输出空对象 {{}}。
     6. 未提及的信息不要输出该字段。
-    7. STAGE_EVENT 必须输出 event 与 outcome；可通过内容推断结果导向，若无法推断结果导向，使用 "unknown"。
+    7. STAGE_EVENT 必须输出 event 与 outcome；event 为事件详细内容和经过，需要尽可能详细；可通过内容推断结果导向，若无法推断结果导向，使用 "unknown"。
     8. date 使用原文日期表达；无日期则省略。
     9. likes/dislikes/boundaries/traits/evidence 必须是字符串数组。
-    10. summary 生成一个精炼且完整的摘要，保留核心信息，字数控制在50字以内（除非信息量极大）。
-    11. others/additional_info 用键值对补充零散信息。
-    12. 直接输出JSON文本，不要包含任何解释或Markdown标记。
+    10. evidence 用简短、可核查的表述概括证据，不要原文复述或情绪化改写。
+    11. summary 生成一个精炼且完整的摘要，保留核心信息，字数控制在50字以内（除非信息量极大）。
+    12. others/additional_info 用键值对补充零散信息，键必须为英文，合理的键名。
+    13. 直接输出JSON文本，不要包含任何解释或Markdown标记。
 
     请直接输出JSON：
 """

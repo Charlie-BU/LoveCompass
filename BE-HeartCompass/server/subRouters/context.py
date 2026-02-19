@@ -91,12 +91,11 @@ async def addContextByNaturalLanguage(request: Request):
     content = data["content"]
     weight = data.get("weight", "1.0")
     with_embedding = data["with_embedding"]
-    content_text = content if isinstance(content, str) else json.dumps(content)
     with session() as db:
         res = await contextAddContextByNaturalLanguage(
             db=db,
             relation_chain_id=int(relation_chain_id),
-            content=content_text,
+            content=json.dumps(content) if isinstance(content, dict) else content,
             weight=float(weight),
             with_embedding=bool(with_embedding),
         )
