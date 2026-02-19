@@ -7,7 +7,7 @@ from ..authentication import AuthHandler
 from database.database import session
 from ..services.context import (
     contextAddKnowledge,
-    contextAddContext,
+    contextAddContextByNaturalLanguage,
 )
 from ..services.embedding import recallEmbedding
 
@@ -22,6 +22,50 @@ def handleException(error):
 
 # 鉴权中间件
 contextRouter.configure_authentication(AuthHandler(token_getter=BearerGetter()))
+
+
+# todo: 建议按type拆分，不同类型上下文收集应当采用不同api
+# @contextRouter.post("/addContext", auth_required=True)
+# async def addContext(request: Request):
+#     data = request.json()
+#     relation_chain_id = data["relation_chain_id"]
+#     context_type = data["type"]
+#     content = data["content"]
+
+#     summary = data.get("summary")
+#     weight = data.get("weight", "1.0")
+#     confidence = data.get("confidence", "1.0")
+#     with_embedding = data["with_embedding"]
+#     with session() as db:
+#         res = await contextAddContext(
+#             db=db,
+#             relation_chain_id=int(relation_chain_id),
+#             type=context_type,
+#             content=content,
+#             summary=summary,
+#             weight=float(weight),
+#             confidence=float(confidence),
+#             with_embedding=bool(with_embedding),
+#         )
+#     return res
+
+
+@contextRouter.get("/recallContext", auth_required=True)
+async def recallContext(request: Request):
+    text = request.query_params.get("text", None)
+    top_k = request.query_params.get("top_k", "5")
+    recall_from = request.query_params.get("recall_from", "both")
+    relation_chain_id = request.query_params.get("relation_chain_id", None)
+
+    with session() as db:
+        res = await recallEmbedding(
+            db=db,
+            text=text,
+            top_k=int(top_k),
+            recall_from=recall_from,
+            relation_chain_id=(int(relation_chain_id) if relation_chain_id else None),
+        )
+    return res
 
 
 @contextRouter.post("/addKnowledge", auth_required=True)
@@ -40,47 +84,20 @@ async def addKnowledge(request: Request):
     return res
 
 
-# todo: 建议按type拆分，不同类型上下文收集应当采用不同api
-@contextRouter.post("/addContext", auth_required=True)
-async def addContext(request: Request):
+@contextRouter.post("/addContextByNaturalLanguage", auth_required=True)
+async def addContextByNaturalLanguage(request: Request):
     data = request.json()
     relation_chain_id = data["relation_chain_id"]
-    context_type = data["type"]
     content = data["content"]
-    source = data["source"]
-
-    summary = data.get("summary")
     weight = data.get("weight", "1.0")
-    confidence = data.get("confidence", "1.0")
     with_embedding = data["with_embedding"]
+    content_text = content if isinstance(content, str) else json.dumps(content)
     with session() as db:
-        res = await contextAddContext(
+        res = await contextAddContextByNaturalLanguage(
             db=db,
             relation_chain_id=int(relation_chain_id),
-            type=context_type,
-            content=content,
-            summary=summary,
-            source=source,
+            content=content_text,
             weight=float(weight),
-            confidence=float(confidence),
             with_embedding=bool(with_embedding),
-        )
-    return res
-
-
-@contextRouter.get("/recallContext", auth_required=True)
-async def recallContext(request: Request):
-    text = request.query_params.get("text", None)
-    top_k = request.query_params.get("top_k", "5")
-    recall_from = request.query_params.get("recall_from", "both")
-    relation_chain_id = request.query_params.get("relation_chain_id", None)
-
-    with session() as db:
-        res = await recallEmbedding(
-            db=db,
-            text=text,
-            top_k=int(top_k),
-            recall_from=recall_from,
-            relation_chain_id=(int(relation_chain_id) if relation_chain_id else None),
         )
     return res

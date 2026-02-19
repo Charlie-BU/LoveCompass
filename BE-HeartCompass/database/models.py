@@ -26,7 +26,6 @@ from .enums import (
     MBTI,
     RelationStage,
     ContextType,
-    ContextSource,
     ConflictType,
     ConflictResolutionStatus,
     EmbeddingType,
@@ -297,9 +296,8 @@ class Context(Base, SerializableMixin):
     )
     confidence = Column(
         Float, nullable=False, default=1.0, comment="Context 置信度（可靠性）"
-    )
+    )  # 直接插入为1.0，大模型推断则<1.0
     summary = Column(Text, nullable=True, comment="Context 摘要")
-    source = Column(Enum(ContextSource), nullable=False, comment="Context 来源")
 
     is_conflicted = Column(
         Boolean,

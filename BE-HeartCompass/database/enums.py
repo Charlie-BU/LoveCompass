@@ -52,14 +52,14 @@ class RelationStage(enum.Enum):
     FAILED = "failed"
 
 
-# todo：不同类型上下文内容应当具有固定的schema
+# 不同类型上下文内容应当具有固定的schema：context-schemas.py
 class ContextType(enum.Enum):
     STATIC_PROFILE = "static_profile"  # 长期稳定信息
     CHAT_LOG = "chat_log"  # 聊天记录
     INTERACTION_SIGNAL = "interaction_signal"  # 互动信号
     DERIVED_INSIGHT = "derived_insight"  # 推断/洞察
     STAGE_EVENT = "stage_event"  # 阶段性事件
-    SYSTEM_ANALYSIS = "system_analysis"  # 系统推理分析
+    SYSTEM_ANALYSIS = "system_analysis"  # 系统推理当前阶段
 
 
 class ContextSource(enum.Enum):
