@@ -1,3 +1,4 @@
+from ast import List
 from typing import Literal
 
 from agent.index import getAgent, askWithNoContext
@@ -29,6 +30,45 @@ async def summarizeContext(content: str, where: Literal["context", "knowledge"])
     return await askWithNoContext(prompt, ReactAgent)
 
 
+# 将自然语言组织拆分与提炼为knowledge
+async def extractKnowledge(content: str) -> str:
+    prompt = f"""
+    你是知识条目拆分与提炼助手。输入可能是一段自然语言或 JSON 结构的事实/观点，请将其拆分为一条或多条可写入向量数据库用于后续召回的知识条目，仅输出 JSON 数组。
+
+    **输入内容**：
+    {content}
+
+    **输出格式**：
+    [
+      {{
+        "content": "string",
+        "summary": "string",
+        "weight": float
+      }}
+    ]
+
+    **拆分与提炼规则**：
+    1. 100%基于输入内容，不要编造或推测。
+    2. 覆盖全部信息，任何内容都不能遗漏。
+    3. 每条 content 必须是可独立检索的完整事实或观点，避免指代词。
+    4. 按语义原子化拆分：一条仅表达一个核心事实、特征、结论或规则。
+    5. 对 JSON 输入需展开为多条事实：键名与其对应含义要体现在 content 中。
+    6. 允许保留原文关键短语，但要去冗余、去模板化重复。
+    7. summary 为对 content 的极简概括，尽量短，保留检索关键词。
+    8. weight 为 0-1 浮点数，表示重要性；核心定义/结论/高频主题更高，细节更低。
+    9. 不输出空字段；不输出与事实无关的解释。
+    10. 若未包含可抽取事实，输出空数组 []。
+    11. 仅输出 JSON 数组文本，不要包含任何解释或 Markdown 标记。
+
+    请直接输出 JSON 数组：
+    """
+    return await askWithNoContext(prompt, ReactAgent)
+
+
+# todo
+# async def extractCrushProfile()
+
+# todo: 基于新架构重写
 # 将自然语言的信息转为STATIC_PROFILE和STAGE_EVENT
 async def normalizeContext(content: str) -> str:
     prompt = f"""
@@ -76,5 +116,4 @@ async def normalizeContext(content: str) -> str:
 
     请直接输出JSON：
 """
-
     return await askWithNoContext(prompt, ReactAgent)

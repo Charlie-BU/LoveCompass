@@ -7,7 +7,7 @@ from ..authentication import AuthHandler
 from database.database import session
 from ..services.context import (
     contextAddKnowledge,
-    contextAddContextByNaturalLanguage,
+    # contextAddContextByNaturalLanguage,
 )
 from ..services.embedding import recallEmbedding
 
@@ -72,31 +72,30 @@ async def recallContext(request: Request):
 async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
-    weight = data.get("weight", "1.0")
     with_embedding = data["with_embedding"]
     with session() as db:
         res = await contextAddKnowledge(
             db=db,
             content=json.dumps(content) if isinstance(content, dict) else content,
-            weight=float(weight),
             with_embedding=bool(with_embedding),
         )
     return res
 
 
-@contextRouter.post("/addContextByNaturalLanguage", auth_required=True)
-async def addContextByNaturalLanguage(request: Request):
-    data = request.json()
-    relation_chain_id = data["relation_chain_id"]
-    content = data["content"]
-    weight = data.get("weight", "1.0")
-    with_embedding = data["with_embedding"]
-    with session() as db:
-        res = await contextAddContextByNaturalLanguage(
-            db=db,
-            relation_chain_id=int(relation_chain_id),
-            content=json.dumps(content) if isinstance(content, dict) else content,
-            weight=float(weight),
-            with_embedding=bool(with_embedding),
-        )
-    return res
+# todo
+# @contextRouter.post("/addContextByNaturalLanguage", auth_required=True)
+# async def addContextByNaturalLanguage(request: Request):
+#     data = request.json()
+#     relation_chain_id = data["relation_chain_id"]
+#     content = data["content"]
+#     weight = data.get("weight", "1.0")
+#     with_embedding = data["with_embedding"]
+#     with session() as db:
+#         res = await contextAddContextByNaturalLanguage(
+#             db=db,
+#             relation_chain_id=int(relation_chain_id),
+#             content=json.dumps(content) if isinstance(content, dict) else content,
+#             weight=float(weight),
+#             with_embedding=bool(with_embedding),
+#         )
+#     return res
