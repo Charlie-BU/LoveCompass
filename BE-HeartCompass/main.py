@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from dotenv import load_dotenv
 from robyn import Robyn
@@ -8,6 +9,7 @@ from server.faas import initFaaSServer
 
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 
 async def main() -> Robyn:

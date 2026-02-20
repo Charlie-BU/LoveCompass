@@ -11,7 +11,6 @@ from sqlalchemy import (
     DateTime,
     UniqueConstraint,
     Index,
-    text,
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.mutable import MutableList
@@ -25,10 +24,11 @@ from .enums import (
     UserLevel,
     MBTI,
     RelationStage,
-    ContextType,
-    ContextSource,
-    ConflictType,
-    ConflictResolutionStatus,
+    Attitude,
+    ChatSpeaker,
+    ChatChannel,
+    Degree,
+    WindowOnListen,
     EmbeddingType,
 )
 
@@ -135,7 +135,37 @@ class Crush(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="Crush 性格标签",
+        comment="性格标签",
+    )  # 手动选择
+    likes = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="喜好",
+    )
+    dislikes = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="不喜欢",
+    )
+    boundaries = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="个人边界",
+    )
+    traits = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="个人特点",
+    )  # 模型根据上下文推断
+    other_info = Column(
+        MutableList.as_mutable(ARRAY(JSONB)),
+        nullable=False,
+        default=[],
+        comment="其他信息",
     )
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="Crush 创建时间"
@@ -204,7 +234,7 @@ class RelationChain(Base, SerializableMixin):
         return f"<RelationChain {self.id}>"
 
 
-# ---- 阶段变更历史 ----
+# ---- 阶段变更历史（由模型根据上下文推断） ----
 class ChainStageHistory(Base, SerializableMixin):
     __tablename__ = "chain_stage_history"
 
@@ -216,14 +246,6 @@ class ChainStageHistory(Base, SerializableMixin):
         comment="关联关系链ID",
     )
     relation_chain = relationship("RelationChain", backref="stage_histories")
-
-    trigger_context_id = Column(
-        Integer,
-        ForeignKey("context.id", ondelete="SET NULL"),
-        nullable=True,
-        comment="触发变更的上下文ID",
-    )
-    trigger_context = relationship("Context", backref="stage_histories")
 
     previous_stage = Column(
         Enum(RelationStage), nullable=True, comment="变更前的关系阶段"
@@ -241,39 +263,10 @@ class ChainStageHistory(Base, SerializableMixin):
         return f"<ChainStageHistory {self.id}>"
 
 
-# ---- 静态知识库（用作全局上下文） ----
-class Knowledge(Base, SerializableMixin):
-    __tablename__ = "knowledge"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    content = Column(
-        JSONB, server_default=text("'{}'::jsonb"), nullable=False, comment="知识库内容"
-    )
-    weight = Column(
-        Float, nullable=False, index=True, default=1.0, comment="知识库权重（影响力）"
-    )
-    summary = Column(Text, nullable=True, comment="知识库摘要")
-    created_at = Column(
-        DateTime,
-        default=datetime.now(timezone.utc),
-        index=True,
-        comment="知识库创建时间",
-    )
-    updated_at = Column(
-        DateTime,
-        default=datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc),
-        comment="知识库更新时间",
-    )
-
-    def __repr__(self):
-        return f"<Knowledge {self.summary}>"
-
-
-# ---- 上下文 ----
-# 注意：Context 添加后内容不可修改
-class Context(Base, SerializableMixin):
-    __tablename__ = "context"
+# ---- 以下均为上下文 ----
+# ---- 事件 ----
+class Event(Base, SerializableMixin):
+    __tablename__ = "event"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     relation_chain_id = Column(
@@ -283,29 +276,29 @@ class Context(Base, SerializableMixin):
         index=True,
         comment="关联关系链ID",
     )
-    relation_chain = relationship("RelationChain", backref="contexts")
+    relation_chain = relationship("RelationChain", backref="events")
 
-    type = Column(Enum(ContextType), nullable=False, index=True, comment="Context类型")
-    content = Column(
-        JSONB,
-        server_default=text("'{}'::jsonb"),
-        nullable=False,
-        comment="Context内容",
-    )
+    content = Column(Text, nullable=False, comment="事件内容")
     weight = Column(
-        Float, nullable=False, index=True, default=1.0, comment="Context 权重（影响力）"
+        Float, nullable=False, index=True, default=1.0, comment="事件权重（重要性）"
     )
-    confidence = Column(
-        Float, nullable=False, default=1.0, comment="Context 置信度（可靠性）"
+    date = Column(
+        Text,
+        nullable=True,
+        comment="事件日期（自然语言描述）",
     )
-    summary = Column(Text, nullable=True, comment="Context 摘要")
-    source = Column(Enum(ContextSource), nullable=False, comment="Context 来源")
-
-    is_conflicted = Column(
-        Boolean,
+    summary = Column(Text, nullable=True, comment="事件摘要")
+    outcome = Column(
+        Enum(Attitude),
         nullable=False,
-        default=False,
-        comment="是否与其他上下文冲突（包括知识库）",
+        index=True,
+        comment="事件结果导向",
+    )
+    other_info = Column(
+        MutableList.as_mutable(ARRAY(JSONB)),
+        nullable=False,
+        default=[],
+        comment="其他信息",
     )
     is_active = Column(
         Boolean,
@@ -317,7 +310,7 @@ class Context(Base, SerializableMixin):
         DateTime,
         default=datetime.now(timezone.utc),
         index=True,
-        comment="上下文创建时间",
+        comment="事件创建时间",
     )
     last_used_at = Column(
         DateTime,
@@ -327,77 +320,242 @@ class Context(Base, SerializableMixin):
     )
 
     def __repr__(self):
-        return f"<Context {self.summary}>"
+        return f"<Event {self.summary}>"
 
 
-# ---- 上下文冲突 ----
-class ContextConflict(Base, SerializableMixin):
-    __tablename__ = "context_conflict"
+# ---- 聊天记录 ----
+class ChatLog(Base, SerializableMixin):
+    __tablename__ = "chat_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     relation_chain_id = Column(
         Integer,
         ForeignKey("relation_chain.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         comment="关联关系链ID",
     )
-    relation_chain = relationship("RelationChain", backref="context_conflicts")
+    relation_chain = relationship("RelationChain", backref="chat_logs")
 
-    type = Column(Enum(ConflictType), nullable=False, index=True, comment="冲突类型")
-
-    # 与已有上下文冲突时，前者上下文ID
-    former_context_id = Column(
-        Integer,
-        ForeignKey("context.id", ondelete="SET NULL"),
-        nullable=True,
-        comment="前者上下文ID",
-    )
-    former_context = relationship(
-        "Context",
-        foreign_keys=[former_context_id],
-        backref="former_conflicts",
-    )
-
-    # 与知识库冲突时，知识ID
-    former_knowledge_id = Column(
-        Integer,
-        ForeignKey("knowledge.id", ondelete="SET NULL"),
-        nullable=True,
-        comment="前者知识ID",
-    )
-    former_knowledge = relationship("Knowledge", backref="former_conflicts")
-
-    latter_context_id = Column(
-        Integer,
-        ForeignKey("context.id", ondelete="SET NULL"),
+    speaker = Column(Enum(ChatSpeaker), nullable=False, comment="角色")
+    content = Column(Text, nullable=False, comment="聊天内容")
+    timestamp = Column(
+        DateTime,
         nullable=False,
-        comment="后者上下文ID",
+        comment="时间戳",
     )
-    latter_context = relationship(
-        "Context",
-        foreign_keys=[latter_context_id],
-        backref="latter_conflicts",
-    )
-
-    conflict_reason = Column(Text, nullable=True, comment="冲突原因")
-    resolution_status = Column(
-        Enum(ConflictResolutionStatus),
+    channel = Column(
+        Enum(ChatChannel),
         nullable=False,
-        default=ConflictResolutionStatus.PENDING,
-        comment="冲突解决状态",
+        comment="渠道",
+    )
+    weight = Column(
+        Float, nullable=False, index=True, default=1.0, comment="权重（重要性）"
+    )
+    other_info = Column(
+        MutableList.as_mutable(ARRAY(JSONB)),
+        nullable=False,
+        default=[],
+        comment="其他信息",
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="是否有效",
     )
     created_at = Column(
-        DateTime, default=datetime.now(timezone.utc), comment="冲突创建时间"
-    )
-    updated_at = Column(
         DateTime,
         default=datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc),
-        comment="冲突更新时间",
+        index=True,
+        comment="创建时间",
+    )
+    last_used_at = Column(
+        DateTime,
+        nullable=True,
+        index=True,
+        comment="最后使用时间",
+    )
+
+
+# ---- 互动信号（通过CHAT_LOG推断） ----
+class InteractionSignal(Base, SerializableMixin):
+    __tablename__ = "interaction_signal"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    relation_chain_id = Column(
+        Integer,
+        ForeignKey("relation_chain.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联关系链ID",
+    )
+    relation_chain = relationship("RelationChain", backref="interaction_signals")
+
+    frequency = Column(Enum(Degree), nullable=False, comment="互动频率")
+    attitude = Column(Enum(Attitude), nullable=False, comment="态度")
+    window = Column(Enum(WindowOnListen), nullable=False, comment="观测时间窗口")
+    note = Column(Text, nullable=True, comment="备注")
+    confidence = Column(Float, nullable=False, comment="置信度（可靠性）")
+    weight = Column(
+        Float, nullable=False, index=True, default=1.0, comment="洞察权重（重要性）"
+    )
+
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="是否有效",
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="创建时间",
+    )
+    last_used_at = Column(
+        DateTime,
+        nullable=True,
+        index=True,
+        comment="最后使用时间",
+    )
+
+
+# ---- 推断/洞察（Crush信息、事件和聊天记录综合推断） ----
+class DerivedInsight(Base, SerializableMixin):
+    __tablename__ = "derived_insight"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    relation_chain_id = Column(
+        Integer,
+        ForeignKey("relation_chain.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联关系链ID",
+    )
+    relation_chain = relationship("RelationChain", backref="derived_insights")
+
+    insight = Column(Text, nullable=False, comment="洞察内容")
+
+    from_crush_info = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="来源cursh信息",
+    )
+    from_event_ids = Column(
+        MutableList.as_mutable(ARRAY(Integer)),
+        nullable=False,
+        default=[],
+        comment="来源事件id",
+    )
+    from_chat_log_ids = Column(
+        MutableList.as_mutable(ARRAY(Integer)),
+        nullable=False,
+        default=[],
+        comment="来源聊天记录id",
+    )
+    confidence = Column(Float, nullable=False, comment="洞察置信度（可靠性）")
+    weight = Column(
+        Float, nullable=False, index=True, default=1.0, comment="洞察权重（重要性）"
+    )
+    additional_info = Column(
+        MutableList.as_mutable(ARRAY(JSONB)),
+        nullable=False,
+        default=[],
+        comment="其他信息",
+    )
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="是否有效",
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="创建时间",
+    )
+    last_used_at = Column(
+        DateTime,
+        nullable=True,
+        index=True,
+        comment="最后使用时间",
     )
 
     def __repr__(self):
-        return f"<ContextConflict {self.id}>"
+        return f"<DerivedInsight {self.insight}>"
+
+
+# # ---- 上下文冲突（暂时弃用） ----
+# class ContextConflict(Base, SerializableMixin):
+#     __tablename__ = "context_conflict"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     relation_chain_id = Column(
+#         Integer,
+#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联关系链ID",
+#     )
+#     relation_chain = relationship("RelationChain", backref="context_conflicts")
+
+#     type = Column(Enum(ConflictType), nullable=False, index=True, comment="冲突类型")
+
+#     # 与已有上下文冲突时，前者上下文ID
+#     former_context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="SET NULL"),
+#         nullable=True,
+#         comment="前者上下文ID",
+#     )
+#     former_context = relationship(
+#         "Context",
+#         foreign_keys=[former_context_id],
+#         backref="former_conflicts",
+#     )
+
+#     # 与知识库冲突时，知识ID
+#     former_knowledge_id = Column(
+#         Integer,
+#         ForeignKey("knowledge.id", ondelete="SET NULL"),
+#         nullable=True,
+#         comment="前者知识ID",
+#     )
+#     former_knowledge = relationship("Knowledge", backref="former_conflicts")
+
+#     latter_context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="SET NULL"),
+#         nullable=False,
+#         comment="后者上下文ID",
+#     )
+#     latter_context = relationship(
+#         "Context",
+#         foreign_keys=[latter_context_id],
+#         backref="latter_conflicts",
+#     )
+
+#     conflict_reason = Column(Text, nullable=True, comment="冲突原因")
+#     resolution_status = Column(
+#         Enum(ConflictResolutionStatus),
+#         nullable=False,
+#         default=ConflictResolutionStatus.PENDING,
+#         comment="冲突解决状态",
+#     )
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="冲突创建时间"
+#     )
+#     updated_at = Column(
+#         DateTime,
+#         default=datetime.now(timezone.utc),
+#         onupdate=datetime.now(timezone.utc),
+#         comment="冲突更新时间",
+#     )
+
+#     def __repr__(self):
+#         return f"<ContextConflict {self.id}>"
 
 
 # ---- 向量化上下文 ----
@@ -416,14 +574,7 @@ class ContextEmbedding(Base, SerializableMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     type = Column(Enum(EmbeddingType), nullable=False, index=True, comment="类型")
-    # 从上下文生成时，关联上下文ID
-    context_id = Column(
-        Integer,
-        ForeignKey("context.id", ondelete="SET NULL"),
-        nullable=True,
-        comment="关联上下文ID",
-    )
-    context = relationship("Context", backref="embeddings")
+
     # 从静态知识库生成时，关联知识ID
     knowledge_id = Column(
         Integer,
@@ -432,6 +583,38 @@ class ContextEmbedding(Base, SerializableMixin):
         comment="关联知识ID",
     )
     knowledge = relationship("Knowledge", backref="embeddings")
+    # 从事件生成时，关联事件ID
+    event_id = Column(
+        Integer,
+        ForeignKey("event.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="关联事件ID",
+    )
+    event = relationship("Event", backref="embeddings")
+    # 从聊天记录生成时，关联聊天记录ID
+    chat_log_id = Column(
+        Integer,
+        ForeignKey("chat_log.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="关联聊天记录ID",
+    )
+    chat_log = relationship("ChatLog", backref="embeddings")
+    # 从互动信号生成时，关联互动信号ID
+    interaction_signal_id = Column(
+        Integer,
+        ForeignKey("interaction_signal.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="关联互动信号ID",
+    )
+    interaction_signal = relationship("InteractionSignal", backref="embeddings")
+    # 从推断/洞察生成时，关联推断/洞察ID
+    derived_insight_id = Column(
+        Integer,
+        ForeignKey("derived_insight.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="关联推断/洞察ID",
+    )
+    derived_insight = relationship("DerivedInsight", backref="embeddings")
 
     model_name = Column(
         String(128),
@@ -453,6 +636,33 @@ class ContextEmbedding(Base, SerializableMixin):
 
     def __repr__(self):
         return f"<ContextEmbedding {self.id}>"
+
+
+# ---- 静态知识库 ----
+class Knowledge(Base, SerializableMixin):
+    __tablename__ = "knowledge"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(Text, nullable=False, comment="知识库内容")
+    weight = Column(
+        Float, nullable=False, index=True, default=1.0, comment="知识库权重（重要性）"
+    )
+    summary = Column(Text, nullable=True, comment="知识库摘要")
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="知识库创建时间",
+    )
+    updated_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        comment="知识库更新时间",
+    )
+
+    def __repr__(self):
+        return f"<Knowledge {self.summary}>"
 
 
 # 以下为 Codex 建议新增的数据表，需要后续进一步评估

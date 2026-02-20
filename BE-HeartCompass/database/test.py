@@ -30,7 +30,7 @@ async def addMBTIKnowledgeToKnowledgeBase():
             # Add to knowledge base
             try:
                 result = await contextAddKnowledge(
-                    db=db, content=content, weight=1.0, with_embedding=True
+                    db=db, content=content, with_embedding=True
                 )
                 print(f"Result for {mbti_type}: {result}")
             except Exception as e:

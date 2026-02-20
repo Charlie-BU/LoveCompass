@@ -1,88 +1,153 @@
 import json
 import os
+import logging
 from typing import Any, Literal
 from sqlalchemy.orm import Session
 
 
-from database.models import Context, ContextEmbedding, Knowledge
-from database.enums import ContextType, EmbeddingType
+from database.models import (
+    ContextEmbedding,
+    Crush,
+    Event,
+    ChatLog,
+    InteractionSignal,
+    DerivedInsight,
+    Knowledge,
+)
+from database.enums import EmbeddingType
 from agent.index import vectorizeText
+
+logger = logging.getLogger(__name__)
 
 
 # 构建用于向量化的文本
 def buildEmbeddingText(
-    from_where: Literal["knowledge", "context"],
-    category: str | ContextType,
-    summary: str | None,
-    content: Any,
+    content: str | dict,
+    summary: str | None = None,
 ) -> str:
     """
     策略：
-    1. 显式包含类型标签，如 [KNOWLEDGE] 或 [CHAT_LOG]。
-    2. 始终包含 Summary（作为宏观索引）。
-    3. 根据内容类型智能追加 Content（作为微观索引）。
+    1. 包含 Summary（作为宏观索引）。
+    2. 根据内容类型智能追加 Content（作为微观索引）。
     """
-    # 1. 确定前缀标签
-    prefix = ""
-    if from_where == "knowledge":
-        prefix = "[KNOWLEDGE]"
-    elif isinstance(category, ContextType):
-        prefix = f"[{category.value.upper()}]"
-    else:
-        prefix = f"[{str(category).upper()}]"
-    # 2. 构建主体文本
-    parts = [prefix]
+    # 构建主体文本
+    parts = []
     # 添加摘要 (Summary) - 宏观骨架
     if summary:
-        parts.append(f"Summary: {summary}")
+        parts.append(f"{summary}")
     # 添加内容 (Content) - 微观血肉
     # 策略：对于字典类型，递归展开关键信息；对于字符串，直接追加。
     if isinstance(content, dict):
-        # 针对 Knowledge 的特殊优化：json复杂结构保留完整键值对语义
+        # json复杂结构保留完整键值对语义
         try:
             # ensure_ascii=False 保证中文不被转义，节省 token 且语义更清晰
             content_str = json.dumps(content, ensure_ascii=False, separators=(",", ":"))
-            parts.append(f"Content: {content_str}")
+            parts.append(f"{content_str}")
         except Exception:
-            parts.append(f"Content: {str(content)}")
+            parts.append(f"{str(content)}")
     elif isinstance(content, str) and content.strip():
-        parts.append(f"Content: {content.strip()}")
+        parts.append(f"{content.strip()}")
     else:
-        parts.append(f"Content: {str(content)}")
+        parts.append(f"{str(content)}")
     return "\n".join(parts)
 
 
 async def createOrUpdateEmbedding(
     db: Session,
-    from_where: Literal["knowledge", "context"],
-    context: Context = None,
+    from_where: Literal[
+        "knowledge",
+        "crush_info",
+        "event",
+        "chat_log",
+        "interaction_signal",
+        "derived_insight",
+    ],
     knowledge: Knowledge = None,
+    cursh: Crush = None,
+    event: Event = None,
+    chat_log: ChatLog = None,
+    interaction_signal: InteractionSignal = None,
+    derived_insight: DerivedInsight = None,
 ) -> dict:
     target_obj = None
-    category = ""
     embedding_type = None
 
     match from_where:
         case "knowledge":
             if not knowledge:
                 return {"status": -1, "message": "Knowledge is required"}
-            target_obj = knowledge
-            category = "general"  # Knowledge 暂无细分 type, 统一用 general
             embedding_type = EmbeddingType.FROM_KNOWLEDGE
-        case "context":
-            if not context:
-                return {"status": -1, "message": "Context is required"}
-            target_obj = context
-            category = context.type
-            embedding_type = EmbeddingType.FROM_CONTEXT
+            # 构建向量化文本
+            text = buildEmbeddingText(
+                content=knowledge.content,
+                summary=knowledge.summary,
+            )
+        case "crush_info":
+            if not cursh:
+                return {"status": -1, "message": "Cursh is required"}
+            embedding_type = EmbeddingType.FROM_CRUSH_PROFILE
+            # 构建向量化文本
+            # todo: 需要ai介入
+            # parts = []
+            # if cursh.name:
+            #     parts.append(f"姓名：{cursh.name}")
+            # if cursh.gender:
+            #     parts.append(f"性别：{cursh.gender.value}")
+            # if cursh.mbti:
+            #     parts.append(f"MBTI 类型：{cursh.mbti.value}")
+            # if cursh.personality_tags:
+            #     parts.append(f"性格标签：{', '.join(cursh.personality_tags)}")
+            # if cursh.likes:
+            #     parts.append(f"喜好：{', '.join(cursh.likes)}")
+            # if cursh.dislikes:
+            #     parts.append(f"不喜欢：{', '.join(cursh.dislikes)}")
+            # if cursh.boundaries:
+            #     parts.append(f"个人边界：{', '.join(cursh.boundaries)}")
+            # if cursh.traits:
+            #     parts.append(f"个人特点：{', '.join(cursh.traits)}")
+            # if cursh.other_info:
+            #     parts.append(f"{', '.join(cursh.other_info)}")
+            # text = buildEmbeddingText(
+            #     content="\n".join(parts),
+            # )
+        case "event":
+            if not event:
+                return {"status": -1, "message": "Event is required"}
+            embedding_type = EmbeddingType.FROM_EVENT
+            # 构建向量化文本
+            text = buildEmbeddingText(
+                content=knowledge.content,
+                summary=knowledge.summary,
+            )
+        case "chat_log":
+            if not chat_log:
+                return {"status": -1, "message": "Chat_log is required"}
+            embedding_type = EmbeddingType.FROM_CHAT_LOG
+            # 构建向量化文本
+            text = buildEmbeddingText(
+                content=knowledge.content,
+                summary=knowledge.summary,
+            )
+        case "interaction_signal":
+            if not interaction_signal:
+                return {"status": -1, "message": "Interaction_signal is required"}
+            embedding_type = EmbeddingType.FROM_INTERACTION_SIGNAL
+            # 构建向量化文本
+            text = buildEmbeddingText(
+                content=knowledge.content,
+                summary=knowledge.summary,
+            )
+        case "derived_insight":
+            if not derived_insight:
+                return {"status": -1, "message": "Derived_insight is required"}
+            embedding_type = EmbeddingType.FROM_DERIVED_INSIGHT
+            # 构建向量化文本
+            text = buildEmbeddingText(
+                content=knowledge.content,
+                summary=knowledge.summary,
+            )
 
-    # 1. 构建向量化文本
-    text = buildEmbeddingText(
-        from_where=from_where,
-        category=category,
-        summary=target_obj.summary,
-        content=target_obj.content,
-    )
+    logger.info(f"Embedded text: \n{text}")
     # 2. 生成向量
     try:
         vector = await vectorizeText(text)
@@ -95,10 +160,10 @@ async def createOrUpdateEmbedding(
     # 检查是否存在已有记录
     query = db.query(ContextEmbedding).filter(ContextEmbedding.type == embedding_type)
 
-    if from_where == "knowledge":
-        query = query.filter(ContextEmbedding.knowledge_id == knowledge.id)
-    else:
-        query = query.filter(ContextEmbedding.context_id == context.id)
+    match from_where:
+        case "knowledge":
+            query = query.filter(ContextEmbedding.knowledge_id == knowledge.id)
+        # todo：其他情况
 
     existing = query.first()
 
@@ -110,8 +175,11 @@ async def createOrUpdateEmbedding(
             embedding=vector,
             model_name=os.getenv("EMBEDDING_MODEL_NAME"),
             # 根据来源设置外键
-            knowledge_id=knowledge.id if from_where == "knowledge" else None,
-            context_id=context.id if from_where == "context" else None,
+            knowledge_id=knowledge.id if knowledge else None,
+            event_id=event.id if event else None,
+            chat_log_id=chat_log.id if chat_log else None,
+            interaction_signal_id=interaction_signal.id if interaction_signal else None,
+            derived_insight_id=derived_insight.id if derived_insight else None,
         )
         db.add(embedding)
     db.commit()
