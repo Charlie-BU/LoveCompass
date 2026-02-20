@@ -52,26 +52,42 @@ class RelationStage(enum.Enum):
     FAILED = "failed"
 
 
-# 不同类型上下文内容应当具有固定的schema：context-schemas.py
-class ContextType(enum.Enum):
-    STATIC_PROFILE = "static_profile"  # 长期稳定信息
-    CHAT_LOG = "chat_log"  # 聊天记录
-    INTERACTION_SIGNAL = "interaction_signal"  # 互动信号
-    DERIVED_INSIGHT = "derived_insight"  # 推断/洞察
-    STAGE_EVENT = "stage_event"  # 阶段性事件
-    SYSTEM_ANALYSIS = "system_analysis"  # 系统推理当前阶段
+class Attitude(enum.Enum):
+    POSITIVE = "positive"
+    NEUTRAL = "neutral"
+    NEGATIVE = "negative"
+    UNKNOWN = "unknown"
 
 
-class ContextSource(enum.Enum):
-    USER_INPUT = "user_input"  # 用户直接输入
-    SYSTEM_INFERENCE = "system_inference"  # 系统推理生成
-    LLM_GENERATED = "llm_generated"  # LLM 生成
-    EXTERNAL_API = "external_api"  # 外部 API 上传
+class ChatSpeaker(enum.Enum):
+    ME = "me"
+    CRUSH = "crush"
+    THIRD_PARTY = "third_party"
 
 
-class ConflictType(enum.Enum):
-    WITH_CONTEXT = "with_context"  # 与已有上下文冲突
-    WITH_KNOWLEDGE = "with_knowledge"  # 与静态知识库冲突
+class ChatChannel(enum.Enum):
+    OFFLINE = "offline"
+    WEIXIN = "weixin"
+    DOUYIN = "douyin"
+    SMS = "sms"
+    EMAIL = "email"
+    PHONE = "phone"
+    OTHER = "other"
+
+
+class Degree(enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class WindowOnListen(enum.Enum):
+    H24 = "24h"
+    D3 = "3d"
+    D7 = "7d"
+    D14 = "14d"
+    D30 = "30d"
+    UNKNOWN = "unknown"
 
 
 class ConflictResolutionStatus(enum.Enum):
@@ -82,5 +98,9 @@ class ConflictResolutionStatus(enum.Enum):
 
 
 class EmbeddingType(enum.Enum):
-    FROM_CONTEXT = "from_context"  # 从上下文生成
     FROM_KNOWLEDGE = "from_knowledge"  # 从静态知识库生成
+    FROM_CRUSH_PROFILE = "from_crush_profile"  # 从 Crush 个人资料生成
+    FROM_EVENT = "from_event"  # 从事件生成
+    FROM_CHAT_LOG = "from_chat_log"  # 从聊天记录生成
+    FROM_INTERACTION_SIGNAL = "from_interaction_signal"  # 从互动信号生成
+    FROM_DERIVED_INSIGHT = "from_derived_insight"  # 从推断/洞察生成
