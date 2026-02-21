@@ -441,7 +441,7 @@ class DerivedInsight(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="来源cursh信息",
+        comment="来源crush信息",
     )
     from_event_ids = Column(
         MutableList.as_mutable(ARRAY(Integer)),
@@ -574,20 +574,31 @@ class ContextEmbedding(Base, SerializableMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     type = Column(Enum(EmbeddingType), nullable=False, index=True, comment="类型")
-
+    
     # 从静态知识库生成时，关联知识ID
     knowledge_id = Column(
         Integer,
-        ForeignKey("knowledge.id", ondelete="SET NULL"),
+        ForeignKey("knowledge.id", ondelete="CASCADE"),
         nullable=True,
+        unique=True,  # 每个知识只能有一个向量化上下文
         comment="关联知识ID",
     )
     knowledge = relationship("Knowledge", backref="embeddings")
+    # 从 Crush 个人资料生成时，关联 Crush ID
+    crush_id = Column(
+        Integer,
+        ForeignKey("crush.id", ondelete="CASCADE"),
+        nullable=True,
+        unique=True,  # 每个 Crush 只能有一个向量化上下文
+        comment="关联 Crush ID",
+    )
+    crush = relationship("Crush", backref="embeddings")
     # 从事件生成时，关联事件ID
     event_id = Column(
         Integer,
         ForeignKey("event.id", ondelete="CASCADE"),
         nullable=True,
+        unique=True,  # 每个事件只能有一个向量化上下文
         comment="关联事件ID",
     )
     event = relationship("Event", backref="embeddings")
@@ -596,22 +607,16 @@ class ContextEmbedding(Base, SerializableMixin):
         Integer,
         ForeignKey("chat_log.id", ondelete="CASCADE"),
         nullable=True,
+        unique=True,  # 每个聊天记录只能有一个向量化上下文
         comment="关联聊天记录ID",
     )
     chat_log = relationship("ChatLog", backref="embeddings")
-    # 从互动信号生成时，关联互动信号ID
-    interaction_signal_id = Column(
-        Integer,
-        ForeignKey("interaction_signal.id", ondelete="CASCADE"),
-        nullable=True,
-        comment="关联互动信号ID",
-    )
-    interaction_signal = relationship("InteractionSignal", backref="embeddings")
     # 从推断/洞察生成时，关联推断/洞察ID
     derived_insight_id = Column(
         Integer,
         ForeignKey("derived_insight.id", ondelete="CASCADE"),
         nullable=True,
+        unique=True,  # 每个推断/洞察只能有一个向量化上下文
         comment="关联推断/洞察ID",
     )
     derived_insight = relationship("DerivedInsight", backref="embeddings")
