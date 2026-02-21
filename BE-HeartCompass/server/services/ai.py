@@ -65,14 +65,10 @@ async def extractKnowledge(content: str) -> str:
     return await askWithNoContext(prompt, ReactAgent)
 
 
-# todo
-# async def extractCrushProfile()
-
-# todo: 基于新架构重写
-# 将自然语言的信息转为STATIC_PROFILE和STAGE_EVENT
+# 将自然语言的信息转为 crush_profile 和 event
 async def normalizeContext(content: str) -> str:
     prompt = f"""
-    你是信息抽取助手。给定用户在和crush交往过程中的一些自然语言描述，请理解并抽取其中的STATIC_PROFILE与STAGE_EVENT，仅输出JSON。
+    你是信息抽取助手。给定用户在和crush交往过程中的一些自然语言描述，请理解并抽取其中的crush_profile（对方的个人画像）与event（事件），仅输出JSON。
 
     **输入描述**：
     {content}
@@ -80,38 +76,37 @@ async def normalizeContext(content: str) -> str:
     **输出格式（ts表述）**：
 {{
     // 对方的个人画像
-    STATIC_PROFILE: {{
-        mbti?: string;  // MBTI
+    crush_profile: {{
         likes?: string[];  // 喜好
         dislikes?: string[];  // 不喜欢
         boundaries?: string[];  // 个人边界
         traits?: string[];  // 个人特点
-        evidence?: string[];  // 支持证据
-        others?: Record<string, string>;  // 其他信息
+        other_info?: Record<string, string>;  // 其他信息
     }};
     // 事件
-    STAGE_EVENT: {{
-        event: string;  // 事件详细内容和经过
+    event: {{
+        content: string;  // 事件详细内容和经过
         date?: string;  // 事件日期
         summary: string;  // 事件概要
         outcome: "positive" | "neutral" | "negative" | "unknown";  // 结果导向
-        additional_info?: Record<string, string>;  // 其他额外信息
+        other_info?: Record<string, string>;  // 其他额外信息
+        weight: number;  // 事件权重（重要性）
     }};
 }}
 
     **抽取规则**：
     1. 100%基于输入内容，不要编造。
-    2. 仅在内容涉及 STATIC_PROFILE 时输出该部分。
-    3. 仅在内容涉及 STAGE_EVENT 时输出该部分。
+    2. 仅在内容涉及 crush_profile 时输出该部分。
+    3. 仅在内容涉及 event 时输出该部分。
     4. 同时涉及两类时，输出两部分。
     5. 两类都未涉及时，输出空对象 {{}}。
     6. 未提及的信息不要输出该字段。
-    7. STAGE_EVENT 必须输出 event 与 outcome；event 为事件详细内容和经过，需要尽可能详细；可通过内容推断结果导向，若无法推断结果导向，使用 "unknown"。
+    7. event 必须输出 content 与 outcome；content 为事件详细内容和经过，需要尽可能详细；可通过内容推断结果导向，若无法推断结果导向，使用 "unknown"。
     8. date 使用原文日期表达；无日期则省略。
-    9. likes/dislikes/boundaries/traits/evidence 必须是字符串数组。
-    10. evidence 用简短、可核查的表述概括证据，不要原文复述或情绪化改写。
-    11. summary 生成一个精炼且完整的摘要，保留核心信息，字数控制在50字以内（除非信息量极大）。
-    12. others/additional_info 用键值对补充零散信息，键必须为英文，合理的键名。
+    9. likes/dislikes/boundaries/traits 必须是字符串数组。
+    10. summary 生成一个精炼且完整的摘要，保留核心信息，字数控制在50字以内（除非信息量极大）。
+    11. other_info 用键值对补充零散信息，键必须为英文，合理的键名。
+    12. weight 为 0-1 浮点数，表示重要性；请根据事件内容和上下文，判断事件的重要性。
     13. 直接输出JSON文本，不要包含任何解释或Markdown标记。
 
     请直接输出JSON：

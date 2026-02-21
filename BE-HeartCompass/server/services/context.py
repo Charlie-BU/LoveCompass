@@ -1,12 +1,15 @@
 import json
 import logging
+from traceback import print_exception
+from numpy import isin
 from sqlalchemy.orm import Session
-from typing import Literal
+from typing import Literal, List
 
 from .ai import summarizeContext, extractKnowledge, normalizeContext
 from .embedding import createOrUpdateEmbedding
-from database.models import RelationChain, Knowledge
-from database.enums import parseEnum
+from database.models import RelationChain, Knowledge, Crush, Event
+from database.enums import parseEnum, Attitude
+from utils import cleanList
 
 logger = logging.getLogger(__name__)
 
@@ -94,175 +97,169 @@ async def contextAddKnowledge(
     }
 
 
-# todo：按照新架构重写
-# async def contextAddContextByNaturalLanguage(
-#     db: Session,
-#     relation_chain_id: int,
-#     content: str,
-#     weight: float,
-#     with_embedding: bool,
-# ) -> dict:
-#     relation_chain = db.get(RelationChain, relation_chain_id)
-#     if relation_chain is None:
-#         return {"status": -1, "message": "Relation chain not found"}
-#     if not content or content.strip() == "":
-#         return {"status": -2, "message": "Content is empty"}
+async def contextAddContextByNaturalLanguage(
+    db: Session,
+    relation_chain_id: int,
+    content: str,
+    with_embedding: bool,
+) -> dict:
+    relation_chain = db.get(RelationChain, relation_chain_id)
+    if relation_chain is None:
+        return {"status": -1, "message": "Relation chain not found"}
+    if not content or content.strip() == "":
+        return {"status": -2, "message": "Content is empty"}
 
-#     try:
-#         normalized_context = json.loads(await normalizeContext(content))
-#     except json.JSONDecodeError:
-#         return {"status": -3, "message": "Failed to normalize context"}
+    try:
+        normalized_context = json.loads(await normalizeContext(content))
+    except json.JSONDecodeError:
+        return {"status": -3, "message": "Failed to normalize context"}
 
-#     if not isinstance(normalized_context, dict):
-#         return {"status": -3, "message": "Failed to normalize context"}
+    if not isinstance(normalized_context, dict):
+        return {"status": -3, "message": "Failed to normalize context"}
 
-#     # logger.info("normalized_context=%s", normalized_context)    # 生产环境记得注释掉
+    crush_profile = normalized_context.get("crush_profile")
+    event = normalized_context.get("event")
+    if crush_profile is None and event is None:
+        return {"status": -4, "message": "No valid context found"}
 
-#     STATIC_PROFILE = normalized_context.get("STATIC_PROFILE")
-#     STAGE_EVENT = normalized_context.get("STAGE_EVENT")
-#     if STATIC_PROFILE is None and STAGE_EVENT is None:
-#         return {"status": -4, "message": "No valid context found"}
+    if crush_profile is not None and not isinstance(crush_profile, dict):
+        return {"status": -5, "message": "Invalid crush_profile format"}
 
-#     if STATIC_PROFILE is not None and not isinstance(STATIC_PROFILE, dict):
-#         return {"status": -5, "message": "Invalid STATIC_PROFILE format"}
-#     if STAGE_EVENT is not None and not isinstance(STAGE_EVENT, dict):
-#         return {"status": -6, "message": "Invalid STAGE_EVENT format"}
+    if event is not None and not isinstance(event, dict):
+        return {"status": -6, "message": "Invalid event format"}
 
-#     safe_weight = weight if weight is not None else 1.0
-#     new_context_STATIC_PROFILE = None
-#     new_context_STAGE_EVENT = None
+    print("normalized_context:\n", json.dumps(normalized_context, indent=4, ensure_ascii=False))
 
-#     summary_STATIC_PROFILE = None
-#     stage_STAGE_EVENT = None
-#     if STATIC_PROFILE is not None:
-#         try:
-#             summary_STATIC_PROFILE = await summarizeContext(
-#                 json.dumps(STATIC_PROFILE), "context"
-#             )
-#         except Exception as e:
-#             return {"status": -7, "message": f"Error summarizing context: {e}"}
+    # 提前声明，后续需要refresh
+    crush = None
+    new_event = None
+    try:
+        # 使用事务一次性写入两类 Context，避免部分成功导致数据不一致
+        transaction_ctx = db.begin_nested() if db.in_transaction() else db.begin()
+        with transaction_ctx:
+            # 包含crush_profile：直接在Crush表添加
+            if crush_profile is not None:
+                crush = relation_chain.crush
+                if crush is None:
+                    return {"status": -7, "message": "Crush not found"}
+                new_likes = crush_profile.get("likes")
+                new_dislikes = crush_profile.get("dislikes")
+                new_boundaries = crush_profile.get("boundaries")
+                new_traits = crush_profile.get("traits")
+                new_other_info = crush_profile.get("other_info")
 
-#     if STAGE_EVENT is not None:
-#         stage_STAGE_EVENT = STAGE_EVENT.get("summary")
-#         if stage_STAGE_EVENT is None:
-#             try:
-#                 stage_STAGE_EVENT = await summarizeContext(
-#                     json.dumps(STAGE_EVENT), "context"
-#                 )
-#             except Exception as e:
-#                 return {"status": -7, "message": f"Error summarizing context: {e}"}
+                if new_likes is not None and isinstance(new_likes, list):
+                    current_likes = set(cleanList(crush.likes))
+                    for item in cleanList(new_likes):
+                        if item not in current_likes:
+                            crush.likes.append(item)
+                            current_likes.add(item)
+                if new_dislikes is not None and isinstance(new_dislikes, list):
+                    current_dislikes = set(cleanList(crush.dislikes))
+                    for item in cleanList(new_dislikes):
+                        if item not in current_dislikes:
+                            crush.dislikes.append(item)
+                            current_dislikes.add(item)
+                if new_boundaries is not None and isinstance(new_boundaries, list):
+                    current_boundaries = set(cleanList(crush.boundaries))
+                    for item in cleanList(new_boundaries):
+                        if item not in current_boundaries:
+                            crush.boundaries.append(item)
+                            current_boundaries.add(item)
+                if new_traits is not None and isinstance(new_traits, list):
+                    current_traits = set(cleanList(crush.traits))
+                    for item in cleanList(new_traits):
+                        if item not in current_traits:
+                            crush.traits.append(item)
+                            current_traits.add(item)
+                if new_other_info is not None and isinstance(new_other_info, dict):
+                    crush.other_info.append(new_other_info)
 
-#     try:
-#         # 使用事务一次性写入两类 Context，避免部分成功导致数据不一致
-#         transaction_ctx = db.begin_nested() if db.in_transaction() else db.begin()
-#         with transaction_ctx:
-#             if STATIC_PROFILE is not None:
-#                 new_context_STATIC_PROFILE = Context(
-#                     relation_chain_id=relation_chain_id,
-#                     type=ContextType.STATIC_PROFILE,
-#                     content=STATIC_PROFILE,
-#                     summary=summary_STATIC_PROFILE,
-#                     weight=safe_weight,
-#                     confidence=1.0,
-#                 )
-#                 db.add(new_context_STATIC_PROFILE)
-#             if STAGE_EVENT is not None:
-#                 new_context_STAGE_EVENT = Context(
-#                     relation_chain_id=relation_chain_id,
-#                     type=ContextType.STAGE_EVENT,
-#                     content=STAGE_EVENT,
-#                     summary=stage_STAGE_EVENT,
-#                     weight=safe_weight,
-#                     confidence=1.0,
-#                 )
-#                 db.add(new_context_STAGE_EVENT)
-#             db.flush()
-#     except Exception as e:
-#         return {"status": -8, "message": f"Error saving context: {e}"}
+            # 包含event：在Event表新增
+            if event is not None:
+                # 对event结构做校验
+                event_content = None
+                event_weight = 1.0
+                event_date = None
+                event_summary = None
+                event_outcome = None
+                event_other_info = None
+                if event is not None:
+                    event_content = event.get("content")
+                    if not isinstance(event_content, str) or not event_content.strip():
+                        return {"status": -6, "message": "Invalid event content"}
+                    event_weight = event.get("weight", 1.0)
+                    if not isinstance(event_weight, (int, float)) or not (
+                        0 <= float(event_weight) <= 1
+                    ):
+                        return {"status": -6, "message": "Invalid event weight"}
+                    event_date = event.get("date")
+                    if isinstance(event_date, str) and not event_date.strip():
+                        event_date = None
+                    event_summary = event.get("summary")
+                    if event_summary is not None and not isinstance(event_summary, str):
+                        return {"status": -6, "message": "Invalid event summary"}
+                    outcome_value = event.get("outcome", Attitude.UNKNOWN.value)
+                    try:
+                        event_outcome = parseEnum(Attitude, outcome_value)
+                    except ValueError:
+                        return {"status": -6, "message": "Invalid event outcome"}
+                    event_other_info = event.get("other_info")
+                    if event_other_info is not None and not isinstance(
+                        event_other_info, dict
+                    ):
+                        return {"status": -6, "message": "Invalid event other_info"}
 
-#     if new_context_STATIC_PROFILE is not None:
-#         db.refresh(new_context_STATIC_PROFILE)
-#     if new_context_STAGE_EVENT is not None:
-#         db.refresh(new_context_STAGE_EVENT)
+                new_event = Event(
+                    relation_chain_id=relation_chain_id,
+                    content=event_content,
+                    weight=float(event_weight),
+                    date=event_date,
+                    summary=event_summary,
+                    outcome=event_outcome,
+                )
+                if event_other_info is not None:
+                    new_event.other_info = [event_other_info]
+                db.add(new_event)
 
-#     embedding_result_STATIC_PROFILE = None
-#     embedding_result_STAGE_EVENT = None
-#     if new_context_STATIC_PROFILE is not None:
-#         embedding_result_STATIC_PROFILE = {
-#             "status": 0,
-#             "message": "Embedding not created",
-#         }
-#         if with_embedding:
-#             embedding_result_STATIC_PROFILE = await createOrUpdateEmbedding(
-#                 db, from_where="context", context=new_context_STATIC_PROFILE
-#             )
+            db.flush()
+    except Exception as e:
+        return {"status": -8, "message": f"Error saving context: {e}"}
 
-#     if new_context_STAGE_EVENT is not None:
-#         embedding_result_STAGE_EVENT = {
-#             "status": 0,
-#             "message": "Embedding not created",
-#         }
-#         if with_embedding:
-#             embedding_result_STAGE_EVENT = await createOrUpdateEmbedding(
-#                 db, from_where="context", context=new_context_STAGE_EVENT
-#             )
-#     embedding_result = {}
-#     if embedding_result_STATIC_PROFILE is not None:
-#         embedding_result["STATIC_PROFILE"] = embedding_result_STATIC_PROFILE
-#     if embedding_result_STAGE_EVENT is not None:
-#         embedding_result["STAGE_EVENT"] = embedding_result_STAGE_EVENT
-#     return {
-#         "status": 200,
-#         "message": "Create context success",
-#         "normalized_context": normalized_context,
-#         "embedding": embedding_result,
-#     }
+    crush_embedding_res = None
+    event_embedding_res = None
+    if crush is not None:
+        db.refresh(crush)
+        crush_embedding_res = {
+            "status": 0,
+            "message": "Embedding not created",
+        }
+        # 若需向量化，向量化并落库
+        if with_embedding:
+            crush_embedding_res = await createOrUpdateEmbedding(
+                db, from_where="crush_profile", crush=crush
+            )
 
+    if new_event is not None:
+        db.refresh(new_event)
+        event_embedding_res = {
+            "status": 0,
+            "message": "Embedding not created",
+        }
+        # 若需向量化，向量化并落库
+        if with_embedding:
+            event_embedding_res = await createOrUpdateEmbedding(
+                db, from_where="event", event=new_event
+            )
 
-# todo: 按type分别存
-# async def contextAddContext(
-#     db: Session,
-#     relation_chain_id: int,
-#     type: str,
-#     content: dict | str,
-#     summary: str | None,
-#     weight: float,
-#     confidence: float,
-#     with_embedding: bool,
-# ) -> dict:
-#     relation_chain = db.get(RelationChain, relation_chain_id)
-#     if relation_chain is None:
-#         return {"status": -1, "message": "Relation chain not found"}
-
-#     try:
-#         context_type = parseEnum(ContextType, type)
-#     except ValueError:
-#         return {"status": -2, "message": "Invalid context type"}
-
-#     context = Context(
-#         relation_chain_id=relation_chain_id,
-#         type=context_type,
-#         content=content,
-#         summary=summary,
-#         weight=weight or 1.0,
-#         confidence=confidence or 1.0,
-#     )
-#     db.add(context)
-#     db.commit()
-#     db.refresh(context)
-
-#     embedding_result = {
-#         "status": 0,
-#         "message": "Embedding not created",
-#     }
-#     if with_embedding:
-#         embedding_result = await createOrUpdateEmbedding(
-#             db, from_where="context", context=context
-#         )
-
-#     return {
-#         "status": 200,
-#         "message": "Create context success",
-#         "context": context.toJson(),
-#         "embedding": embedding_result,
-#     }
+    embedding_result = {}
+    if crush_embedding_res is not None:
+        embedding_result["crush"] = crush_embedding_res
+    if event_embedding_res is not None:
+        embedding_result["event"] = event_embedding_res
+    return {
+        "status": 200,
+        "message": "Create context success",
+        "normalized_context": normalized_context,
+        "embedding": embedding_result,
+    }

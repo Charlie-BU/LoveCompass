@@ -1,4 +1,4 @@
-cursh：我今天去看了春节档电影
+crush：我今天去看了春节档电影
 
 call API: /getReply
 agent context:
