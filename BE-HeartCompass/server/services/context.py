@@ -1,13 +1,10 @@
 import json
 import logging
-from traceback import print_exception
-from numpy import isin
 from sqlalchemy.orm import Session
-from typing import Literal, List
 
-from .ai import summarizeContext, extractKnowledge, normalizeContext
+from .ai import extractKnowledge, normalizeContext
 from .embedding import createOrUpdateEmbedding
-from database.models import RelationChain, Knowledge, Crush, Event
+from database.models import RelationChain, Knowledge, Event
 from database.enums import parseEnum, Attitude
 from utils import cleanList
 
@@ -128,7 +125,10 @@ async def contextAddContextByNaturalLanguage(
     if event is not None and not isinstance(event, dict):
         return {"status": -6, "message": "Invalid event format"}
 
-    print("normalized_context:\n", json.dumps(normalized_context, indent=4, ensure_ascii=False))
+    print(
+        "normalized_context:\n",
+        json.dumps(normalized_context, indent=4, ensure_ascii=False),
+    )
 
     # 提前声明，后续需要refresh
     crush = None

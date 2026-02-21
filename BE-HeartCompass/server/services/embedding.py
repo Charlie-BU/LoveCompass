@@ -2,7 +2,6 @@ import json
 import os
 import logging
 from typing import Any, List, Literal
-from numpy import isin
 from sqlalchemy.orm import Session
 
 
