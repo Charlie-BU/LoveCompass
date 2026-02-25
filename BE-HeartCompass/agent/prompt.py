@@ -1,11 +1,9 @@
 import json
 import html as html_lib
 import re
-import os
-import sys
 from typing import Optional, Any, List
 
-from ..request import fetch
+from request import fetch
 
 
 def extractPromptFromPromptMinder(html: str) -> Optional[str]:
@@ -65,5 +63,7 @@ def extractPromptFromPromptMinder(html: str) -> Optional[str]:
 
 
 async def getPrompt(prompt_minder_url: str) -> Optional[str]:
+    if not prompt_minder_url:
+        return None
     html = await fetch(prompt_minder_url)
     return extractPromptFromPromptMinder(html)

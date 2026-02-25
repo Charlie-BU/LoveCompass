@@ -44,9 +44,7 @@ async def getAgent():
     async with _agent_lock:
         if _agent_instance is not None:
             return _agent_instance
-        system_prompt = await getPrompt(
-            "https://www.prompt-minder.com/share/7b50f6ce-2874-4f39-b15a-8f0873634205"
-        )
+        system_prompt = await getPrompt(os.getenv("SYSTEM_PROMPT"))
         llm: ChatOpenAI = prepareLLM()
         agent_instance = create_agent(model=llm, tools=[], system_prompt=system_prompt)
         _agent_instance = agent_instance
