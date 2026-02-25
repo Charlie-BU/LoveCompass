@@ -2,8 +2,6 @@ from typing import Literal
 
 from agent.index import getAgent, askWithNoContext
 
-ReactAgent = getAgent()
-
 
 # 对上下文记录或知识库条目进行摘要
 async def summarizeContext(content: str, where: Literal["context", "knowledge"]) -> str:
@@ -26,7 +24,8 @@ async def summarizeContext(content: str, where: Literal["context", "knowledge"])
 
     请直接输出摘要：
     """
-    return await askWithNoContext(prompt, ReactAgent)
+    agent = await getAgent()
+    return await askWithNoContext(prompt, agent)
 
 
 # 将自然语言组织拆分与提炼为knowledge
@@ -61,7 +60,8 @@ async def extractKnowledge(content: str) -> str:
 
     请直接输出 JSON 数组：
     """
-    return await askWithNoContext(prompt, ReactAgent)
+    agent = await getAgent()
+    return await askWithNoContext(prompt, agent)
 
 
 # 将自然语言的信息转为 crush_profile 和 event
@@ -110,4 +110,5 @@ async def normalizeContext(content: str) -> str:
 
     请直接输出JSON：
 """
-    return await askWithNoContext(prompt, ReactAgent)
+    agent = await getAgent()
+    return await askWithNoContext(prompt, agent)

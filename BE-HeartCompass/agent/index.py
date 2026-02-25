@@ -4,17 +4,17 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from typing import List
+from typing import List, Optional
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
-from functools import lru_cache
 import logging
 import os
+import asyncio
 
 
 from .ark import arkClient
 from .llm import prepareLLM
-
+from .prompt import getPrompt
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
 from .adapter import (
@@ -29,25 +29,28 @@ from .adapter import (
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """
-
-"""
 
 # 全局单例
 _ark_client = arkClient()
+_agent_instance: Optional[CompiledStateGraph] = None
+_agent_lock = asyncio.Lock()
 
 
-@lru_cache
-def getAgent():
-    # 1. Prepare LLM
-    llm: ChatOpenAI = prepareLLM()
-    # 2. Prepare Tools
-    # mcp_psms_list = get_mcp_psms_list()
-    # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
-    # 3. Init Agent
-    agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
-
-    return agent_instance
+async def getAgent():
+    global _agent_instance
+    if _agent_instance is not None:
+        return _agent_instance
+    # 双检查锁模式，确保线程安全
+    async with _agent_lock:
+        if _agent_instance is not None:
+            return _agent_instance
+        system_prompt = await getPrompt(
+            "https://www.prompt-minder.com/share/7b50f6ce-2874-4f39-b15a-8f0873634205"
+        )
+        llm: ChatOpenAI = prepareLLM()
+        agent_instance = create_agent(model=llm, tools=[], system_prompt=system_prompt)
+        _agent_instance = agent_instance
+        return agent_instance
 
 
 # 处理chat_completions请求
