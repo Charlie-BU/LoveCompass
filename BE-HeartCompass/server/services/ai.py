@@ -1,6 +1,6 @@
 from typing import Literal
 
-from agent.index import getAgent, askWithNoContext
+from agent.react_agent import getAgent, askWithNoContext
 
 
 # 对上下文记录或知识库条目进行摘要

@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from robyn import Robyn
 
-from agent.index import getAgent
+from agent.react_agent import getAgent
 from server.faas import initFaaSServer
 
 
