@@ -15,7 +15,7 @@ from database.models import (
     RelationChain,
 )
 from database.enums import EmbeddingType
-from agent.index import vectorizeText
+from agent.embedding import vectorizeText
 from utils import cleanList
 
 

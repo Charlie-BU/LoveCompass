@@ -2,7 +2,7 @@ from robyn.robyn import Response
 
 from .subRouters.user import userRouter
 from .subRouters.context import contextRouter
-from agent.index import wrapChat
+from agent.react_agent import wrapChat
 
 
 async def registerRouters(app, ReActAgent):
