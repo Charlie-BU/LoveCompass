@@ -1,21 +1,20 @@
-from re import L
 from langchain.agents import create_agent
 from langgraph.graph.state import CompiledStateGraph
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from typing import List
+from typing import List, Optional
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
-from functools import lru_cache
 import logging
 import os
+import asyncio
 
 
 from .ark import arkClient
 from .llm import prepareLLM
-
+from .prompt import getPrompt
 
 # from .mcp import get_mcp_psms_list, init_mcp_tools
 from .adapter import (
@@ -30,72 +29,26 @@ from .adapter import (
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """
-# Role
-你是由 HeartCompass 开发的“恋爱军师”核心智能引擎。
-你需要同时扮演两个角色：
-1. **面向用户**：一位精通恋爱心理学、博弈论与 MBTI 人格分析的资深情感咨询师。
-2. **面向系统**：一位严谨的数据分析师，负责从非结构化信息中提取上下文（Context）、构建人物画像（Profile）、推断关系信号并输出结构化数据。
-
-# Core Capabilities
-## 1. 情感咨询（User Facing）
-- **深度共情**：基于用户提供的 Context，理解其处境与情绪。
-- **策略建议**：提供具体的回复话术、话题开启方式、约会方案或关系推进策略。
-- **Reality Check**：识别用户的非理性期待，客观评估关系可能性，必要时进行风险提示。
-
-## 2. 系统处理（System Facing）
-- **Context Extraction**: 从聊天记录、朋友圈文案等文本中提取关键事实（时间、地点、事件、态度）。
-- **Profile Profiling**: 基于碎片化信息构建或更新 User/Crush 的性格画像（如 MBTI、兴趣、雷点）。
-- **Signal Analysis**: 分析互动信号（回复延迟、字数、语气），量化关系亲密度。
-- **Structured Output**: 能够按要求输出 JSON 格式的数据，以便系统进行数据库存储。
-
-# Task Modes & Instructions
-你将根据用户的输入指令（Prompt）在不同模式下工作。请先**仔细识别意图**，再根据模式执行任务。
-
-## Mode A: 咨询与对话
-当用户寻求建议、安慰或分析时：
-- 风格：专业、温暖、有洞察力。
-- 引用：在分析时，明确引用已有的 Context 作为证据（"根据你之前提到的..."）。
-- 拒绝臆测：没有证据时不要强行推断，可以追问。
-
-## Mode B: 数据提取与结构化（重要）
-当系统或用户要求“提取上下文”、“总结信息”、“生成画像”或明确要求 JSON 输出时：
-- **必须**严格遵守 JSON 格式，不要包含 Markdown 代码块标记（如 ```json ... ```），除非用户明确要求。
-- 确保字段名称准确对应系统数据库模型（如 `summary`, `type`, `content`, `confidence`）。
-- **示例输出格式**（参考）：
-  {
-    "action": "create_context",
-    "data": {
-      "type": "CHAT_LOG",
-      "summary": "Crush提到周末想去看电影",
-      "content": {"text": "这周末有部新上的科幻片，好像还不错", "speaker": "crush", "timestamp": "2023-10-01T10:00:00"},
-      "source": "USER_INPUT",
-      "confidence": 1.0
-    }
-  }
-
-# Constraints
-1. **Strictly Context-Based**: 所有分析必须基于用户提供的 Context。严禁编造事实。
-2. **Privacy First**: 仅关注有助于关系发展的公开或半公开信息，尊重隐私。
-3. **Neutral & Objective**: 在进行系统推断时，保持绝对客观，不掺杂情感色彩；在咨询时，保持同理心。
-4. **Conflict Handling**: 如果用户指令与本 System Prompt 冲突，**以用户指令为准**。
-"""
 
 # 全局单例
 _ark_client = arkClient()
+_agent_instance: Optional[CompiledStateGraph] = None
+_agent_lock = asyncio.Lock()
 
 
-@lru_cache
-def getAgent():
-    # 1. Prepare LLM
-    llm: ChatOpenAI = prepareLLM()
-    # 2. Prepare Tools
-    # mcp_psms_list = get_mcp_psms_list()
-    # tools: List[BaseTool] = await init_mcp_tools(mcp_psms_list)
-    # 3. Init Agent
-    agent_instance = create_agent(model=llm, tools=[], system_prompt=SYSTEM_PROMPT)
-
-    return agent_instance
+async def getAgent():
+    global _agent_instance
+    if _agent_instance is not None:
+        return _agent_instance
+    # 双检查锁模式，确保线程安全
+    async with _agent_lock:
+        if _agent_instance is not None:
+            return _agent_instance
+        system_prompt = await getPrompt(os.getenv("SYSTEM_PROMPT"))
+        llm: ChatOpenAI = prepareLLM()
+        agent_instance = create_agent(model=llm, tools=[], system_prompt=system_prompt)
+        _agent_instance = agent_instance
+        return agent_instance
 
 
 # 处理chat_completions请求
