@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.INFO)
 
 async def main() -> Robyn:
     app = Robyn(__file__)
-    ReactAgent = await getAgent()
-    await initFaaSServer(app, ReactAgent)
+    react_agent = await getAgent()
+    await initFaaSServer(app, react_agent)
     return app
 
 

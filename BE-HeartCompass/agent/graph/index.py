@@ -8,16 +8,9 @@ from typing import Annotated, Sequence, Optional, TypedDict
 import os
 import asyncio
 
-from .llm import prepareLLM
-from .prompt import getPrompt
-
-
-class GraphState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-    query: str
-    documents: list[str]
-    context: str
-
+from .state import GraphState
+from ..llm import prepareLLM
+from ..prompt import getPrompt
 
 # 全局单例
 _graph_instance: Optional[CompiledStateGraph] = None
@@ -25,15 +18,19 @@ _graph_lock = asyncio.Lock()
 
 
 async def node1(state: GraphState) -> dict:
-    return state
+    pass
 
 
 async def node2(state: GraphState) -> dict:
-    return state
+    pass
 
 
 async def node3(state: GraphState) -> dict:
-    return state
+    pass
+
+
+async def initRequest(state: GraphState) -> dict:
+    pass
 
 
 async def getStateGraph() -> CompiledStateGraph:

@@ -49,7 +49,7 @@ async def getAgent() -> CompiledStateGraph:
 
 
 # 处理chat_completions请求
-async def wrapChat(ReActAgent: CompiledStateGraph):
+async def wrapChat(react_agent: CompiledStateGraph):
     async def chat(request: Request):
         body = request.json()
         is_stream = body.get("stream", True)
@@ -59,7 +59,7 @@ async def wrapChat(ReActAgent: CompiledStateGraph):
                 callbacks = []
                 input_message = convertReqToMessages(body)
                 if is_stream:
-                    async for resp in ReActAgent.astream(
+                    async for resp in react_agent.astream(
                         {"messages": input_message},
                         stream_mode="messages",
                         config=RunnableConfig(callbacks=callbacks),
@@ -79,7 +79,7 @@ async def wrapChat(ReActAgent: CompiledStateGraph):
                             if result:
                                 yield result
                 else:
-                    resp = await ReActAgent.ainvoke(
+                    resp = await react_agent.ainvoke(
                         {"messages": input_message},
                         config=RunnableConfig(callbacks=callbacks),
                     )
@@ -110,9 +110,9 @@ async def wrapChat(ReActAgent: CompiledStateGraph):
 
 
 # 无上下文直接调用agent
-async def askWithNoContext(prompt: str, ReActAgent: CompiledStateGraph) -> str:
+async def askWithNoContext(prompt: str, react_agent: CompiledStateGraph) -> str:
     messages = [HumanMessage(content=prompt)]
-    resp = await ReActAgent.ainvoke({"messages": messages})
+    resp = await react_agent.ainvoke({"messages": messages})
     if resp and "messages" in resp and len(resp["messages"]) > 0:
         return resp["messages"][-1].content
     return ""
