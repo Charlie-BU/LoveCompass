@@ -11,21 +11,21 @@ from ..services.context import (
 )
 from ..services.embedding import recallEmbedding
 
-contextRouter = SubRouter(__file__, prefix="/context")
+context_router = SubRouter(__file__, prefix="/context")
 
 
 # 全局异常处理
-@contextRouter.exception
+@context_router.exception
 def handleException(error):
     return Response(status_code=500, description=f"error msg: {error}", headers={})
 
 
 # 鉴权中间件
-contextRouter.configure_authentication(AuthHandler(token_getter=BearerGetter()))
+context_router.configure_authentication(AuthHandler(token_getter=BearerGetter()))
 
 
 # 从向量数据库召回上下文
-@contextRouter.post("/recallContextFromEmbedding", auth_required=True)
+@context_router.post("/recallContextFromEmbedding", auth_required=True)
 async def recallContextFromEmbedding(request: Request):
     data = request.json()
     text = data["text"]
@@ -48,7 +48,7 @@ async def recallContextFromEmbedding(request: Request):
     return res
 
 
-@contextRouter.post("/addKnowledge", auth_required=True)
+@context_router.post("/addKnowledge", auth_required=True)
 async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
@@ -62,7 +62,7 @@ async def addKnowledge(request: Request):
     return res
 
 
-@contextRouter.post("/addContextByNaturalLanguage", auth_required=True)
+@context_router.post("/addContextByNaturalLanguage", auth_required=True)
 async def addContextByNaturalLanguage(request: Request):
     data = request.json()
     relation_chain_id = data["relation_chain_id"]

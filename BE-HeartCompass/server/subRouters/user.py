@@ -13,21 +13,21 @@ from ..services.user import (
     userModifyPassword,
 )
 
-userRouter = SubRouter(__file__, prefix="/user")
+user_router = SubRouter(__file__, prefix="/user")
 
 
 # 全局异常处理
-@userRouter.exception
+@user_router.exception
 def handleException(error):
     return Response(status_code=500, description=f"error msg: {error}", headers={})
 
 
 # 鉴权中间件
-userRouter.configure_authentication(AuthHandler(token_getter=BearerGetter()))
+user_router.configure_authentication(AuthHandler(token_getter=BearerGetter()))
 
 
 # 通过用户id获取用户详情
-@userRouter.get("/getUserById", auth_required=True)
+@user_router.get("/getUserById", auth_required=True)
 async def getUserById(request: Request):
     id = request.query_params.get("id", None)
     if not id:
@@ -42,7 +42,7 @@ async def getUserById(request: Request):
 
 
 # 通过access_token获取用户详情
-@userRouter.get("/getMyInfo", auth_required=True)
+@user_router.get("/getMyInfo", auth_required=True)
 async def getMyInfo(request: Request):
     user_id = userGetUserIdByAccessToken(request=request)
     with session() as db:
@@ -51,7 +51,7 @@ async def getMyInfo(request: Request):
 
 
 # 通过用户名或昵称或邮箱获取用户信息
-@userRouter.get("/getUserByUsernameOrNicknameOrEmail", auth_required=True)
+@user_router.get("/getUserByUsernameOrNicknameOrEmail", auth_required=True)
 async def getUserByUsernameOrNicknameOrEmail(request: Request):
     username_or_nickname_or_email = request.query_params.get(
         "username_or_nickname_or_email", None
@@ -71,7 +71,7 @@ async def getUserByUsernameOrNicknameOrEmail(request: Request):
 
 
 # 用户登录
-@userRouter.post("/login")
+@user_router.post("/login")
 async def login(request: Request):
     data = request.json()
     username = data["username"]
@@ -82,7 +82,7 @@ async def login(request: Request):
 
 
 # 用户注册
-@userRouter.post("/register")
+@user_router.post("/register")
 async def register(request: Request):
     data = request.json()
     username = data["username"]
@@ -105,7 +105,7 @@ async def register(request: Request):
 
 
 # 修改密码
-@userRouter.post("/modifyPassword", auth_required=True)
+@user_router.post("/modifyPassword", auth_required=True)
 async def modifyPassword(request: Request):
     data = request.json()
     id = userGetUserIdByAccessToken(request=request)
