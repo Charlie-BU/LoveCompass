@@ -4,6 +4,7 @@ from robyn.robyn import Request, Response
 from robyn.authentication import BearerGetter
 
 from ..authentication import AuthHandler
+from ..services.user import userGetUserIdByAccessToken
 from database.database import session
 
 app_router = SubRouter(__file__, prefix="/app")
@@ -19,7 +20,10 @@ def handleException(error):
 app_router.configure_authentication(AuthHandler(token_getter=BearerGetter()))
 
 
-@app_router.post("/recallContextFromEmbedding", auth_required=True)
-async def recallContextFromEmbedding(request: Request):
+@app_router.post("/getIntelligentReply", auth_required=True)
+async def getIntelligentReply(request: Request):
     data = request.json()
-    
+    # user_id = userGetUserIdByAccessToken(request=request)
+    chat_screenshot_urls = data["chat_screenshot_urls"]
+    res = 123
+    return res

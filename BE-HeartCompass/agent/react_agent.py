@@ -4,7 +4,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
-from typing import Optional
+from typing import List, Optional
 from robyn import Request, StreamingResponse
 from dotenv import load_dotenv
 import logging
@@ -110,8 +110,18 @@ async def wrapChat(react_agent: CompiledStateGraph):
 
 
 # 无上下文直接调用agent
-async def askWithNoContext(prompt: str, react_agent: CompiledStateGraph) -> str:
-    messages = [HumanMessage(content=prompt)]
+async def askWithNoContext(
+    react_agent: CompiledStateGraph,
+    prompt: str,
+    images_urls: Optional[List[str]] = None,
+) -> str:
+    if images_urls:
+        content = [{"type": "text", "text": prompt}] + [
+            {"type": "image_url", "image_url": {"url": url}} for url in images_urls
+        ]
+        messages = [HumanMessage(content=content)]
+    else:
+        messages = [HumanMessage(content=prompt)]
     resp = await react_agent.ainvoke({"messages": messages})
     if resp and "messages" in resp and len(resp["messages"]) > 0:
         return resp["messages"][-1].content

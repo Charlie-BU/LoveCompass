@@ -6,7 +6,9 @@ from typing import Optional, Any, List
 from request import fetch
 
 
-def extractPromptFromPromptMinder(html: str) -> Optional[str]:
+def extractPromptFromPromptMinder(
+    html: str, variables: dict | None = None
+) -> Optional[str]:
     """
     从 Prompt Minder 的分享页 HTML 中提取 prompt 文本。
     返回 prompt 字符串；失败返回 None。
@@ -57,13 +59,21 @@ def extractPromptFromPromptMinder(html: str) -> Optional[str]:
         for cw in _iterCreativeworks(data):
             text = cw.get("text")
             if isinstance(text, str) and text.strip():
-                return _normalize(text)
+                result = _normalize(text)
+                if variables:
+                    for k, v in variables.items():
+                        val = "" if v is None else str(v)
+                        pattern = re.compile(r"{{\s*" + re.escape(k) + r"\s*}}")
+                        result = pattern.sub(lambda _: val, result)
+                return result
 
     return None
 
 
-async def getPrompt(prompt_minder_url: str) -> Optional[str]:
+async def getPrompt(
+    prompt_minder_url: str, variables: dict | None = None
+) -> Optional[str]:
     if not prompt_minder_url:
         return None
     html = await fetch(prompt_minder_url)
-    return extractPromptFromPromptMinder(html)
+    return extractPromptFromPromptMinder(html, variables)

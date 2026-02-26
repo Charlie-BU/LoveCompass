@@ -1,31 +1,19 @@
-from typing import Literal
-
 from agent.react_agent import getAgent, askWithNoContext
+from agent.prompt import getPrompt
 
 
 # 对上下文记录或知识库条目进行摘要
-async def summarizeContext(content: str, where: Literal["context", "knowledge"]) -> str:
-    task_desc = "上下文记录(Context)" if where == "context" else "知识库条目(Knowledge)"
-
-    prompt = f"""
-    请为以下{task_desc}生成一个精练且完整的摘要。
-
-    **输入内容**（JSON格式）：
-    {content}
-
-    **摘要要求**：
-    1. **完整性**：保留核心信息（如人物、时间、关键事件、强烈情感、具体偏好或规则）。
-    2. **精练性**：去除冗余的JSON结构和无关修饰，使用自然语言描述，字数控制在50字以内（除非信息量极大）。
-    3. **格式**：直接输出摘要文本，不要包含任何解释或Markdown标记。
-    4. **场景适配**：
-       - 若为对话：概括对话主题和情感氛围。
-       - 若为画像/偏好：概括关键特征。
-       - 若为规则/知识：概括核心逻辑。
-
-    请直接输出摘要：
-    """
+async def summarizeContext(content: str) -> str:
+    prompt = await getPrompt(
+        "https://www.prompt-minder.com/share/58962157-c1a3-4c6c-a37c-b151de2bc5e1",
+        {"content": content},
+    )
+    print(prompt)
     agent = await getAgent()
-    return await askWithNoContext(prompt, agent)
+    return await askWithNoContext(
+        react_agent=agent,
+        prompt=prompt,
+    )
 
 
 # 将自然语言组织拆分与提炼为knowledge
@@ -61,7 +49,10 @@ async def extractKnowledge(content: str) -> str:
     请直接输出 JSON 数组：
     """
     agent = await getAgent()
-    return await askWithNoContext(prompt, agent)
+    return await askWithNoContext(
+        react_agent=agent,
+        prompt=prompt,
+    )
 
 
 # 将自然语言的信息转为 crush_profile 和 event
@@ -111,4 +102,7 @@ async def normalizeContext(content: str) -> str:
     请直接输出JSON：
 """
     agent = await getAgent()
-    return await askWithNoContext(prompt, agent)
+    return await askWithNoContext(
+        react_agent=agent,
+        prompt=prompt,
+    )
