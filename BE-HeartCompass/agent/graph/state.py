@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import List, TypedDict
 
-from pydantic.type_adapter import P
-
-from ...database.models import (
+from database.models import (
     Crush,
     RelationChain,
     User,
@@ -13,7 +11,7 @@ from ...database.models import (
     InteractionSignal,
     DerivedInsight,
 )
-from ...database.enums import MBTI, ChatChannel, ChatSpeaker
+from database.enums import MBTI, ChatChannel, ChatSpeaker
 
 
 class RawChat(TypedDict):
@@ -21,6 +19,7 @@ class RawChat(TypedDict):
     content: str
     timestamp: datetime
     channel: ChatChannel
+    weight: float
     other_info: List[dict]  # 非Optional，空时为[]
 
 
