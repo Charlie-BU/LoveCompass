@@ -2,7 +2,7 @@ import json
 import logging
 from sqlalchemy.orm import Session
 
-from .ai import extractKnowledge, normalizeContext
+from .ai import extractKnowledge, extractContextFromNaturalLanguage
 from .embedding import createOrUpdateEmbedding
 from database.models import RelationChain, Knowledge, Event
 from database.enums import parseEnum, Attitude
@@ -107,7 +107,7 @@ async def contextAddContextByNaturalLanguage(
         return {"status": -2, "message": "Content is empty"}
 
     try:
-        normalized_context = json.loads(await normalizeContext(content))
+        normalized_context = json.loads(await extractContextFromNaturalLanguage(content))
     except json.JSONDecodeError:
         return {"status": -3, "message": "Failed to normalize context"}
 

@@ -130,7 +130,7 @@ class Crush(Base, SerializableMixin):
     name = Column(String(64), nullable=False, comment="Crush 姓名")
     gender = Column(Enum(UserGender), nullable=False, comment="Crush 性别")
     mbti = Column(Enum(MBTI), nullable=True, comment="Crush MBTI 类型")
-    birthday = Column(Text, nullable=True, comment="生日/星座等")
+    birthday = Column(Text, nullable=True, comment="生日")
     occupation = Column(String(128), nullable=True, comment="职业")
     education = Column(String(128), nullable=True, comment="教育背景")
     residence = Column(String(128), nullable=True, comment="常住地")
@@ -139,7 +139,7 @@ class Crush(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="沟通风格",
+        comment="交流风格",
     )
     personality_tags = Column(
         MutableList.as_mutable(ARRAY(Text)),
