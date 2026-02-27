@@ -25,7 +25,6 @@ from .enums import (
     MBTI,
     RelationStage,
     Attitude,
-    ChatSpeaker,
     ChatChannel,
     Degree,
     WindowOnListen,
@@ -131,6 +130,17 @@ class Crush(Base, SerializableMixin):
     name = Column(String(64), nullable=False, comment="Crush 姓名")
     gender = Column(Enum(UserGender), nullable=False, comment="Crush 性别")
     mbti = Column(Enum(MBTI), nullable=True, comment="Crush MBTI 类型")
+    birthday = Column(Text, nullable=True, comment="生日/星座等")
+    occupation = Column(String(128), nullable=True, comment="职业")
+    education = Column(String(128), nullable=True, comment="教育背景")
+    residence = Column(String(128), nullable=True, comment="常住地")
+    hometown = Column(String(128), nullable=True, comment="家乡")
+    communication_style = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="沟通风格",
+    )
     personality_tags = Column(
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
@@ -161,6 +171,24 @@ class Crush(Base, SerializableMixin):
         default=[],
         comment="个人特点",
     )  # 模型根据上下文推断
+    lifestyle_tags = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="生活方式标签",
+    )
+    values = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="价值观",
+    )
+    appearance_tags = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="外在特征",
+    )
     other_info = Column(
         MutableList.as_mutable(ARRAY(JSONB)),
         nullable=False,
@@ -323,9 +351,9 @@ class Event(Base, SerializableMixin):
         return f"<Event {self.summary}>"
 
 
-# ---- 聊天记录 ----
-class ChatLog(Base, SerializableMixin):
-    __tablename__ = "chat_log"
+# ---- 聊天话题 ----
+class ChatTopic(Base, SerializableMixin):
+    __tablename__ = "chat_topic"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     relation_chain_id = Column(
@@ -335,19 +363,48 @@ class ChatLog(Base, SerializableMixin):
         index=True,
         comment="关联关系链ID",
     )
-    relation_chain = relationship("RelationChain", backref="chat_logs")
+    relation_chain = relationship("RelationChain", backref="chat_topics")
 
-    speaker = Column(Enum(ChatSpeaker), nullable=False, comment="角色")
-    content = Column(Text, nullable=False, comment="聊天内容")
-    timestamp = Column(
-        DateTime,
+    title = Column(String(128), nullable=False, comment="话题标题")
+    summary = Column(Text, nullable=True, comment="话题摘要")
+    content = Column(Text, nullable=False, comment="话题内容")
+    tags = Column(
+        MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
-        comment="时间戳",
+        default=[],
+        comment="话题标签",
+    )
+    participants = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="参与者",
+    )
+    source_urls = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="来源截图url",
+    )
+    start_time = Column(
+        DateTime,
+        nullable=True,
+        comment="话题开始时间",
+    )
+    end_time = Column(
+        DateTime,
+        nullable=True,
+        comment="话题结束时间",
     )
     channel = Column(
         Enum(ChatChannel),
-        nullable=False,
+        nullable=True,
         comment="渠道",
+    )
+    attitude = Column(
+        Enum(Attitude),
+        nullable=True,
+        comment="话题情绪",
     )
     weight = Column(
         Float, nullable=False, index=True, default=1.0, comment="权重（重要性）"
@@ -377,8 +434,11 @@ class ChatLog(Base, SerializableMixin):
         comment="最后使用时间",
     )
 
+    def __repr__(self):
+        return f"<ChatTopic {self.summary}>"
 
-# ---- 互动信号（通过CHAT_LOG推断） ----
+
+# ---- 互动信号（通过CHAT_TOPIC推断）（暂弃用） ----
 class InteractionSignal(Base, SerializableMixin):
     __tablename__ = "interaction_signal"
 
@@ -420,8 +480,11 @@ class InteractionSignal(Base, SerializableMixin):
         comment="最后使用时间",
     )
 
+    def __repr__(self):
+        return f"<InteractionSignal {self.id}>"
 
-# ---- 推断/洞察（Crush信息、事件和聊天记录综合推断） ----
+
+# ---- 推断/洞察（Crush信息、事件和聊天话题综合推断） ----
 class DerivedInsight(Base, SerializableMixin):
     __tablename__ = "derived_insight"
 
@@ -449,11 +512,11 @@ class DerivedInsight(Base, SerializableMixin):
         default=[],
         comment="来源事件id",
     )
-    from_chat_log_ids = Column(
+    from_chat_topic_ids = Column(
         MutableList.as_mutable(ARRAY(Integer)),
         nullable=False,
         default=[],
-        comment="来源聊天记录id",
+        comment="来源聊天话题id",
     )
     confidence = Column(Float, nullable=False, comment="洞察置信度（可靠性）")
     weight = Column(
@@ -574,7 +637,7 @@ class ContextEmbedding(Base, SerializableMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     type = Column(Enum(EmbeddingType), nullable=False, index=True, comment="类型")
-    
+
     # 从静态知识库生成时，关联知识ID
     knowledge_id = Column(
         Integer,
@@ -602,15 +665,15 @@ class ContextEmbedding(Base, SerializableMixin):
         comment="关联事件ID",
     )
     event = relationship("Event", backref="embeddings")
-    # 从聊天记录生成时，关联聊天记录ID
-    chat_log_id = Column(
+    # 从聊天话题生成时，关联聊天话题ID
+    chat_topic_id = Column(
         Integer,
-        ForeignKey("chat_log.id", ondelete="CASCADE"),
+        ForeignKey("chat_topic.id", ondelete="CASCADE"),
         nullable=True,
-        unique=True,  # 每个聊天记录只能有一个向量化上下文
-        comment="关联聊天记录ID",
+        unique=True,  # 每个聊天话题只能有一个向量化上下文
+        comment="关联聊天话题ID",
     )
-    chat_log = relationship("ChatLog", backref="embeddings")
+    chat_topic = relationship("ChatTopic", backref="embeddings")
     # 从推断/洞察生成时，关联推断/洞察ID
     derived_insight_id = Column(
         Integer,

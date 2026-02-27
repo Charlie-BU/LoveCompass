@@ -72,7 +72,7 @@ def extractPromptFromPromptMinder(
 
 async def getPrompt(
     prompt_minder_url: str, variables: dict | None = None
-) -> Optional[str]:
+) -> str | None:
     if not prompt_minder_url:
         return None
     html = await fetch(prompt_minder_url)

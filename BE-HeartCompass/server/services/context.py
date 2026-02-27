@@ -146,7 +146,16 @@ async def contextAddContextByNaturalLanguage(
                 new_dislikes = crush_profile.get("dislikes")
                 new_boundaries = crush_profile.get("boundaries")
                 new_traits = crush_profile.get("traits")
+                new_lifestyle_tags = crush_profile.get("lifestyle_tags")
+                new_values = crush_profile.get("values")
+                new_appearance_tags = crush_profile.get("appearance_tags")
                 new_other_info = crush_profile.get("other_info")
+                new_birthday = crush_profile.get("birthday")
+                new_occupation = crush_profile.get("occupation")
+                new_education = crush_profile.get("education")
+                new_residence = crush_profile.get("residence")
+                new_hometown = crush_profile.get("hometown")
+                new_communication_style = crush_profile.get("communication_style")
 
                 if new_likes is not None and isinstance(new_likes, list):
                     current_likes = set(cleanList(crush.likes))
@@ -172,8 +181,50 @@ async def contextAddContextByNaturalLanguage(
                         if item not in current_traits:
                             crush.traits.append(item)
                             current_traits.add(item)
+                if new_lifestyle_tags is not None and isinstance(
+                    new_lifestyle_tags, list
+                ):
+                    current_lifestyle_tags = set(cleanList(crush.lifestyle_tags))
+                    for item in cleanList(new_lifestyle_tags):
+                        if item not in current_lifestyle_tags:
+                            crush.lifestyle_tags.append(item)
+                            current_lifestyle_tags.add(item)
+                if new_values is not None and isinstance(new_values, list):
+                    current_values = set(cleanList(crush.values))
+                    for item in cleanList(new_values):
+                        if item not in current_values:
+                            crush.values.append(item)
+                            current_values.add(item)
+                if new_appearance_tags is not None and isinstance(
+                    new_appearance_tags, list
+                ):
+                    current_appearance_tags = set(cleanList(crush.appearance_tags))
+                    for item in cleanList(new_appearance_tags):
+                        if item not in current_appearance_tags:
+                            crush.appearance_tags.append(item)
+                            current_appearance_tags.add(item)
                 if new_other_info is not None and isinstance(new_other_info, dict):
                     crush.other_info.append(new_other_info)
+                if isinstance(new_birthday, str) and new_birthday.strip():
+                    crush.birthday = new_birthday.strip()
+                if isinstance(new_occupation, str) and new_occupation.strip():
+                    crush.occupation = new_occupation.strip()
+                if isinstance(new_education, str) and new_education.strip():
+                    crush.education = new_education.strip()
+                if isinstance(new_residence, str) and new_residence.strip():
+                    crush.residence = new_residence.strip()
+                if isinstance(new_hometown, str) and new_hometown.strip():
+                    crush.hometown = new_hometown.strip()
+                if new_communication_style is not None and isinstance(
+                    new_communication_style, list
+                ):
+                    current_communication_style = set(
+                        cleanList(crush.communication_style)
+                    )
+                    for item in cleanList(new_communication_style):
+                        if item not in current_communication_style:
+                            crush.communication_style.append(item)
+                            current_communication_style.add(item)
 
             # 包含event：在Event表新增
             if event is not None:

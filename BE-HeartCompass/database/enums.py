@@ -101,5 +101,5 @@ class EmbeddingType(enum.Enum):
     FROM_KNOWLEDGE = "from_knowledge"  # 从静态知识库生成
     FROM_CRUSH_PROFILE = "from_crush_profile"  # 从 Crush 个人资料生成
     FROM_EVENT = "from_event"  # 从事件生成
-    FROM_CHAT_LOG = "from_chat_log"  # 从聊天记录生成
+    FROM_CHAT_TOPIC = "from_chat_topic"  # 从聊天话题生成
     FROM_DERIVED_INSIGHT = "from_derived_insight"  # 从推断/洞察生成

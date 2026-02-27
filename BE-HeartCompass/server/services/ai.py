@@ -4,7 +4,6 @@ from typing import List
 
 from agent.react_agent import getAgent, askWithNoContext
 from agent.prompt import getPrompt
-from agent.graph.state import RawChat
 
 
 # 对上下文记录或知识库条目进行摘要
@@ -76,6 +75,7 @@ async def extractChatFromScreenshots(screenshot_urls: List[str]) -> str:
     )
 
 
+# TEST: uv run -m server.services.ai
 if __name__ == "__main__":
     import asyncio
 

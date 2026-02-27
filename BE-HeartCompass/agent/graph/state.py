@@ -7,18 +7,24 @@ from database.models import (
     User,
     Knowledge,
     Event,
-    ChatLog,
+    ChatTopic,
     InteractionSignal,
     DerivedInsight,
 )
-from database.enums import MBTI, ChatChannel, ChatSpeaker
+from database.enums import MBTI, ChatChannel, Attitude
 
 
-class RawChat(TypedDict):
-    speaker: ChatSpeaker
+class RawChatTopic(TypedDict):
+    title: str
+    summary: str | None
     content: str
-    timestamp: datetime
-    channel: ChatChannel
+    tags: List[str]
+    participants: List[str]
+    source_urls: List[str]
+    start_time: datetime | None
+    end_time: datetime | None
+    channel: ChatChannel | None
+    attitude: Attitude | None
     weight: float
     other_info: List[dict]  # 非Optional，空时为[]
 
@@ -26,7 +32,7 @@ class RawChat(TypedDict):
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int | None
-    chat_context: List[RawChat]
+    chat_topics: List[RawChatTopic]
     mood: str | None
 
 
@@ -51,7 +57,7 @@ class RecallQueries(TypedDict):
 class RecallResults(TypedDict):
     knowledge: List[Knowledge]
     event: List[Event]
-    chat_log: List[ChatLog]
+    chat_topic: List[ChatTopic]
     derived_insight: List[DerivedInsight]
 
 

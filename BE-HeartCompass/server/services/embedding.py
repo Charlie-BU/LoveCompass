@@ -9,7 +9,7 @@ from database.models import (
     ContextEmbedding,
     Crush,
     Event,
-    ChatLog,
+    ChatTopic,
     DerivedInsight,
     Knowledge,
     RelationChain,
@@ -64,6 +64,19 @@ def buildEmbeddingText4CrushProfile(
         parts.append(f"性别：{crush.gender.value}")
     if crush.mbti:
         parts.append(f"MBTI 类型: {crush.mbti.value}")
+    if crush.birthday:
+        parts.append(f"生日/星座: {crush.birthday}")
+    if crush.occupation:
+        parts.append(f"职业: {crush.occupation}")
+    if crush.education:
+        parts.append(f"教育背景: {crush.education}")
+    if crush.residence:
+        parts.append(f"常住地: {crush.residence}")
+    if crush.hometown:
+        parts.append(f"家乡: {crush.hometown}")
+    communication_style = cleanList(crush.communication_style)
+    if communication_style:
+        parts.append(f"沟通风格: {', '.join(communication_style)}")
 
     personality_tags = cleanList(crush.personality_tags)
     if personality_tags:
@@ -84,6 +97,18 @@ def buildEmbeddingText4CrushProfile(
     traits = cleanList(crush.traits)
     if traits:
         parts.append(f"个人特点: {', '.join(traits)}")
+
+    lifestyle_tags = cleanList(crush.lifestyle_tags)
+    if lifestyle_tags:
+        parts.append(f"生活方式: {', '.join(lifestyle_tags)}")
+
+    values = cleanList(crush.values)
+    if values:
+        parts.append(f"价值观: {', '.join(values)}")
+
+    appearance_tags = cleanList(crush.appearance_tags)
+    if appearance_tags:
+        parts.append(f"外在特征: {', '.join(appearance_tags)}")
 
     if crush.other_info:
         other_info_parts = []
@@ -124,26 +149,42 @@ def buildEmbeddingText4Event(
     return "\n".join(parts)
 
 
-def buildEmbeddingText4ChatLog(
-    chat_log: ChatLog,
+def buildEmbeddingText4ChatTopic(
+    chat_topic: ChatTopic,
 ) -> str:
-    parts = ["聊天记录"]
-    if chat_log.speaker:
-        parts.append(f"{chat_log.speaker.value}")
-    if chat_log.channel:
-        parts.append(f"{chat_log.channel.value}")
-    if chat_log.timestamp:
-        timestamp_value = (
-            chat_log.timestamp.isoformat()
-            if hasattr(chat_log.timestamp, "isoformat")
-            else str(chat_log.timestamp)
+    parts = ["聊天话题"]
+    if chat_topic.title:
+        parts.append(f"{chat_topic.title}")
+    if chat_topic.summary:
+        parts.append(f"{chat_topic.summary}")
+    if chat_topic.content:
+        parts.append(f"{chat_topic.content}")
+    if chat_topic.start_time or chat_topic.end_time:
+        start_value = (
+            chat_topic.start_time.isoformat()
+            if chat_topic.start_time and hasattr(chat_topic.start_time, "isoformat")
+            else str(chat_topic.start_time) if chat_topic.start_time else ""
         )
-        parts.append(f"{timestamp_value}")
-    if chat_log.content:
-        parts.append(f"{chat_log.content}")
-    if chat_log.other_info:
+        end_value = (
+            chat_topic.end_time.isoformat()
+            if chat_topic.end_time and hasattr(chat_topic.end_time, "isoformat")
+            else str(chat_topic.end_time) if chat_topic.end_time else ""
+        )
+        if start_value or end_value:
+            parts.append(f"{start_value}~{end_value}")
+    if chat_topic.channel:
+        parts.append(f"{chat_topic.channel.value}")
+    if chat_topic.attitude:
+        parts.append(f"{chat_topic.attitude.value}")
+    tags = cleanList(chat_topic.tags)
+    if tags:
+        parts.append(f"话题标签: {', '.join(tags)}")
+    participants = cleanList(chat_topic.participants)
+    if participants:
+        parts.append(f"参与者: {', '.join(participants)}")
+    if chat_topic.other_info:
         other_info_parts = []
-        for item in chat_log.other_info:
+        for item in chat_topic.other_info:
             if isinstance(item, dict):
                 other_info_parts.append(
                     json.dumps(item, ensure_ascii=False, sort_keys=True)
@@ -181,13 +222,13 @@ async def createOrUpdateEmbedding(
         "knowledge",
         "crush_profile",
         "event",
-        "chat_log",
+        "chat_topic",
         "derived_insight",
     ],
     knowledge: Knowledge = None,
     crush: Crush = None,
     event: Event = None,
-    chat_log: ChatLog = None,
+    chat_topic: ChatTopic = None,
     derived_insight: DerivedInsight = None,
 ) -> dict:
     embedding_type = None
@@ -212,12 +253,12 @@ async def createOrUpdateEmbedding(
             embedding_type = EmbeddingType.FROM_EVENT
             # 构建向量化文本
             text = buildEmbeddingText4Event(event)
-        case "chat_log":
-            if not chat_log:
-                return {"status": -1, "message": "Chat_log is required"}
-            embedding_type = EmbeddingType.FROM_CHAT_LOG
+        case "chat_topic":
+            if not chat_topic:
+                return {"status": -1, "message": "Chat_topic is required"}
+            embedding_type = EmbeddingType.FROM_CHAT_TOPIC
             # 构建向量化文本
-            text = buildEmbeddingText4ChatLog(chat_log)
+            text = buildEmbeddingText4ChatTopic(chat_topic)
         case "derived_insight":
             if not derived_insight:
                 return {"status": -1, "message": "Derived_insight is required"}
@@ -256,10 +297,10 @@ async def createOrUpdateEmbedding(
                 ContextEmbedding.type == embedding_type,
                 ContextEmbedding.event_id == event.id,
             )
-        case "chat_log":
+        case "chat_topic":
             query = db.query(ContextEmbedding).filter(
                 ContextEmbedding.type == embedding_type,
-                ContextEmbedding.chat_log_id == chat_log.id,
+                ContextEmbedding.chat_topic_id == chat_topic.id,
             )
         case "derived_insight":
             query = db.query(ContextEmbedding).filter(
@@ -280,7 +321,7 @@ async def createOrUpdateEmbedding(
             knowledge_id=knowledge.id if knowledge else None,
             crush_id=crush.id if crush else None,
             event_id=event.id if event else None,
-            chat_log_id=chat_log.id if chat_log else None,
+            chat_topic_id=chat_topic.id if chat_topic else None,
             derived_insight_id=derived_insight.id if derived_insight else None,
         )
         db.add(embedding)
@@ -301,7 +342,7 @@ async def recallEmbedding(
             "knowledge",
             "crush_profile",
             "event",
-            "chat_log",
+            "chat_topic",
             "derived_insight",
             "non-knowledge",
             "all",
@@ -319,7 +360,7 @@ async def recallEmbedding(
         "knowledge",
         "crush_profile",
         "event",
-        "chat_log",
+        "chat_topic",
         "derived_insight",
         "non-knowledge",
         "all",
@@ -331,17 +372,11 @@ async def recallEmbedding(
     ):
         return {"status": -3, "message": "Invalid recall_from"}
 
-    # relation_chain_id缺失，只从knowledge召回
-    if relation_chain_id is None:
-        if "knowledge" not in recall_from:
-            return {"status": -4, "message": "Relation_chain_id is required"}
-        recall_from = ["knowledge"]
-
     if "non-knowledge" in recall_from:
         recall_from = [
             "crush_profile",
             "event",
-            "chat_log",
+            "chat_topic",
             "derived_insight",
         ]
     if "all" in recall_from:
@@ -349,9 +384,14 @@ async def recallEmbedding(
             "knowledge",
             "crush_profile",
             "event",
-            "chat_log",
+            "chat_topic",
             "derived_insight",
         ]
+    if relation_chain_id is None:
+        if "knowledge" not in recall_from:
+            return {"status": -4, "message": "Relation_chain_id is required"}
+        if len(recall_from) > 1:
+            recall_from = ["knowledge"]
 
     try:
         vector = await vectorizeText(text)
@@ -440,27 +480,27 @@ async def recallEmbedding(
                     }
                 )
 
-        if "chat_log" in recall_from:
-            chat_log_query = (
+        if "chat_topic" in recall_from:
+            chat_topic_query = (
                 db.query(ContextEmbedding, distance)
-                .filter(ContextEmbedding.type == EmbeddingType.FROM_CHAT_LOG)
-                .join(ContextEmbedding.chat_log)
+                .filter(ContextEmbedding.type == EmbeddingType.FROM_CHAT_TOPIC)
+                .join(ContextEmbedding.chat_topic)
                 .filter(
-                    ChatLog.is_active.is_(True),
-                    ChatLog.relation_chain_id == relation_chain_id,
+                    ChatTopic.is_active.is_(True),
+                    ChatTopic.relation_chain_id == relation_chain_id,
                 )
                 .order_by(distance.asc())
                 .limit(top_k)
             )
-            for embedding, dist in chat_log_query.all():
-                if not embedding.chat_log:
+            for embedding, dist in chat_topic_query.all():
+                if not embedding.chat_topic:
                     continue
                 items.append(
                     {
-                        "source": "chat_log",
+                        "source": "chat_topic",
                         "embedding_id": embedding.id,
                         "distance": float(dist),
-                        "data": embedding.chat_log.toJson(),
+                        "data": embedding.chat_topic.toJson(),
                     }
                 )
 
