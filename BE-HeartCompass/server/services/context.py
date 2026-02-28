@@ -164,6 +164,7 @@ async def contextAddContextByNaturalLanguage(
                 new_hometown = crush_profile.get("hometown")
                 new_communication_style = crush_profile.get("communication_style")
 
+                # list类型：新增
                 if new_likes is not None and isinstance(new_likes, list):
                     current_likes = set(cleanList(crush.likes))
                     for item in cleanList(new_likes):
@@ -210,18 +211,6 @@ async def contextAddContextByNaturalLanguage(
                         if item not in current_appearance_tags:
                             crush.appearance_tags.append(item)
                             current_appearance_tags.add(item)
-                if new_other_info is not None and isinstance(new_other_info, dict):
-                    crush.other_info.append(new_other_info)
-                if isinstance(new_birthday, str) and new_birthday.strip():
-                    crush.birthday = new_birthday.strip()
-                if isinstance(new_occupation, str) and new_occupation.strip():
-                    crush.occupation = new_occupation.strip()
-                if isinstance(new_education, str) and new_education.strip():
-                    crush.education = new_education.strip()
-                if isinstance(new_residence, str) and new_residence.strip():
-                    crush.residence = new_residence.strip()
-                if isinstance(new_hometown, str) and new_hometown.strip():
-                    crush.hometown = new_hometown.strip()
                 if new_communication_style is not None and isinstance(
                     new_communication_style, list
                 ):
@@ -232,6 +221,21 @@ async def contextAddContextByNaturalLanguage(
                         if item not in current_communication_style:
                             crush.communication_style.append(item)
                             current_communication_style.add(item)
+                # dict类型：新增
+                if new_other_info is not None and isinstance(new_other_info, dict):
+                    crush.other_info.append(new_other_info)
+
+                # str类型：直接替换
+                if isinstance(new_birthday, str) and new_birthday.strip():
+                    crush.birthday = new_birthday.strip()
+                if isinstance(new_occupation, str) and new_occupation.strip():
+                    crush.occupation = new_occupation.strip()
+                if isinstance(new_education, str) and new_education.strip():
+                    crush.education = new_education.strip()
+                if isinstance(new_residence, str) and new_residence.strip():
+                    crush.residence = new_residence.strip()
+                if isinstance(new_hometown, str) and new_hometown.strip():
+                    crush.hometown = new_hometown.strip()
 
             # 包含event：在Event表新增
             if event is not None:
@@ -403,6 +407,7 @@ async def contextAddContextByScreenshots(
                 new_hometown = crush_profile.get("hometown")
                 new_communication_style = crush_profile.get("communication_style")
 
+                # list类型：新增
                 if new_likes is not None and isinstance(new_likes, list):
                     current_likes = set(cleanList(crush.likes))
                     for item in cleanList(new_likes):
@@ -449,18 +454,6 @@ async def contextAddContextByScreenshots(
                         if item not in current_appearance_tags:
                             crush.appearance_tags.append(item)
                             current_appearance_tags.add(item)
-                if new_other_info is not None and isinstance(new_other_info, dict):
-                    crush.other_info.append(new_other_info)
-                if isinstance(new_birthday, str) and new_birthday.strip():
-                    crush.birthday = new_birthday.strip()
-                if isinstance(new_occupation, str) and new_occupation.strip():
-                    crush.occupation = new_occupation.strip()
-                if isinstance(new_education, str) and new_education.strip():
-                    crush.education = new_education.strip()
-                if isinstance(new_residence, str) and new_residence.strip():
-                    crush.residence = new_residence.strip()
-                if isinstance(new_hometown, str) and new_hometown.strip():
-                    crush.hometown = new_hometown.strip()
                 if new_communication_style is not None and isinstance(
                     new_communication_style, list
                 ):
@@ -471,6 +464,21 @@ async def contextAddContextByScreenshots(
                         if item not in current_communication_style:
                             crush.communication_style.append(item)
                             current_communication_style.add(item)
+                # dict类型：新增
+                if new_other_info is not None and isinstance(new_other_info, dict):
+                    crush.other_info.append(new_other_info)
+
+                # str类型：直接替换
+                if isinstance(new_birthday, str) and new_birthday.strip():
+                    crush.birthday = new_birthday.strip()
+                if isinstance(new_occupation, str) and new_occupation.strip():
+                    crush.occupation = new_occupation.strip()
+                if isinstance(new_education, str) and new_education.strip():
+                    crush.education = new_education.strip()
+                if isinstance(new_residence, str) and new_residence.strip():
+                    crush.residence = new_residence.strip()
+                if isinstance(new_hometown, str) and new_hometown.strip():
+                    crush.hometown = new_hometown.strip()
 
             # 包含chat_topic：在ChatTopic表新增
             if chat_topic is not None:
