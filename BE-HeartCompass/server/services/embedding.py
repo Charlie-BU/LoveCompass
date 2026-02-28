@@ -159,19 +159,10 @@ def buildEmbeddingText4ChatTopic(
         parts.append(f"{chat_topic.summary}")
     if chat_topic.content:
         parts.append(f"{chat_topic.content}")
-    if chat_topic.start_time or chat_topic.end_time:
-        start_value = (
-            chat_topic.start_time.isoformat()
-            if chat_topic.start_time and hasattr(chat_topic.start_time, "isoformat")
-            else str(chat_topic.start_time) if chat_topic.start_time else ""
-        )
-        end_value = (
-            chat_topic.end_time.isoformat()
-            if chat_topic.end_time and hasattr(chat_topic.end_time, "isoformat")
-            else str(chat_topic.end_time) if chat_topic.end_time else ""
-        )
-        if start_value or end_value:
-            parts.append(f"{start_value}~{end_value}")
+    if chat_topic.topic_time:
+        time_value = str(chat_topic.topic_time).strip()
+        if time_value:
+            parts.append(f"{time_value}")
     if chat_topic.channel:
         parts.append(f"{chat_topic.channel.value}")
     if chat_topic.attitude:

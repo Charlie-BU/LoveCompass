@@ -386,15 +386,10 @@ class ChatTopic(Base, SerializableMixin):
         default=[],
         comment="来源截图url",
     )
-    start_time = Column(
-        DateTime,
+    topic_time = Column(
+        String(128),
         nullable=True,
-        comment="话题开始时间",
-    )
-    end_time = Column(
-        DateTime,
-        nullable=True,
-        comment="话题结束时间",
+        comment="话题相关时间",
     )
     channel = Column(
         Enum(ChatChannel),

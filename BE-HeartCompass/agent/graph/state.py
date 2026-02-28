@@ -21,8 +21,7 @@ class RawChatTopic(TypedDict):
     tags: List[str]
     participants: List[str]
     source_urls: List[str]
-    start_time: datetime | None
-    end_time: datetime | None
+    topic_time: str | None
     channel: ChatChannel | None
     attitude: Attitude | None
     weight: float

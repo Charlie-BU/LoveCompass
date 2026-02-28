@@ -8,6 +8,7 @@ from database.database import session
 from ..services.context import (
     contextAddKnowledge,
     contextAddContextByNaturalLanguage,
+    contextAddContextByScreenshots,
 )
 from ..services.embedding import recallEmbedding
 
@@ -48,11 +49,12 @@ async def recallContextFromEmbedding(request: Request):
     return res
 
 
+# 添加知识库条目
 @context_router.post("/addKnowledge", auth_required=True)
 async def addKnowledge(request: Request):
     data = request.json()
     content = data["content"]
-    with_embedding = data["with_embedding"]
+    with_embedding = data.get("with_embedding", "True")
     with session() as db:
         res = await contextAddKnowledge(
             db=db,
@@ -62,17 +64,39 @@ async def addKnowledge(request: Request):
     return res
 
 
+# 通过自然语言添加上下文
 @context_router.post("/addContextByNaturalLanguage", auth_required=True)
 async def addContextByNaturalLanguage(request: Request):
     data = request.json()
     relation_chain_id = data["relation_chain_id"]
     content = data["content"]
-    with_embedding = data["with_embedding"]
+    with_embedding = data.get("with_embedding", "True")
     with session() as db:
         res = await contextAddContextByNaturalLanguage(
             db=db,
             relation_chain_id=int(relation_chain_id),
             content=json.dumps(content) if isinstance(content, dict) else content,
+            with_embedding=bool(with_embedding),
+        )
+    return res
+
+
+# 通过聊天记录截图添加上下文
+@context_router.post("/addContextByScreenshots", auth_required=True)
+async def addContextByScreenshots(request: Request):
+    data = request.json()
+    relation_chain_id = data["relation_chain_id"]
+    screenshot_urls = data["screenshot_urls"]
+    crush_name = data["crush_name"]
+    additional_context = data.get("additional_context", "")
+    with_embedding = data.get("with_embedding", "True")
+    with session() as db:
+        res = await contextAddContextByScreenshots(
+            db=db,
+            relation_chain_id=int(relation_chain_id),
+            screenshot_urls=list(screenshot_urls) if screenshot_urls else [],
+            crush_name=crush_name,
+            additional_context=additional_context,
             with_embedding=bool(with_embedding),
         )
     return res
