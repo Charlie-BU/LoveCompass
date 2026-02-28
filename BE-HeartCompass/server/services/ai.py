@@ -12,7 +12,6 @@ async def summarizeContext(content: str) -> str:
         os.getenv("SUMMARIZE_CONTENT_PROMPT"),
         {"content": content},
     )
-    print(prompt)
     agent = await getAgent()
     return await askWithNoContext(
         react_agent=agent,

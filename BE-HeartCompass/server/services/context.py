@@ -339,7 +339,7 @@ async def contextAddContextByScreenshots(
         or not isinstance(screenshot_urls, list)
         or len(screenshot_urls) == 0
     ):
-        return {"status": -2, "message": "No screenshot urls provided"}
+        return {"status": -2, "message": "No screenshots provided"}
 
     try:
         normalized_context = json.loads(
@@ -496,12 +496,6 @@ async def contextAddContextByScreenshots(
                     topic_participants, list
                 ):
                     return {"status": -6, "message": "Invalid chat_topic participants"}
-                topic_source_urls = chat_topic.get("source_urls")
-                if topic_source_urls is not None and not isinstance(
-                    topic_source_urls, list
-                ):
-                    return {"status": -6, "message": "Invalid chat_topic source_urls"}
-
                 topic_time = chat_topic.get("topic_time")
                 if topic_time is not None and not isinstance(topic_time, str):
                     return {"status": -6, "message": "Invalid chat_topic topic_time"}
@@ -547,11 +541,7 @@ async def contextAddContextByScreenshots(
                         if isinstance(topic_participants, list)
                         else []
                     ),
-                    source_urls=(
-                        cleanList(topic_source_urls)
-                        if isinstance(topic_source_urls, list)
-                        else cleanList(screenshot_urls)
-                    ),
+                    source_urls=cleanList(screenshot_urls),
                     topic_time=(
                         topic_time.strip() if isinstance(topic_time, str) else None
                     ),
