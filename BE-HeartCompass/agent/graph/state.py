@@ -7,26 +7,16 @@ from database.models import (
     User,
     Knowledge,
     Event,
-    ChatLog,
+    ChatTopic,
     InteractionSignal,
     DerivedInsight,
 )
-from database.enums import MBTI, ChatChannel, ChatSpeaker
-
-
-class RawChat(TypedDict):
-    speaker: ChatSpeaker
-    content: str
-    timestamp: datetime
-    channel: ChatChannel
-    weight: float
-    other_info: List[dict]  # 非Optional，空时为[]
+from database.enums import MBTI, ChatChannel, Attitude
 
 
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int | None
-    chat_context: List[RawChat]
     mood: str | None
 
 
@@ -51,7 +41,7 @@ class RecallQueries(TypedDict):
 class RecallResults(TypedDict):
     knowledge: List[Knowledge]
     event: List[Event]
-    chat_log: List[ChatLog]
+    chat_topic: List[ChatTopic]
     derived_insight: List[DerivedInsight]
 
 

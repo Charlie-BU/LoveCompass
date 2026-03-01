@@ -36,7 +36,8 @@ def decodeAccessToken(token: str) -> dict:
 
 # 通过access token获取user id
 def userGetUserIdByAccessToken(
-    request: Request | None = None, token: str | None = None
+    request: Request | None = None,
+    token: str | None = None,
 ) -> int:
     if request is not None and token is not None:
         raise Exception("Request and token should not be provided at the same time")
@@ -52,7 +53,10 @@ def userGetUserIdByAccessToken(
 
 
 # 通过user id获取user信息
-def userGetUserById(db: Session, id: int) -> dict:
+def userGetUserById(
+    db: Session,
+    id: int,
+) -> dict:
     user = db.get(User, id)
     if user is None:
         return {
@@ -68,7 +72,8 @@ def userGetUserById(db: Session, id: int) -> dict:
 
 # 通过用户名或昵称或邮箱获取用户信息
 def userGetUserByUsernameOrNicknameOrEmail(
-    db: Session, username_or_nickname_or_email: str
+    db: Session,
+    username_or_nickname_or_email: str,
 ) -> dict:
     # 把 url 编码的字符串解码，否则是 %20 等格式
     keyword = unquote(username_or_nickname_or_email).strip()
@@ -92,7 +97,11 @@ def userGetUserByUsernameOrNicknameOrEmail(
 
 
 # 用户登录
-def userLogin(db: Session, username: str, password: str) -> dict:
+def userLogin(
+    db: Session,
+    username: str,
+    password: str,
+) -> dict:
     user = (
         db.query(User)
         .filter(or_(User.username == username, User.email == username))
@@ -163,7 +172,10 @@ def userRegister(
 
 # 修改密码
 def userModifyPassword(
-    db: Session, id: int, old_password: str, new_password: str
+    db: Session,
+    id: int,
+    old_password: str,
+    new_password: str,
 ) -> dict:
     user = db.get(User, id)
     if user is None:
