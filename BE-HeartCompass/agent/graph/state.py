@@ -1,33 +1,34 @@
-from datetime import datetime
 from typing import List, TypedDict
 
 from database.models import (
+    User,
     Crush,
     RelationChain,
-    User,
+    ChainStageHistory,
     Knowledge,
     Event,
     ChatTopic,
     InteractionSignal,
     DerivedInsight,
 )
-from database.enums import MBTI, ChatChannel, Attitude
 
 
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int | None
-    mood: str | None
+    conversation_screenshots: List[str] | None
+    additional_context: str | None
 
 
 class Entities(TypedDict):
     user: User | None
     crush: Crush | None
     relation_chain: RelationChain | None
+    stage_histories: List[ChainStageHistory] | None
 
 
 class CrushProfileContext(TypedDict):
-    crush_mbti: MBTI | None
+    crush_mbti: str | None
     crush_profile: dict  # 将 Crush 字段汇总、去噪、裁剪后的“可读画像摘要”
 
 
@@ -72,3 +73,46 @@ class GraphState(TypedDict):
     ranked_context: RankedContext
     prompt_bundle: PromptBundle
     llm_output: LLMOutput
+
+
+def initGraphState(request: Request) -> GraphState:
+    return {
+        "request": request,
+        "entities": {
+            "user": None,
+            "crush": None,
+            "relation_chain": None,
+            "stage_histories": None,
+        },
+        "crush_profile_context": {
+            "crush_mbti": None,
+            "crush_profile": {},
+        },
+        "recall_queries": {
+            "knowledge_query": None,
+            "non_knowledge_query": None,
+            "knowledge_vector": [],
+            "non_knowledge_vector": [],
+        },
+        "recall_results": {
+            "knowledge": [],
+            "event": [],
+            "chat_topic": [],
+            "derived_insight": [],
+        },
+        "ranked_context": {
+            "interaction_signal": [],
+            "items": [],
+            "truncation_info": {},
+        },
+        "prompt_bundle": {
+            "system_prompt": "",
+            "context_block": "",
+            "user_prompt": "",
+        },
+        "llm_output": {
+            "reply_candidates": [],
+            "reasoning": None,
+            "evidence": [],
+        },
+    }

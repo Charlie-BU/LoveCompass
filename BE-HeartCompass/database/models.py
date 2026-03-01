@@ -104,7 +104,7 @@ class User(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="用户性格标签",
+        comment="用户性格",
     )
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="用户创建时间"
@@ -145,7 +145,7 @@ class Crush(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="性格标签",
+        comment="性格",
     )  # 手动选择
     likes = Column(
         MutableList.as_mutable(ARRAY(Text)),
@@ -175,7 +175,7 @@ class Crush(Base, SerializableMixin):
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
         default=[],
-        comment="生活方式标签",
+        comment="生活方式",
     )
     values = Column(
         MutableList.as_mutable(ARRAY(Text)),
