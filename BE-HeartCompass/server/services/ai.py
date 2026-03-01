@@ -33,9 +33,9 @@ async def extractKnowledge(content: str) -> str:
 
 
 # 将自然语言的信息转为 crush_profile 和 event
-async def extractContextFromNaturalLanguage(content: str) -> str:
+async def extractContextFromNaturalLanguage(content: str, is_self: bool) -> str:
     prompt = await getPrompt(
-        os.getenv("NORMALIZE_CONTEXT_PROMPT"),
+        os.getenv("EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE_SELF" if is_self else "EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE"),
         {"content": content},
     )
     agent = await getAgent()
@@ -51,6 +51,7 @@ async def extractContextFromScreenshots(
     additional_context: str,
     crush_name: str,
     username: str,
+    is_self: bool,
 ) -> str:
     if not isinstance(screenshot_urls, list) or len(screenshot_urls) == 0:
         return "Wrong screenshot format"
@@ -66,7 +67,7 @@ async def extractContextFromScreenshots(
         cleaned_urls.append(url)
 
     prompt = await getPrompt(
-        os.getenv("EXTRACT_CONTEXT_FROM_SCREENSHOTS"),
+        os.getenv("EXTRACT_CONTEXT_FROM_SCREENSHOTS_SELF" if is_self else "EXTRACT_CONTEXT_FROM_SCREENSHOTS"),
         {
             "crush_name": crush_name,
             "username": username,

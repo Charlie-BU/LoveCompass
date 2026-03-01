@@ -10,7 +10,7 @@ from .ai import (
 )
 from .embedding import createOrUpdateEmbedding
 from database.models import RelationChain, Knowledge, Event, ChatTopic
-from database.enums import parseEnum, Attitude, ChatChannel
+from database.enums import parseEnum, Attitude, ChatChannel, RelationStage
 from utils import cleanList
 
 logger = logging.getLogger(__name__)
@@ -111,9 +111,10 @@ async def contextAddContextByNaturalLanguage(
     if not content or content.strip() == "":
         return {"status": -2, "message": "Content is empty"}
 
+    is_self = relation_chain.current_stage == RelationStage.SELF
     try:
         normalized_context = json.loads(
-            await extractContextFromNaturalLanguage(content)
+            await extractContextFromNaturalLanguage(content, is_self)
         )
     except json.JSONDecodeError:
         return {"status": -3, "message": "Failed to normalize context"}
@@ -345,6 +346,7 @@ async def contextAddContextByScreenshots(
     ):
         return {"status": -2, "message": "No screenshots provided"}
 
+    is_self = relation_chain.current_stage == RelationStage.SELF
     try:
         normalized_context = json.loads(
             await extractContextFromScreenshots(
@@ -356,6 +358,7 @@ async def contextAddContextByScreenshots(
                     if relation_chain.user.nickname != ""
                     else relation_chain.user.username
                 ),
+                is_self=is_self,
             )
         )
     except json.JSONDecodeError:

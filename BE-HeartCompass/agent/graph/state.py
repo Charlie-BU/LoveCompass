@@ -14,24 +14,9 @@ from database.models import (
 from database.enums import MBTI, ChatChannel, Attitude
 
 
-class RawChatTopic(TypedDict):
-    title: str
-    summary: str | None
-    content: str
-    tags: List[str]
-    participants: List[str]
-    source_urls: List[str]
-    topic_time: str | None
-    channel: ChatChannel | None
-    attitude: Attitude | None
-    weight: float
-    other_info: List[dict]  # 非Optional，空时为[]
-
-
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int | None
-    chat_topics: List[RawChatTopic]
     mood: str | None
 
 
