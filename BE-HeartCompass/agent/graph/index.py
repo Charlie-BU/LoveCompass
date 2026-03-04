@@ -3,11 +3,11 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.postgres import PostgresSaver
 import json
 import asyncio
 import logging
 import os
-import pprint
 
 from database.database import session
 from database.models import (
@@ -431,5 +431,7 @@ async def getStateGraph() -> CompiledStateGraph:
         graph.add_edge("nodeCallLLM", "nodeOutput")
         graph.add_edge("nodeOutput", END)
 
-        _graph_instance = graph.compile()
+        # 通过 PostgresSaver 保存 checkpoint 实现短期记忆
+        with PostgresSaver.from_conn_string(os.getenv("DATABASE_URI")) as checkpointer:
+            _graph_instance = graph.compile(checkpointer=checkpointer)
         return _graph_instance

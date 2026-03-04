@@ -41,10 +41,11 @@ async def conversationAnalysis(request: Request):
     initial_state = initGraphState(
         {
             "user_id": user_id,
-            "relation_chain_id": relation_chain_id,
+            "relation_chain_id": int(relation_chain_id),
             "conversation_screenshots": list(conversation_screenshots),
             "additional_context": additional_context,
         }
     )
-    result = await graph.ainvoke(initial_state)
+    short_term_memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
+    result = await graph.ainvoke(initial_state, config=short_term_memory_config)
     return result
