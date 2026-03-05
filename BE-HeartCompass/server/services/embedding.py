@@ -340,7 +340,7 @@ async def recallEmbedding(
         ]
     ] = ["all"],
     relation_chain_id: int | None = None,
-):
+) -> dict[str, Any]:
     if not text or not isinstance(text, str) or not text.strip():
         return {"status": -1, "message": "Text is required"}
 

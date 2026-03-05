@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+import json
 from typing import List
 
 from agent.react_agent import getAgent, askWithNoContext
@@ -9,7 +9,7 @@ from agent.prompt import getPrompt
 # 对上下文记录或知识库条目进行摘要
 async def summarizeContext(content: str) -> str:
     prompt = await getPrompt(
-        os.getenv("SUMMARIZE_CONTENT_PROMPT"),
+        os.getenv("SUMMARIZE_CONTENT"),
         {"content": content},
     )
     agent = await getAgent()
@@ -22,7 +22,7 @@ async def summarizeContext(content: str) -> str:
 # 将自然语言组织拆分与提炼为knowledge
 async def extractKnowledge(content: str) -> str:
     prompt = await getPrompt(
-        os.getenv("EXTRACT_KNOWLEDGE_PROMPT"),
+        os.getenv("EXTRACT_KNOWLEDGE"),
         {"content": content},
     )
     agent = await getAgent()
@@ -35,7 +35,11 @@ async def extractKnowledge(content: str) -> str:
 # 将自然语言的信息转为 crush_profile 和 event
 async def extractContextFromNaturalLanguage(content: str, is_self: bool) -> str:
     prompt = await getPrompt(
-        os.getenv("EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE_SELF" if is_self else "EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE"),
+        os.getenv(
+            "EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE_SELF"
+            if is_self
+            else "EXTRACT_CONTEXT_FROM_NATURAL_LANGUAGE"
+        ),
         {"content": content},
     )
     agent = await getAgent()
@@ -67,7 +71,11 @@ async def extractContextFromScreenshots(
         cleaned_urls.append(url)
 
     prompt = await getPrompt(
-        os.getenv("EXTRACT_CONTEXT_FROM_SCREENSHOTS_SELF" if is_self else "EXTRACT_CONTEXT_FROM_SCREENSHOTS"),
+        os.getenv(
+            "EXTRACT_CONTEXT_FROM_SCREENSHOTS_SELF"
+            if is_self
+            else "EXTRACT_CONTEXT_FROM_SCREENSHOTS"
+        ),
         {
             "crush_name": crush_name,
             "username": username,
@@ -80,38 +88,71 @@ async def extractContextFromScreenshots(
     )
 
 
-# # 从截图中提取聊天记录：效果极其不好且慢
-# async def extractChatFromScreenshots(screenshot_urls: List[str]) -> str:
-#     if not isinstance(screenshot_urls, list) or len(screenshot_urls) == 0:
-#         return "Wrong screenshot format"
-#     if len(screenshot_urls) > 5:
-#         return "Screenshots should be no more than 5"
-#     cleaned_urls: List[str] = []
-#     for url in screenshot_urls:
-#         if not isinstance(url, str):
-#             return "Wrong screenshot url"
-#         url = url.strip()
-#         if not url or not (url.startswith("http://") or url.startswith("https://")):
-#             return "Wrong screenshot url"
-#         cleaned_urls.append(url)
+# 根据聊天记录截图、additional_context 和对方画像生成向量召回query
+async def generateRecallQueriesFromScreenshots(
+    screenshot_urls: List[str],
+    additional_context: str,
+    profile: dict,
+    is_self: bool,
+) -> str:
+    if not isinstance(screenshot_urls, list) or len(screenshot_urls) == 0:
+        return "Wrong screenshot format"
+    if len(screenshot_urls) > 5:
+        return "Screenshots should be no more than 5"
+    cleaned_urls: List[str] = []
+    for url in screenshot_urls:
+        if not isinstance(url, str):
+            return "Wrong screenshot url"
+        url = url.strip()
+        if not url or not (url.startswith("http://") or url.startswith("https://")):
+            return "Wrong screenshot url"
+        cleaned_urls.append(url)
+    prompt = await getPrompt(
+        os.getenv(
+            "GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS_SELF"
+            if is_self
+            else "GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS"
+        ),
+        {
+            "additional_context": additional_context,
+            "profile": json.dumps(profile, ensure_ascii=False),
+        },
+    )
+    agent = await getAgent()
+    return await askWithNoContext(
+        react_agent=agent, prompt=prompt, images_urls=cleaned_urls
+    )
 
-#     today = datetime.now(timezone.utc).date().isoformat()
-#     prompt = await getPrompt(
-#         os.getenv("EXTRACT_CHAT_FROM_SCREENSHOTS_PROMPT"),
-#         {"today": today},
-#     )
-#     agent = await getAgent()
-#     return await askWithNoContext(
-#         react_agent=agent,
-#         prompt=prompt,
-#         images_urls=cleaned_urls,
-#     )
+
+# 根据自然语言叙述和对方画像生成向量召回query
+async def generateRecallQueriesFromNarrative(
+    narrative: str,
+    profile: dict,
+    is_self: bool,
+) -> str:
+    if not isinstance(narrative, str) or not narrative.strip():
+        return "Wrong narrative format"
+    prompt = await getPrompt(
+        os.getenv(
+            "GENERATE_RECALL_QUERIES_FROM_NARRATIVE_SELF"
+            if is_self
+            else "GENERATE_RECALL_QUERIES_FROM_NARRATIVE"
+        ),
+        {
+            "narrative": narrative.strip(),
+            "profile": json.dumps(profile, ensure_ascii=False),
+        },
+    )
+    agent = await getAgent()
+    return await askWithNoContext(
+        react_agent=agent,
+        prompt=prompt,
+    )
 
 
 # TEST: uv run -m server.services.ai
 if __name__ == "__main__":
     import asyncio
-    import json
     import time
 
     start = time.perf_counter()
