@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from langchain_core.messages import HumanMessage
 import json
@@ -7,11 +7,7 @@ import asyncio
 import logging
 import os
 
-from .state import (
-    AnalysisGraphInput,
-    AnalysisGraphOutput,
-    AnalysisGraphState,
-)
+from .state import LLMOutput, Request, AnalysisGraphInput, AnalysisGraphOutput, AnalysisGraphState
 from ..llm import prepareLLM
 from ..prompt import getPrompt
 from .checkpointer import getCheckpointer
@@ -24,12 +20,8 @@ _analysis_graph_instance: CompiledStateGraph | None = None
 _analysis_graph_lock = asyncio.Lock()
 
 
-async def nodeFetchPromptFromScreenshots(state: AnalysisGraphState) -> dict:
-    prompt_bundle = state["prompt_bundle"]
-
-    request = state["request"]
+async def stepFetchPromptFromScreenshots(request: Request, context_block: str) -> str:
     additional_context = request.get("additional_context") or ""
-    context_block = prompt_bundle.get("context_block") or ""
     final_prompt = await getPrompt(
         os.getenv("CONVERSATION_ANALYSIS"),
         {
@@ -37,42 +29,30 @@ async def nodeFetchPromptFromScreenshots(state: AnalysisGraphState) -> dict:
             "context_block": context_block,
         },
     )
-    prompt_bundle["final_prompt"] = final_prompt
-
-    return {
-        "prompt_bundle": prompt_bundle,
-    }
+    return final_prompt
 
 
-async def nodeFetchPromptFromNarrative(state: AnalysisGraphState) -> dict:
-    prompt_bundle = state["prompt_bundle"]
-
-    context_block = prompt_bundle.get("context_block") or ""
+async def stepFetchPromptFromNarrative(request: Request, context_block: str) -> str:
+    narrative = request.get("narrative") or ""
     final_prompt = await getPrompt(
         os.getenv("NARRATIVE_ANALYSIS"),
         {
-            "narrative": state["request"].get("narrative") or "",
+            "narrative": narrative,
             "context_block": context_block,
         },
     )
-    prompt_bundle["final_prompt"] = final_prompt
-
-    return {
-        "prompt_bundle": prompt_bundle,
-    }
+    return final_prompt
 
 
-async def nodeCallLLM(state: AnalysisGraphState) -> dict:
+async def stepCallLLM(request: Request, final_prompt: str) -> LLMOutput:
     llm: ChatOpenAI = prepareLLM()
-    prompt_bundle = state["prompt_bundle"]
-    final_prompt = prompt_bundle.get("final_prompt") or ""
 
     # todo: 删调试
     logger.info(f"final_prompt: \n{final_prompt}")
 
     msg = [{"type": "text", "text": final_prompt}]
     # 聊天记录分析才会有图片
-    screenshot_urls = state["request"].get("conversation_screenshots")
+    screenshot_urls = request.get("conversation_screenshots")
     if screenshot_urls:
         for url in screenshot_urls:
             if not url:
@@ -91,10 +71,11 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
         except json.JSONDecodeError:
             logger.warning(f"Error parsing LLM response: {response_content}")
 
-    llm_output = state.get("llm_output") or {
+    llm_output = {
         "message_candidates": [],
         "risks": [],
         "suggestions": [],
+        "message": None,
     }
     if isinstance(parsed, dict):
         if parsed.get("status") == 200:
@@ -105,6 +86,18 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
         else:
             llm_output["message"] = parsed.get("message") or ""
 
+    return llm_output
+
+
+async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
+    request = state["request"]
+    context_block = state["context_block"]
+    if request.get("narrative") and request.get("narrative") != "":
+        final_prompt = await stepFetchPromptFromNarrative(request, context_block)
+    else:
+        final_prompt = await stepFetchPromptFromScreenshots(request, context_block)
+
+    llm_output = await stepCallLLM(request, final_prompt)
     return {
         "llm_output": llm_output,
     }
@@ -123,24 +116,9 @@ async def getAnalysisGraph() -> CompiledStateGraph:
             input_schema=AnalysisGraphInput,
             output_schema=AnalysisGraphOutput,
         )
-        graph.add_node("nodeFetchPromptFromNarrative", nodeFetchPromptFromNarrative)
-        graph.add_node("nodeFetchPromptFromScreenshots", nodeFetchPromptFromScreenshots)
-        graph.add_node("nodeCallLLM", nodeCallLLM)
-
-        # 通过_routeAnalysisPrompt按narrative分流
-        def _routeAnalysisPrompt(state: AnalysisGraphState) -> str:
-            narrative = state["request"].get("narrative")
-            if isinstance(narrative, str) and narrative.strip():
-                return "nodeFetchPromptFromNarrative"
-            return "nodeFetchPromptFromScreenshots"
-
-        graph.add_conditional_edges(
-            START,
-            _routeAnalysisPrompt,
-        )
-        graph.add_edge("nodeFetchPromptFromNarrative", "nodeCallLLM")
-        graph.add_edge("nodeFetchPromptFromScreenshots", "nodeCallLLM")
-        graph.add_edge("nodeCallLLM", END)
+        graph.add_node("node", node)
+        graph.set_entry_point("node")
+        graph.add_edge("node", END)
 
         # PostgresSaver实现短期记忆
         # todo：trim

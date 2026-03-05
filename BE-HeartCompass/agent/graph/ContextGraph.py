@@ -1,7 +1,5 @@
-from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
-from langchain_core.messages import HumanMessage
 import json
 import asyncio
 import logging
@@ -21,8 +19,12 @@ from server.services.ai import (
 )
 from server.services.embedding import recallEmbedding
 from .state import (
+    AllContext,
+    RecallQueries,
+    Request,
+    Entities,
+    CrushProfileContext,
     ContextGraphInput,
-    ContextGraphOutput,
     ContextGraphState,
 )
 from .checkpointer import getCheckpointer
@@ -35,10 +37,10 @@ _context_graph_instance: CompiledStateGraph | None = None
 _context_graph_lock = asyncio.Lock()
 
 
-async def nodeLoadEntity(state: ContextGraphState) -> dict:
+async def stepLoadEntity(request: Request) -> Entities:
     with session() as db:
-        user = db.get(User, state["request"]["user_id"])
-        relation_chain = db.get(RelationChain, state["request"]["relation_chain_id"])
+        user = db.get(User, request["user_id"])
+        relation_chain = db.get(RelationChain, request["relation_chain_id"])
         crush: Crush = relation_chain.crush
         stage_histories = (
             db.query(ChainStageHistory)
@@ -47,17 +49,15 @@ async def nodeLoadEntity(state: ContextGraphState) -> dict:
             .all()
         )
         return {
-            "entities": {
-                "user": user,
-                "crush": crush,
-                "relation_chain": relation_chain,
-                "stage_histories": stage_histories,
-            }
+            "user": user,
+            "crush": crush,
+            "relation_chain": relation_chain,
+            "stage_histories": stage_histories,
         }
 
 
-async def nodeBuildCrushProfileContext(state: ContextGraphState) -> dict:
-    crush = state["entities"].get("crush")
+async def stepBuildCrushProfileContext(entities: Entities) -> CrushProfileContext:
+    crush = entities.get("crush")
     crush_profile = {}
     crush_mbti = None
     if crush is not None:
@@ -92,22 +92,26 @@ async def nodeBuildCrushProfileContext(state: ContextGraphState) -> dict:
         _setIfValue("appearance_tags", crush.appearance_tags, "外在特征")
         _setIfValue("other_info", crush.other_info, "其他信息")
     return {
-        "crush_profile_context": {
-            "crush_mbti": crush_mbti,
-            "crush_profile": crush_profile,
-        }
+        "crush_mbti": crush_mbti,
+        "crush_profile": crush_profile,
     }
 
 
 # 根据聊天截图和对方画像生成向量召回query
-async def nodeBuildRecallQueriesFromScreenshots(state: ContextGraphState) -> dict:
-    recall_queries = state["recall_queries"]
-    screenshot_urls = state["request"].get("conversation_screenshots")
-    additional_context = state["request"].get("additional_context")
-    profile = state["crush_profile_context"]["crush_profile"]
+async def stepBuildRecallQueriesFromScreenshots(
+    request: Request,
+    entities: Entities,
+    crush_profile_context: CrushProfileContext,
+) -> RecallQueries:
+    knowledge_query = None
+    non_knowledge_query = None
+
+    screenshot_urls = request.get("conversation_screenshots")
+    additional_context = request.get("additional_context")
+    profile = crush_profile_context["crush_profile"]
     is_self = (
-        state["entities"].get("relation_chain").current_stage == RelationStage.SELF
-        if state["entities"].get("relation_chain")
+        entities.get("relation_chain").current_stage == RelationStage.SELF
+        if entities.get("relation_chain")
         else False
     )
     try:
@@ -119,23 +123,31 @@ async def nodeBuildRecallQueriesFromScreenshots(state: ContextGraphState) -> dic
                 is_self=is_self,
             )
         )
-        recall_queries["knowledge_query"] = queries.get("knowledge_query")
-        recall_queries["non_knowledge_query"] = queries.get("non_knowledge_query")
+        knowledge_query = queries.get("knowledge_query")
+        non_knowledge_query = queries.get("non_knowledge_query")
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing JSON: {e}")
     return {
-        "recall_queries": recall_queries,
+        "knowledge_query": knowledge_query,
+        "non_knowledge_query": non_knowledge_query,
     }
 
 
 # 根据自然语言叙述和对方画像生成向量召回query
-async def nodeBuildRecallQueriesFromNarrative(state: ContextGraphState) -> dict:
-    recall_queries = state["recall_queries"]
-    narrative = state["request"].get("narrative")
-    profile = state["crush_profile_context"]["crush_profile"]
+async def stepBuildRecallQueriesFromNarrative(
+    request: Request,
+    entities: Entities,
+    crush_profile_context: CrushProfileContext,
+) -> RecallQueries:
+    recall_queries: RecallQueries = {
+        "knowledge_query": None,
+        "non_knowledge_query": None,
+    }
+    narrative = request.get("narrative")
+    profile = crush_profile_context["crush_profile"]
     is_self = (
-        state["entities"].get("relation_chain").current_stage == RelationStage.SELF
-        if state["entities"].get("relation_chain")
+        entities.get("relation_chain").current_stage == RelationStage.SELF
+        if entities.get("relation_chain")
         else False
     )
     try:
@@ -151,13 +163,17 @@ async def nodeBuildRecallQueriesFromNarrative(state: ContextGraphState) -> dict:
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing JSON: {e}")
     return {
-        "recall_queries": recall_queries,
+        "knowledge_query": recall_queries.get("knowledge_query"),
+        "non_knowledge_query": recall_queries.get("non_knowledge_query"),
     }
 
 
-async def nodeRecallKnowledge(state: ContextGraphState) -> dict:
-    recall_queries = state["recall_queries"]
-    all_context = state["all_context"]
+async def stepRecallKnowledge(
+    request: Request,
+    recall_queries: RecallQueries,
+) -> list:
+    recalled_knowledges = []
+
     knowledge_query = recall_queries.get("knowledge_query")
     if knowledge_query is not None:
         with session() as db:
@@ -166,22 +182,24 @@ async def nodeRecallKnowledge(state: ContextGraphState) -> dict:
                 text=knowledge_query,
                 top_k=10,
                 recall_from=["knowledge"],
-                relation_chain_id=state["request"].get("relation_chain_id"),
+                relation_chain_id=request.get("relation_chain_id"),
             )
             if res["status"] == 200:
                 recalled_items = res["items"]
-                all_context["knowledge"] = [item["data"] for item in recalled_items]
+                recalled_knowledges.extend([item["data"] for item in recalled_items])
             else:
                 logger.warning(f"Error recalling knowledge items: {res}")
 
-    return {
-        "all_context": all_context,
-    }
+    return recalled_knowledges
 
 
-async def nodeRecallNonKnowledge(state: ContextGraphState) -> dict:
-    recall_queries = state["recall_queries"]
-    all_context = state["all_context"]
+async def stepRecallNonKnowledge(
+    request: Request,
+    recall_queries: RecallQueries,
+) -> dict:
+    events = []
+    chat_topics = []
+    derived_insights = []
     non_knowledge_vector_query = recall_queries.get("non_knowledge_query")
     if non_knowledge_vector_query is not None:
         with session() as db:
@@ -190,52 +208,52 @@ async def nodeRecallNonKnowledge(state: ContextGraphState) -> dict:
                 text=non_knowledge_vector_query,
                 top_k=30,
                 recall_from=["event", "chat_topic", "derived_insight"],
-                relation_chain_id=state["request"].get("relation_chain_id"),
+                relation_chain_id=request.get("relation_chain_id"),
             )
             if res["status"] == 200:
                 recalled_items = res["items"]
                 for item in recalled_items:
                     match item["source"]:
                         case "event":
-                            all_context["event"].append(item["data"])
+                            events.append(item["data"])
                         case "chat_topic":
-                            all_context["chat_topic"].append(item["data"])
+                            chat_topics.append(item["data"])
                         case "derived_insight":
-                            all_context["derived_insight"].append(item["data"])
+                            derived_insights.append(item["data"])
             else:
                 logger.warning(f"Error recalling non-knowledge items: {res}")
 
     return {
-        "all_context": all_context,
+        "events": events,
+        "chat_topics": chat_topics,
+        "derived_insights": derived_insights,
     }
 
 
-async def nodeGetInteractionSignal(state: ContextGraphState) -> dict:
-    all_context = state["all_context"]
+async def stepGetInteractionSignal(request: Request) -> list:
+    interaction_signals = []
     with session() as db:
         latest_interaction_signal = (
             db.query(InteractionSignal)
             .filter(
-                InteractionSignal.relation_chain_id
-                == state["request"].get("relation_chain_id"),
+                InteractionSignal.relation_chain_id == request.get("relation_chain_id"),
                 InteractionSignal.is_active == True,
             )
             .order_by(InteractionSignal.created_at.desc())
             .first()
         )
         if latest_interaction_signal:
-            all_context["interaction_signal"] = [latest_interaction_signal]
+            interaction_signals.append(latest_interaction_signal)
 
-    return {
-        "all_context": all_context,
-    }
+    return interaction_signals
 
 
-async def nodeOrganizeContext(state: ContextGraphState) -> dict:
-    relation_chain = state["entities"].get("relation_chain")
-    crush_profile_context = state["crush_profile_context"]
-    all_context = state["all_context"]
-    prompt_bundle = state["prompt_bundle"]
+async def stepOrganizeContext(
+    entities: Entities,
+    crush_profile_context: CrushProfileContext,
+    all_context: AllContext,
+) -> str:
+    relation_chain = entities.get("relation_chain")
 
     def _getValue(item, key):
         if isinstance(item, dict):
@@ -351,11 +369,44 @@ async def nodeOrganizeContext(state: ContextGraphState) -> dict:
         context_block += _appendIfValue("重要性", weight)
         context_block += "\n"
 
-    prompt_bundle["context_block"] = context_block
+    return context_block
 
+
+async def node(state: ContextGraphState) -> ContextGraphState:
+    request = state["request"]
+    entities = await stepLoadEntity(request)
+    crush_profile_context = await stepBuildCrushProfileContext(entities)
+
+    recall_queries: RecallQueries = {
+        "knowledge_query": None,
+        "non_knowledge_query": None,
+    }
+    if request.get("narrative") and request.get("narrative") != "":
+        recall_queries = await stepBuildRecallQueriesFromNarrative(
+            request, entities, crush_profile_context
+        )
+    else:
+        recall_queries = await stepBuildRecallQueriesFromScreenshots(
+            request, entities, crush_profile_context
+        )
+
+    recalled_knowledges = await stepRecallKnowledge(request, recall_queries)
+    recalled_non_knowledges = await stepRecallNonKnowledge(request, recall_queries)
+    interaction_signals = await stepGetInteractionSignal(request)
+    all_context = {
+        "knowledge": recalled_knowledges,
+        "event": recalled_non_knowledges["events"],
+        "chat_topic": recalled_non_knowledges["chat_topics"],
+        "derived_insight": recalled_non_knowledges["derived_insights"],
+        "interaction_signal": interaction_signals,
+    }
+
+    context_block = await stepOrganizeContext(
+        entities, crush_profile_context, all_context
+    )
     return {
-        "request": state["request"],
-        "prompt_bundle": prompt_bundle,
+        "request": request,
+        "context_block": context_block,
     }
 
 
@@ -370,42 +421,12 @@ async def getContextGraph() -> CompiledStateGraph:
         graph = StateGraph(
             state_schema=ContextGraphState,
             input_schema=ContextGraphInput,
-            output_schema=ContextGraphOutput,
+            output_schema=ContextGraphState,
         )
-        graph.add_node("nodeLoadEntity", nodeLoadEntity)
-        graph.add_node("nodeBuildCrushProfileContext", nodeBuildCrushProfileContext)
-        graph.add_node(
-            "nodeBuildRecallQueriesFromNarrative", nodeBuildRecallQueriesFromNarrative
-        )
-        graph.add_node(
-            "nodeBuildRecallQueriesFromScreenshots",
-            nodeBuildRecallQueriesFromScreenshots,
-        )
-        graph.add_node("nodeRecallKnowledge", nodeRecallKnowledge)
-        graph.add_node("nodeRecallNonKnowledge", nodeRecallNonKnowledge)
-        graph.add_node("nodeGetInteractionSignal", nodeGetInteractionSignal)
-        graph.add_node("nodeOrganizeContext", nodeOrganizeContext)
+        graph.add_node("node", node)
 
-        graph.set_entry_point("nodeLoadEntity")
-        graph.add_edge("nodeLoadEntity", "nodeBuildCrushProfileContext")
-
-        # 通过_routeRecallQueries按narrative分流
-        def _routeRecallQueries(state: ContextGraphState) -> str:
-            narrative = state["request"].get("narrative")
-            if isinstance(narrative, str) and narrative.strip():
-                return "nodeBuildRecallQueriesFromNarrative"
-            return "nodeBuildRecallQueriesFromScreenshots"
-
-        graph.add_conditional_edges(
-            "nodeBuildCrushProfileContext",
-            _routeRecallQueries,
-        )
-        graph.add_edge("nodeBuildRecallQueriesFromNarrative", "nodeRecallKnowledge")
-        graph.add_edge("nodeBuildRecallQueriesFromScreenshots", "nodeRecallKnowledge")
-        graph.add_edge("nodeRecallKnowledge", "nodeRecallNonKnowledge")
-        graph.add_edge("nodeRecallNonKnowledge", "nodeGetInteractionSignal")
-        graph.add_edge("nodeGetInteractionSignal", "nodeOrganizeContext")
-        graph.add_edge("nodeOrganizeContext", END)
+        graph.set_entry_point("node")
+        graph.add_edge("node", END)
 
         # PostgresSaver实现短期记忆
         # todo：trim

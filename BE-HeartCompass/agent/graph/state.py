@@ -69,60 +69,27 @@ class ContextGraphInput(TypedDict):
 # 只作为graph中间状态，不直接暴露
 class ContextGraphState(TypedDict):
     request: Request
-    entities: Entities
-    crush_profile_context: CrushProfileContext
-    recall_queries: RecallQueries
-    all_context: AllContext
-    prompt_bundle: PromptBundle
-
-
-class ContextGraphOutput(TypedDict):
-    request: Request
-    prompt_bundle: PromptBundle
+    context_block: str
 
 
 class AnalysisGraphInput(TypedDict):
     request: Request
-    prompt_bundle: PromptBundle
+    context_block: str
 
 
 # 只作为graph中间状态，不直接暴露
 class AnalysisGraphState(TypedDict):
     request: Request
-    prompt_bundle: PromptBundle
+    context_block: str
     llm_output: LLMOutput
 
 
-class AnalysisGraphOutput(LLMOutput):
+class AnalysisGraphOutput(TypedDict):
     llm_output: LLMOutput
 
 
 def initContextGraphState(request: Request) -> ContextGraphState:
     return {
         "request": request,
-        "entities": {
-            "user": None,
-            "crush": None,
-            "relation_chain": None,
-            "stage_histories": None,
-        },
-        "crush_profile_context": {
-            "crush_mbti": None,
-            "crush_profile": {},
-        },
-        "recall_queries": {
-            "knowledge_query": None,
-            "non_knowledge_query": None,
-        },
-        "all_context": {
-            "knowledge": [],
-            "event": [],
-            "chat_topic": [],
-            "derived_insight": [],
-            "interaction_signal": [],
-        },
-        "prompt_bundle": {
-            "context_block": "",
-            "final_prompt": "",
-        },
+        "context_block": "",
     }
