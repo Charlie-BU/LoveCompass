@@ -260,7 +260,6 @@ async def createOrUpdateEmbedding(
     if not text:
         return {"status": -2, "message": "Embedding text is empty"}
 
-    logger.info(f"Embedded text: \n{text}")
     # 生成向量
     try:
         vector = await vectorizeText(text)

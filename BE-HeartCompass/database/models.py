@@ -196,6 +196,20 @@ class Crush(Base, SerializableMixin):
         default=[],
         comment="其他信息",
     )
+    # 重要：双方对彼此的语言风格，决定虚拟形象准确与否的关键
+    words_to_user = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="ta对我讲的话",
+    )
+    words_from_user = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="我对ta讲的话",
+    )
+
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="Crush 创建时间"
     )
@@ -547,76 +561,6 @@ class DerivedInsight(Base, SerializableMixin):
         return f"<DerivedInsight {self.insight}>"
 
 
-# # ---- 上下文冲突（暂时弃用） ----
-# class ContextConflict(Base, SerializableMixin):
-#     __tablename__ = "context_conflict"
-
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     relation_chain_id = Column(
-#         Integer,
-#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联关系链ID",
-#     )
-#     relation_chain = relationship("RelationChain", backref="context_conflicts")
-
-#     type = Column(Enum(ConflictType), nullable=False, index=True, comment="冲突类型")
-
-#     # 与已有上下文冲突时，前者上下文ID
-#     former_context_id = Column(
-#         Integer,
-#         ForeignKey("context.id", ondelete="SET NULL"),
-#         nullable=True,
-#         comment="前者上下文ID",
-#     )
-#     former_context = relationship(
-#         "Context",
-#         foreign_keys=[former_context_id],
-#         backref="former_conflicts",
-#     )
-
-#     # 与知识库冲突时，知识ID
-#     former_knowledge_id = Column(
-#         Integer,
-#         ForeignKey("knowledge.id", ondelete="SET NULL"),
-#         nullable=True,
-#         comment="前者知识ID",
-#     )
-#     former_knowledge = relationship("Knowledge", backref="former_conflicts")
-
-#     latter_context_id = Column(
-#         Integer,
-#         ForeignKey("context.id", ondelete="SET NULL"),
-#         nullable=False,
-#         comment="后者上下文ID",
-#     )
-#     latter_context = relationship(
-#         "Context",
-#         foreign_keys=[latter_context_id],
-#         backref="latter_conflicts",
-#     )
-
-#     conflict_reason = Column(Text, nullable=True, comment="冲突原因")
-#     resolution_status = Column(
-#         Enum(ConflictResolutionStatus),
-#         nullable=False,
-#         default=ConflictResolutionStatus.PENDING,
-#         comment="冲突解决状态",
-#     )
-#     created_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="冲突创建时间"
-#     )
-#     updated_at = Column(
-#         DateTime,
-#         default=datetime.now(timezone.utc),
-#         onupdate=datetime.now(timezone.utc),
-#         comment="冲突更新时间",
-#     )
-
-#     def __repr__(self):
-#         return f"<ContextConflict {self.id}>"
-
-
 # ---- 向量化上下文 ----
 class ContextEmbedding(Base, SerializableMixin):
     __tablename__ = "context_embedding"
@@ -729,6 +673,7 @@ class Knowledge(Base, SerializableMixin):
         return f"<Knowledge {self.summary}>"
 
 
+# ---- 分析 ----
 class Analysis(Base, SerializableMixin):
     __tablename__ = "analysis"
 
@@ -786,3 +731,73 @@ class Analysis(Base, SerializableMixin):
 
     def __repr__(self):
         return f"<Analysis {self.id}>"
+
+
+# # ---- 上下文冲突（暂时弃用） ----
+# class ContextConflict(Base, SerializableMixin):
+#     __tablename__ = "context_conflict"
+
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     relation_chain_id = Column(
+#         Integer,
+#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
+#         nullable=False,
+#         comment="关联关系链ID",
+#     )
+#     relation_chain = relationship("RelationChain", backref="context_conflicts")
+
+#     type = Column(Enum(ConflictType), nullable=False, index=True, comment="冲突类型")
+
+#     # 与已有上下文冲突时，前者上下文ID
+#     former_context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="SET NULL"),
+#         nullable=True,
+#         comment="前者上下文ID",
+#     )
+#     former_context = relationship(
+#         "Context",
+#         foreign_keys=[former_context_id],
+#         backref="former_conflicts",
+#     )
+
+#     # 与知识库冲突时，知识ID
+#     former_knowledge_id = Column(
+#         Integer,
+#         ForeignKey("knowledge.id", ondelete="SET NULL"),
+#         nullable=True,
+#         comment="前者知识ID",
+#     )
+#     former_knowledge = relationship("Knowledge", backref="former_conflicts")
+
+#     latter_context_id = Column(
+#         Integer,
+#         ForeignKey("context.id", ondelete="SET NULL"),
+#         nullable=False,
+#         comment="后者上下文ID",
+#     )
+#     latter_context = relationship(
+#         "Context",
+#         foreign_keys=[latter_context_id],
+#         backref="latter_conflicts",
+#     )
+
+#     conflict_reason = Column(Text, nullable=True, comment="冲突原因")
+#     resolution_status = Column(
+#         Enum(ConflictResolutionStatus),
+#         nullable=False,
+#         default=ConflictResolutionStatus.PENDING,
+#         comment="冲突解决状态",
+#     )
+#     created_at = Column(
+#         DateTime, default=datetime.now(timezone.utc), comment="冲突创建时间"
+#     )
+#     updated_at = Column(
+#         DateTime,
+#         default=datetime.now(timezone.utc),
+#         onupdate=datetime.now(timezone.utc),
+#         comment="冲突更新时间",
+#     )
+
+#     def __repr__(self):
+#         return f"<ContextConflict {self.id}>"

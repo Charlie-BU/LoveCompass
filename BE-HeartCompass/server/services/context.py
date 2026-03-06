@@ -378,11 +378,6 @@ async def contextAddContextByScreenshots(
     if chat_topic is not None and not isinstance(chat_topic, dict):
         return {"status": -6, "message": "Invalid chat_topic format"}
 
-    print(
-        "normalized_context:\n",
-        json.dumps(normalized_context, indent=4, ensure_ascii=False),
-    )
-
     # 提前声明，后续需要refresh
     crush = None
     new_chat_topic = None
@@ -409,6 +404,8 @@ async def contextAddContextByScreenshots(
                 new_residence = crush_profile.get("residence")
                 new_hometown = crush_profile.get("hometown")
                 new_communication_style = crush_profile.get("communication_style")
+                new_words_to_user = crush_profile.get("words_to_user")
+                new_words_from_user = crush_profile.get("words_from_user")
 
                 # list类型：新增
                 if new_likes is not None and isinstance(new_likes, list):
@@ -467,6 +464,22 @@ async def contextAddContextByScreenshots(
                         if item not in current_communication_style:
                             crush.communication_style.append(item)
                             current_communication_style.add(item)
+                if new_words_to_user is not None and isinstance(
+                    new_words_to_user, list
+                ):
+                    current_words_to_user = set(cleanList(crush.words_to_user))
+                    for item in cleanList(new_words_to_user):
+                        if item not in current_words_to_user:
+                            crush.words_to_user.append(item)
+                            current_words_to_user.add(item)
+                if new_words_from_user is not None and isinstance(
+                    new_words_from_user, list
+                ):
+                    current_words_from_user = set(cleanList(crush.words_from_user))
+                    for item in cleanList(new_words_from_user):
+                        if item not in current_words_from_user:
+                            crush.words_from_user.append(item)
+                            current_words_from_user.add(item)
                 # dict类型：新增
                 if new_other_info is not None and isinstance(new_other_info, dict):
                     crush.other_info.append(new_other_info)

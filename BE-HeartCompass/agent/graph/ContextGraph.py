@@ -88,6 +88,8 @@ async def stepBuildCrushProfileContext(entities: Entities) -> CrushProfileContex
         _setIfValue("lifestyle_tags", crush.lifestyle_tags, "生活方式")
         _setIfValue("values", crush.values, "价值观")
         _setIfValue("appearance_tags", crush.appearance_tags, "外在特征")
+        _setIfValue("words_to_user", crush.words_to_user)  # 无需更换为中文键名
+        _setIfValue("words_from_user", crush.words_from_user)  # 无需更换为中文键名
         _setIfValue("other_info", crush.other_info, "其他信息")
     return {
         "crush_mbti": crush_mbti,
@@ -281,9 +283,12 @@ async def stepOrganizeContext(
     context_block += (
         f"**当前双方关系**：{_getValue(relation_chain, 'current_stage')}\n\n"
     )
+    context_block += f"**用户对对方的交谈风格**：{_formatList(crush_profile_context["crush_profile"].get("words_from_user"))}\n\n"
     context_block += f"**对方画像**：\n"
     context_block += f"MBTI类型：{crush_profile_context['crush_mbti']}\n"
     for key, value in crush_profile_context["crush_profile"].items():
+        if key in ["words_to_user", "words_from_user"]:
+            continue
         context_block += f"{key}：{value}\n"
 
     context_block += "\n"
