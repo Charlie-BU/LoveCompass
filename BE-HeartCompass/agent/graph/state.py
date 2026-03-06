@@ -50,11 +50,6 @@ class AllContext(TypedDict):
     ]  # 单独引入InteractionSignal，不走召回链路
 
 
-class PromptBundle(TypedDict):
-    context_block: str
-    final_prompt: str
-
-
 class LLMOutput(TypedDict):
     message_candidates: List[str]  # 下一步消息候选
     risks: List[str]  # 风险提示
@@ -62,11 +57,6 @@ class LLMOutput(TypedDict):
     message: str | None  # 错误消息
 
 
-class ContextGraphInput(TypedDict):
-    request: Request
-
-
-# 只作为graph中间状态，不直接暴露
 class ContextGraphState(TypedDict):
     request: Request
     context_block: str
@@ -75,13 +65,16 @@ class ContextGraphState(TypedDict):
 class AnalysisGraphInput(TypedDict):
     request: Request
     context_block: str
+    is_first_analysis: bool
+    history_state: str | None
 
 
-# 只作为graph中间状态，不直接暴露
 class AnalysisGraphState(TypedDict):
     request: Request
     context_block: str
     llm_output: LLMOutput
+    is_first_analysis: bool
+    history_state: str | None
 
 
 class AnalysisGraphOutput(TypedDict):

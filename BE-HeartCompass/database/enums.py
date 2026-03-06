@@ -60,12 +60,6 @@ class Attitude(enum.Enum):
     UNKNOWN = "unknown"
 
 
-class ChatSpeaker(enum.Enum):
-    ME = "me"
-    CRUSH = "crush"
-    THIRD_PARTY = "third_party"
-
-
 class ChatChannel(enum.Enum):
     OFFLINE = "offline"
     WEIXIN = "weixin"
@@ -104,3 +98,8 @@ class EmbeddingType(enum.Enum):
     FROM_EVENT = "from_event"  # 从事件生成
     FROM_CHAT_TOPIC = "from_chat_topic"  # 从聊天话题生成
     FROM_DERIVED_INSIGHT = "from_derived_insight"  # 从推断/洞察生成
+
+
+class AnalysisType(enum.Enum):
+    CONVERSATION = "conversation"  # 聊天记录分析
+    NARRATIVE = "narrative"  # 自然语言叙述分析
