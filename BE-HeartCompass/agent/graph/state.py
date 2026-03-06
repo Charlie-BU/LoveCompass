@@ -66,7 +66,6 @@ class AnalysisGraphInput(TypedDict):
     request: Request
     context_block: str
     is_first_analysis: bool
-    history_state: str | None
 
 
 class AnalysisGraphState(TypedDict):
@@ -74,7 +73,6 @@ class AnalysisGraphState(TypedDict):
     context_block: str
     llm_output: LLMOutput
     is_first_analysis: bool
-    history_state: str | None
 
 
 class AnalysisGraphOutput(TypedDict):

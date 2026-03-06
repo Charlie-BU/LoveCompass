@@ -64,7 +64,7 @@ async def stepFetchPrompt4ContinuousAnalysis(request: Request) -> str:
 
 
 async def stepCallLLM(
-    request: Request, final_prompt: str, history_state: str | None
+    request: Request, final_prompt: str
 ) -> LLMOutput:
     llm: ChatOpenAI = prepareLLM()
 
@@ -81,8 +81,6 @@ async def stepCallLLM(
             msg.append({"type": "image_url", "image_url": {"url": url}})
 
     messages = []
-    if history_state:
-        messages.append(SystemMessage(content=f"previous_state:\n{history_state}"))
     messages.append(HumanMessage(content=msg))
     response = await llm.ainvoke(messages)
     response_content = response.content if hasattr(response, "content") else response
@@ -119,7 +117,6 @@ async def stepCallLLM(
 async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
     request = state["request"]
     context_block = state["context_block"]
-    history_state = state.get("history_state")
     if state["is_first_analysis"]:
         # 首轮分析，根据narrative或screenshots生成prompt
         if request.get("narrative") and request.get("narrative") != "":
@@ -130,7 +127,7 @@ async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
         # 后续分析，根据narrative生成prompt
         final_prompt = await stepFetchPrompt4ContinuousAnalysis(request)
 
-    llm_output = await stepCallLLM(request, final_prompt, history_state)
+    llm_output = await stepCallLLM(request, final_prompt)
     return {
         "llm_output": llm_output,
     }

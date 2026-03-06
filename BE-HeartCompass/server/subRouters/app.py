@@ -79,7 +79,7 @@ async def conversationAnalysis(request: Request):
     context_state: ContextGraphState = await context_graph.ainvoke(initial_state)
     # AnalysisGraph需要记忆
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
-        AnalysisGraphInput(**context_state, is_first_analysis=True, history_state=None),
+        AnalysisGraphInput(**context_state, is_first_analysis=True),
         config=short_term_memory_config,
     )
 
@@ -142,7 +142,7 @@ async def narrativeAnalysis(request: Request):
     context_state: ContextGraphState = await context_graph.ainvoke(initial_state)
     # AnalysisGraph需要记忆
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
-        AnalysisGraphInput(**context_state, is_first_analysis=True, history_state=None),
+        AnalysisGraphInput(**context_state, is_first_analysis=True),
         config=short_term_memory_config,
     )
     # 两阶段 session，避免ainvoke耗时操作长时间占用数据库连接
@@ -206,26 +206,6 @@ async def continuousAnalysis(request: Request):
             "thread_id": f"{relation_chain_id}_{base_analysis_id_value}"
         }  # 定位到base_analysis的记忆
     }
-    checkpointer = await getCheckpointer()
-    checkpoint_tuple = await checkpointer.aget_tuple(short_term_memory_config)
-    if checkpoint_tuple is None:
-        return {
-            "status": -1,
-            "message": "checkpoint not found",
-        }
-    if isinstance(checkpoint_tuple, dict):
-        checkpoint = checkpoint_tuple.get("checkpoint") or {}
-    else:
-        checkpoint = checkpoint_tuple.checkpoint
-    if isinstance(checkpoint, dict):
-        channel_values = checkpoint.get("channel_values") or {}
-    else:
-        channel_values = checkpoint.channel_values or {}
-    try:
-        history_state = json.dumps(channel_values, ensure_ascii=False, default=str)
-    except TypeError:
-        history_state = str(channel_values)
-    print("history_state\n", history_state)
 
     request_payload = {
         "user_id": user_id,
@@ -239,7 +219,6 @@ async def continuousAnalysis(request: Request):
             request=request_payload,
             context_block="",
             is_first_analysis=False,
-            history_state=history_state,
         ),
         config=short_term_memory_config,
     )
