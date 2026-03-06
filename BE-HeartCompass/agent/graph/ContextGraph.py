@@ -24,10 +24,8 @@ from .state import (
     Request,
     Entities,
     CrushProfileContext,
-    ContextGraphInput,
     ContextGraphState,
 )
-from .checkpointer import getCheckpointer
 
 logger = logging.getLogger(__name__)
 
@@ -420,7 +418,7 @@ async def getContextGraph() -> CompiledStateGraph:
 
         graph = StateGraph(
             state_schema=ContextGraphState,
-            input_schema=ContextGraphInput,
+            input_schema=ContextGraphState,
             output_schema=ContextGraphState,
         )
         graph.add_node("node", node)
@@ -428,8 +426,6 @@ async def getContextGraph() -> CompiledStateGraph:
         graph.set_entry_point("node")
         graph.add_edge("node", END)
 
-        # PostgresSaver实现短期记忆
-        # todo：trim
-        checkpointer = await getCheckpointer()
-        _context_graph_instance = graph.compile(checkpointer=checkpointer)
+        # ContextGraph无需短期记忆
+        _context_graph_instance = graph.compile()
         return _context_graph_instance

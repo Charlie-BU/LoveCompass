@@ -20,6 +20,7 @@ from bcrypt import hashpw, gensalt, checkpw
 from datetime import datetime, timezone
 
 from .enums import (
+    AnalysisType,
     UserGender,
     UserLevel,
     MBTI,
@@ -728,152 +729,61 @@ class Knowledge(Base, SerializableMixin):
         return f"<Knowledge {self.summary}>"
 
 
-# 以下为 Codex 建议新增的数据表，需要后续进一步评估
-# # ---- 会话元数据 ----
-# class Conversation(Base, SerializableMixin):
-#     __tablename__ = "conversation"
+class Analysis(Base, SerializableMixin):
+    __tablename__ = "analysis"
 
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     relation_chain_id = Column(
-#         Integer,
-#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联关系链ID",
-#     )
-#     relation_chain = relationship("RelationChain", backref="conversations")
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    relation_chain_id = Column(
+        Integer,
+        ForeignKey("relation_chain.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联关系链ID",
+    )
+    relation_chain = relationship("RelationChain", backref="analyses")
 
-#     channel = Column(String(32), nullable=False, comment="会话渠道")
-#     title = Column(String(128), nullable=True, comment="会话标题")
-#     started_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="会话开始时间"
-#     )
-#     ended_at = Column(DateTime, nullable=True, comment="会话结束时间")
-#     created_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="会话创建时间"
-#     )
+    type = Column(Enum(AnalysisType), nullable=False, index=True, comment="分析类型")
+    # 聊天记录分析
+    conversation_screenshots = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=True,
+        default=[],
+        comment="聊天记录截图url",
+    )
+    additional_context = Column(Text, nullable=True, comment="补充上下文")
+    # 自然语言叙述分析
+    narrative = Column(Text, nullable=True, comment="自然语言叙述")
 
-#     def __repr__(self):
-#         return f"<Conversation {self.id}>"
+    # 是否是首轮分析：若是需要跑ContextGraph，否则直接利用AnalysisGraph的短期记忆
+    is_first_analysis = Column(
+        Boolean, nullable=False, default=True, comment="是否是首轮分析"
+    )
 
+    # 分析结果
+    message_candidates = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="下一步消息候选",
+    )
+    risks = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="风险提示",
+    )
+    suggestions = Column(
+        MutableList.as_mutable(ARRAY(Text)),
+        nullable=False,
+        default=[],
+        comment="下一步推进话题或行动建议",
+    )
 
-# # ---- 上下文来源详情 ----
-# class ContextSourceDetail(Base, SerializableMixin):
-#     __tablename__ = "context_source_detail"
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        index=True,
+        comment="分析创建时间",
+    )
 
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     context_id = Column(
-#         Integer,
-#         ForeignKey("context.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联上下文ID",
-#     )
-#     context = relationship("Context", backref="source_details")
-
-#     source_channel = Column(String(64), nullable=True, comment="来源渠道")
-#     external_ref = Column(String(128), nullable=True, comment="外部引用ID")
-#     raw_payload = Column(
-#         JSONB,
-#         server_default=text("'{}'::jsonb"),
-#         nullable=False,
-#         comment="来源原始数据",
-#     )
-#     created_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="记录创建时间"
-#     )
-
-#     def __repr__(self):
-#         return f"<ContextSourceDetail {self.id}>"
-
-
-# # ---- 上下文使用记录 ----
-# class ContextUsageLog(Base, SerializableMixin):
-#     __tablename__ = "context_usage_log"
-
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     context_id = Column(
-#         Integer,
-#         ForeignKey("context.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联上下文ID",
-#     )
-#     context = relationship("Context", backref="usage_logs")
-
-#     relation_chain_id = Column(
-#         Integer,
-#         ForeignKey("relation_chain.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联关系链ID",
-#     )
-#     relation_chain = relationship("RelationChain", backref="context_usage_logs")
-
-#     used_by = Column(String(64), nullable=False, comment="使用方标识")
-#     use_reason = Column(Text, nullable=True, comment="使用原因")
-#     used_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="使用时间"
-#     )
-
-#     def __repr__(self):
-#         return f"<ContextUsageLog {self.id}>"
-
-
-# # ---- 用户偏好 ----
-# class UserPreference(Base, SerializableMixin):
-#     __tablename__ = "user_preference"
-
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     user_id = Column(
-#         Integer,
-#         ForeignKey("user.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联用户ID",
-#     )
-#     user = relationship("User", backref="preferences")
-
-#     category = Column(String(64), nullable=False, comment="偏好分类")
-#     value = Column(
-#         JSONB,
-#         server_default=text("'{}'::jsonb"),
-#         nullable=False,
-#         comment="偏好内容",
-#     )
-#     is_active = Column(Boolean, nullable=False, default=True, comment="是否有效")
-#     created_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="创建时间"
-#     )
-#     updated_at = Column(
-#         DateTime,
-#         default=datetime.now(timezone.utc),
-#         onupdate=datetime.now(timezone.utc),
-#         comment="更新时间",
-#     )
-
-#     def __repr__(self):
-#         return f"<UserPreference {self.id}>"
-
-
-# # ---- 人物画像快照 ----
-# class PersonaSnapshot(Base, SerializableMixin):
-#     __tablename__ = "persona_snapshot"
-
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     crush_id = Column(
-#         Integer,
-#         ForeignKey("crush.id", ondelete="CASCADE"),
-#         nullable=False,
-#         comment="关联CrushID",
-#     )
-#     crush = relationship("Crush", backref="persona_snapshots")
-
-#     summary = Column(Text, nullable=True, comment="画像摘要")
-#     snapshot = Column(
-#         JSONB,
-#         server_default=text("'{}'::jsonb"),
-#         nullable=False,
-#         comment="画像快照内容",
-#     )
-#     created_at = Column(
-#         DateTime, default=datetime.now(timezone.utc), comment="快照创建时间"
-#     )
-
-#     def __repr__(self):
-#         return f"<PersonaSnapshot {self.id}>"
+    def __repr__(self):
+        return f"<Analysis {self.id}>"

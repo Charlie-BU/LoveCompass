@@ -1,13 +1,19 @@
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 import json
 import asyncio
 import logging
 import os
 
-from .state import LLMOutput, Request, AnalysisGraphInput, AnalysisGraphOutput, AnalysisGraphState
+from .state import (
+    AnalysisGraphInput,
+    LLMOutput,
+    Request,
+    AnalysisGraphOutput,
+    AnalysisGraphState,
+)
 from ..llm import prepareLLM
 from ..prompt import getPrompt
 from .checkpointer import getCheckpointer
@@ -44,7 +50,22 @@ async def stepFetchPromptFromNarrative(request: Request, context_block: str) -> 
     return final_prompt
 
 
-async def stepCallLLM(request: Request, final_prompt: str) -> LLMOutput:
+async def stepFetchPrompt4ContinuousAnalysis(request: Request) -> str:
+    narrative = request.get("narrative") or ""
+    # todo
+    # final_prompt = await getPrompt(
+    #     os.getenv("CONTINUOUS_ANALYSIS"),
+    #     {
+    #         "narrative": narrative,
+    #     },
+    # )
+    final_prompt = narrative
+    return final_prompt
+
+
+async def stepCallLLM(
+    request: Request, final_prompt: str, history_state: str | None
+) -> LLMOutput:
     llm: ChatOpenAI = prepareLLM()
 
     # todo: 删调试
@@ -59,7 +80,10 @@ async def stepCallLLM(request: Request, final_prompt: str) -> LLMOutput:
                 continue
             msg.append({"type": "image_url", "image_url": {"url": url}})
 
-    messages = [HumanMessage(content=msg)]
+    messages = []
+    if history_state:
+        messages.append(SystemMessage(content=f"previous_state:\n{history_state}"))
+    messages.append(HumanMessage(content=msg))
     response = await llm.ainvoke(messages)
     response_content = response.content if hasattr(response, "content") else response
     parsed = None
@@ -71,6 +95,9 @@ async def stepCallLLM(request: Request, final_prompt: str) -> LLMOutput:
         except json.JSONDecodeError:
             logger.warning(f"Error parsing LLM response: {response_content}")
 
+    # todo：调试用，删除
+    logger.info(f"llm_output: \n{parsed}")
+    
     llm_output = {
         "message_candidates": [],
         "risks": [],
@@ -92,12 +119,18 @@ async def stepCallLLM(request: Request, final_prompt: str) -> LLMOutput:
 async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
     request = state["request"]
     context_block = state["context_block"]
-    if request.get("narrative") and request.get("narrative") != "":
-        final_prompt = await stepFetchPromptFromNarrative(request, context_block)
+    history_state = state.get("history_state")
+    if state["is_first_analysis"]:
+        # 首轮分析，根据narrative或screenshots生成prompt
+        if request.get("narrative") and request.get("narrative") != "":
+            final_prompt = await stepFetchPromptFromNarrative(request, context_block)
+        else:
+            final_prompt = await stepFetchPromptFromScreenshots(request, context_block)
     else:
-        final_prompt = await stepFetchPromptFromScreenshots(request, context_block)
+        # 后续分析，根据narrative生成prompt
+        final_prompt = await stepFetchPrompt4ContinuousAnalysis(request)
 
-    llm_output = await stepCallLLM(request, final_prompt)
+    llm_output = await stepCallLLM(request, final_prompt, history_state)
     return {
         "llm_output": llm_output,
     }
