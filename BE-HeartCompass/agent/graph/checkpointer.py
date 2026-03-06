@@ -1,3 +1,5 @@
+# 暂弃用
+
 import asyncio
 import os
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver

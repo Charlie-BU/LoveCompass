@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 import json
 import asyncio
 import logging
@@ -16,7 +16,6 @@ from .state import (
 )
 from ..llm import prepareLLM
 from ..prompt import getPrompt
-from .checkpointer import getCheckpointer
 
 logger = logging.getLogger(__name__)
 
@@ -26,51 +25,35 @@ _analysis_graph_instance: CompiledStateGraph | None = None
 _analysis_graph_lock = asyncio.Lock()
 
 
-async def stepFetchPromptFromScreenshots(request: Request, context_block: str) -> str:
+async def stepFetchPromptFromScreenshots(request: Request) -> str:
     additional_context = request.get("additional_context") or ""
     final_prompt = await getPrompt(
         os.getenv("CONVERSATION_ANALYSIS"),
         {
             "additional_context": additional_context,
-            "context_block": context_block,
         },
     )
     return final_prompt
 
 
-async def stepFetchPromptFromNarrative(request: Request, context_block: str) -> str:
+async def stepFetchPromptFromNarrative(request: Request) -> str:
     narrative = request.get("narrative") or ""
     final_prompt = await getPrompt(
         os.getenv("NARRATIVE_ANALYSIS"),
         {
             "narrative": narrative,
-            "context_block": context_block,
         },
     )
     return final_prompt
 
 
-async def stepFetchPrompt4ContinuousAnalysis(request: Request) -> str:
-    narrative = request.get("narrative") or ""
-    # todo
-    # final_prompt = await getPrompt(
-    #     os.getenv("CONTINUOUS_ANALYSIS"),
-    #     {
-    #         "narrative": narrative,
-    #     },
-    # )
-    final_prompt = narrative
-    return final_prompt
-
-
 async def stepCallLLM(
-    request: Request, final_prompt: str
+    request: Request,
+    context_block: str,
+    final_prompt: str,
 ) -> LLMOutput:
     llm: ChatOpenAI = prepareLLM()
-
-    # todo: 删调试
-    logger.info(f"final_prompt: \n{final_prompt}")
-
+    
     msg = [{"type": "text", "text": final_prompt}]
     # 聊天记录分析才会有图片
     screenshot_urls = request.get("conversation_screenshots")
@@ -81,6 +64,8 @@ async def stepCallLLM(
             msg.append({"type": "image_url", "image_url": {"url": url}})
 
     messages = []
+    # context_block 放到System Message中
+    messages.append(SystemMessage(content=context_block))
     messages.append(HumanMessage(content=msg))
     response = await llm.ainvoke(messages)
     response_content = response.content if hasattr(response, "content") else response
@@ -93,9 +78,6 @@ async def stepCallLLM(
         except json.JSONDecodeError:
             logger.warning(f"Error parsing LLM response: {response_content}")
 
-    # todo：调试用，删除
-    logger.info(f"llm_output: \n{parsed}")
-    
     llm_output = {
         "message_candidates": [],
         "risks": [],
@@ -117,17 +99,18 @@ async def stepCallLLM(
 async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
     request = state["request"]
     context_block = state["context_block"]
-    if state["is_first_analysis"]:
-        # 首轮分析，根据narrative或screenshots生成prompt
-        if request.get("narrative") and request.get("narrative") != "":
-            final_prompt = await stepFetchPromptFromNarrative(request, context_block)
-        else:
-            final_prompt = await stepFetchPromptFromScreenshots(request, context_block)
+    if request.get("narrative") and request.get("narrative") != "":
+        # narrative
+        final_prompt = await stepFetchPromptFromNarrative(request)
     else:
-        # 后续分析，根据narrative生成prompt
-        final_prompt = await stepFetchPrompt4ContinuousAnalysis(request)
+        # conversation
+        final_prompt = await stepFetchPromptFromScreenshots(request)
 
-    llm_output = await stepCallLLM(request, final_prompt)
+    llm_output = await stepCallLLM(
+        request=request,
+        context_block=context_block,
+        final_prompt=final_prompt,
+    )
     return {
         "llm_output": llm_output,
     }
@@ -150,8 +133,5 @@ async def getAnalysisGraph() -> CompiledStateGraph:
         graph.set_entry_point("node")
         graph.add_edge("node", END)
 
-        # PostgresSaver实现短期记忆
-        # todo：trim
-        checkpointer = await getCheckpointer()
-        _analysis_graph_instance = graph.compile(checkpointer=checkpointer)
+        _analysis_graph_instance = graph.compile()
         return _analysis_graph_instance

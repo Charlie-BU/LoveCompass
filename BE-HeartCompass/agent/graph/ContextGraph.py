@@ -279,9 +279,9 @@ async def stepOrganizeContext(
 
     context_block = ""
     context_block += (
-        f"**当前双方关系：**{_getValue(relation_chain, 'current_stage')}\n\n"
+        f"**当前双方关系**：{_getValue(relation_chain, 'current_stage')}\n\n"
     )
-    context_block += f"**对方画像：**\n"
+    context_block += f"**对方画像**：\n"
     context_block += f"MBTI类型：{crush_profile_context['crush_mbti']}\n"
     for key, value in crush_profile_context["crush_profile"].items():
         context_block += f"{key}：{value}\n"
@@ -296,7 +296,7 @@ async def stepOrganizeContext(
         weight = _getValue(event, "weight")
         other_info = _formatList(_getValue(event, "other_info"))
 
-        context_block += "**过往事件：**\n"
+        context_block += "**过往事件**：\n"
         context_block += _appendIfValue("摘要", summary)
         context_block += _appendIfValue("内容", content)
         context_block += _appendIfValue("时间", date)
@@ -316,7 +316,7 @@ async def stepOrganizeContext(
         weight = _getValue(chat_topic, "weight")
         other_info = _formatList(_getValue(chat_topic, "other_info"))
 
-        context_block += "**过往聊天话题：**\n"
+        context_block += "**过往聊天话题**：\n"
         context_block += _appendIfValue("标题", title)
         context_block += _appendIfValue("摘要", summary)
         context_block += _appendIfValue("内容", content)
@@ -334,7 +334,7 @@ async def stepOrganizeContext(
         weight = _getValue(derived_insight, "weight")
         additional_info = _formatList(_getValue(derived_insight, "additional_info"))
 
-        context_block += "**部分推断/洞察：**\n"
+        context_block += "**部分推断/洞察**：\n"
         context_block += _appendIfValue("洞察", insight)
         context_block += _appendIfValue("置信度", confidence)
         context_block += _appendIfValue("重要性", weight)
@@ -348,7 +348,7 @@ async def stepOrganizeContext(
         note = _getValue(interaction_signal, "note")
         confidence = _getValue(interaction_signal, "confidence")
         weight = _getValue(interaction_signal, "weight")
-        context_block += "**互动信号：**\n"
+        context_block += "**互动信号**：\n"
         context_block += _appendIfValue("频率", frequency)
         context_block += _appendIfValue("态度", attitude)
         context_block += _appendIfValue("观测窗口", window)
@@ -361,7 +361,7 @@ async def stepOrganizeContext(
         summary = _getValue(knowledge, "summary")
         content = _getValue(knowledge, "content")
         weight = _getValue(knowledge, "weight")
-        context_block += "**可能参考的相关知识：**\n"
+        context_block += "**可能参考的相关知识**：\n"
         context_block += _appendIfValue("摘要", summary)
         context_block += _appendIfValue("内容", content)
         context_block += _appendIfValue("重要性", weight)

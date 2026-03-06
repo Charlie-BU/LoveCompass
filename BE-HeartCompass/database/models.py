@@ -753,11 +753,6 @@ class Analysis(Base, SerializableMixin):
     # 自然语言叙述分析
     narrative = Column(Text, nullable=True, comment="自然语言叙述")
 
-    # 是否是首轮分析：若是需要跑ContextGraph，否则直接利用AnalysisGraph的短期记忆
-    is_first_analysis = Column(
-        Boolean, nullable=False, default=True, comment="是否是首轮分析"
-    )
-
     # 分析结果
     message_candidates = Column(
         MutableList.as_mutable(ARRAY(Text)),
@@ -777,6 +772,10 @@ class Analysis(Base, SerializableMixin):
         default=[],
         comment="下一步推进话题或行动建议",
     )
+
+    context_block = Column(
+        Text, nullable=False, default="", comment="全部上下文信息"
+    )  # 用于记忆
 
     created_at = Column(
         DateTime,

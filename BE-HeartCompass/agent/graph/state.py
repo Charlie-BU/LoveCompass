@@ -59,20 +59,18 @@ class LLMOutput(TypedDict):
 
 class ContextGraphState(TypedDict):
     request: Request
-    context_block: str
+    context_block: str  # 关系与画像上下文
 
 
 class AnalysisGraphInput(TypedDict):
     request: Request
-    context_block: str
-    is_first_analysis: bool
+    context_block: str  # 关系与画像上下文
 
 
 class AnalysisGraphState(TypedDict):
     request: Request
-    context_block: str
+    context_block: str  # 关系与画像上下文
     llm_output: LLMOutput
-    is_first_analysis: bool
 
 
 class AnalysisGraphOutput(TypedDict):
