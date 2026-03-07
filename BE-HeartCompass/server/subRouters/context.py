@@ -87,7 +87,9 @@ async def addContextByScreenshots(request: Request):
     data = request.json()
     relation_chain_id = data["relation_chain_id"]
     screenshot_urls = data["screenshot_urls"]
-    crush_name = data["crush_name"]
+    crush_name = data[
+        "crush_name"
+    ]  # todo：【FE】必须要求用户明确给出对方在截图中出现的姓名或位置（左侧/右侧）
     additional_context = data.get("additional_context", "")
     with_embedding = data.get("with_embedding", "True")
     with session() as db:

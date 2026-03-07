@@ -78,10 +78,6 @@ def buildEmbeddingText4CrushProfile(
     if communication_style:
         parts.append(f"沟通风格: {', '.join(communication_style)}")
 
-    personality_tags = cleanList(crush.personality_tags)
-    if personality_tags:
-        parts.append(f"性格标签: {', '.join(personality_tags)}")
-
     likes = cleanList(crush.likes)
     if likes:
         parts.append(f"喜好: {', '.join(likes)}")
@@ -260,7 +256,6 @@ async def createOrUpdateEmbedding(
     if not text:
         return {"status": -2, "message": "Embedding text is empty"}
 
-    logger.info(f"Embedded text: \n{text}")
     # 生成向量
     try:
         vector = await vectorizeText(text)

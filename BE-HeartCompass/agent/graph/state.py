@@ -18,6 +18,7 @@ class Request(TypedDict):
     relation_chain_id: int
     # 情况1: 聊天记录分析
     conversation_screenshots: List[str] | None
+    crush_name: str | None  # 对方在截图中出现的姓名或位置（左侧/右侧）
     additional_context: str | None
     # 情况2: 自然语言叙述分析
     narrative: str | None
@@ -50,11 +51,6 @@ class AllContext(TypedDict):
     ]  # 单独引入InteractionSignal，不走召回链路
 
 
-class PromptBundle(TypedDict):
-    context_block: str
-    final_prompt: str
-
-
 class LLMOutput(TypedDict):
     message_candidates: List[str]  # 下一步消息候选
     risks: List[str]  # 风险提示
@@ -62,47 +58,28 @@ class LLMOutput(TypedDict):
     message: str | None  # 错误消息
 
 
-class GraphState(TypedDict):
+class ContextGraphState(TypedDict):
     request: Request
-    entities: Entities
-    crush_profile_context: CrushProfileContext
-    recall_queries: RecallQueries
-    all_context: AllContext
-    prompt_bundle: PromptBundle
+    context_block: str  # 关系与画像上下文
+
+
+class AnalysisGraphInput(TypedDict):
+    request: Request
+    context_block: str  # 关系与画像上下文
+
+
+class AnalysisGraphState(TypedDict):
+    request: Request
+    context_block: str  # 关系与画像上下文
     llm_output: LLMOutput
 
 
-def initGraphState(request: Request) -> GraphState:
+class AnalysisGraphOutput(TypedDict):
+    llm_output: LLMOutput
+
+
+def initContextGraphState(request: Request) -> ContextGraphState:
     return {
         "request": request,
-        "entities": {
-            "user": None,
-            "crush": None,
-            "relation_chain": None,
-            "stage_histories": None,
-        },
-        "crush_profile_context": {
-            "crush_mbti": None,
-            "crush_profile": {},
-        },
-        "recall_queries": {
-            "knowledge_query": None,
-            "non_knowledge_query": None,
-        },
-        "all_context": {
-            "knowledge": [],
-            "event": [],
-            "chat_topic": [],
-            "derived_insight": [],
-            "interaction_signal": [],
-        },
-        "prompt_bundle": {
-            "context_block": "",
-            "final_prompt": "",
-        },
-        "llm_output": {
-            "message_candidates": [],
-            "risks": [],
-            "suggestions": [],
-        },
+        "context_block": "",
     }

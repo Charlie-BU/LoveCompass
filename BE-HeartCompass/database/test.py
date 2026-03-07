@@ -1,9 +1,14 @@
 def modifyUser():
     with session() as db:
-        charlie = db.query(User).filter(User.username == "Charlie").first()
-        charlie.personality_tags = ["Optimistic", "Creative"]
+        new_user = User(
+            username="Test",
+            email="test@example.com",
+            password="12345",
+            mbti="INTP",
+            gender="MALE"
+        )
+        db.add(new_user)
         db.commit()
-        print(charlie.toJson())
 
 
 async def addMBTIKnowledgeToKnowledgeBase():

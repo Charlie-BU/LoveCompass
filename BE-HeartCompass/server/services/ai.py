@@ -91,6 +91,7 @@ async def extractContextFromScreenshots(
 # 根据聊天记录截图、additional_context 和对方画像生成向量召回query
 async def generateRecallQueriesFromScreenshots(
     screenshot_urls: List[str],
+    crush_name: str,
     additional_context: str,
     profile: dict,
     is_self: bool,
@@ -114,6 +115,7 @@ async def generateRecallQueriesFromScreenshots(
             else "GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS"
         ),
         {
+            "crush_name": crush_name,  # 对方在截图中出现的姓名或位置（左侧/右侧）
             "additional_context": additional_context,
             "profile": json.dumps(profile, ensure_ascii=False),
         },
@@ -151,19 +153,19 @@ async def generateRecallQueriesFromNarrative(
 
 
 # TEST: uv run -m server.services.ai
-if __name__ == "__main__":
-    import asyncio
-    import time
+# if __name__ == "__main__":
+# import asyncio
+# import time
 
-    start = time.perf_counter()
-    res = asyncio.run(
-        extractContextFromScreenshots(
-            [
-                "https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_5095a6fc17.png",
-                "https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/c32cc20f89699777e53b41be55d11279_07894cb3e4.jpg",
-            ],
-            "浔～溯",
-        )
-    )
-    print(json.dumps(json.loads(res), ensure_ascii=False, indent=4))
-    print(f"\nDuration(s):  {time.perf_counter() - start}")
+# start = time.perf_counter()
+# res = asyncio.run(
+#     extractContextFromScreenshots(
+#         [
+#             "https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_5095a6fc17.png",
+#             "https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/c32cc20f89699777e53b41be55d11279_07894cb3e4.jpg",
+#         ],
+#         "浔～溯",
+#     )
+# )
+# print(json.dumps(json.loads(res), ensure_ascii=False, indent=4))
+# print(f"\nDuration(s):  {time.perf_counter() - start}")
