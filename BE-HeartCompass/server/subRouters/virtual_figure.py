@@ -1,19 +1,25 @@
+import random
 from robyn import Request, Response, SubRouter, WebSocket, WebSocketDisconnect
 from robyn.authentication import BearerGetter
 import asyncio
 import os
+import time
+import json
+import logging
 
 from ..authentication import AuthHandler
 from ..services.user import userGetUserIdByAccessToken
+from ..services.virtual_figure import vfRecalculateContextBlock
 from database.database import session
 from database.models import RelationChain
-from agent.graph.ContextGraph import getContextGraph
-from agent.graph.state import (
-    ContextGraphState,
-    initContextGraphState,
+from agent.graph.VirtualFigure.graph import getVirtualFigureGraph
+from agent.graph.VirtualFigure.state import (
+    VirtualFigureGraphOutput,
+    initVirtualFigureGraphState,
 )
 
 
+logger = logging.getLogger(__name__)
 virtual_figure_router = SubRouter(__file__, prefix="/virtual_figure")
 
 
@@ -76,18 +82,24 @@ async def _validateConnection(websocket: WebSocket) -> tuple[int, int] | None:
 # 将消息递交agent，返回对方回复
 # 注意：耗时操作
 async def _processMessages(relation_chain_id: int, temp_messages: list) -> list:
-    messages_to_send = []
-    await asyncio.sleep(10)
-    for item in temp_messages:
-        message = ""
-        if isinstance(item, dict):
-            message = item.get("message") or ""
-        messages_to_send.append(
-            {
-                "relation_chain_id": relation_chain_id,
-                "message": f"mock:{message}",
-            }
-        )
+    session_start = time.perf_counter()
+    logger.info(f"开始处理本批次消息")
+
+    graph = await getVirtualFigureGraph()
+    short_term_memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
+    state = initVirtualFigureGraphState(
+        {
+            "user_id": 1,
+            "relation_chain_id": relation_chain_id,
+            "messages_received": temp_messages,
+        }
+    )
+    res: VirtualFigureGraphOutput = await graph.ainvoke(
+        state, config=short_term_memory_config
+    )
+    
+    logger.info(f"处理完成，耗时：{time.perf_counter() - session_start}s\n\n")
+    messages_to_send = res["llm_output"].get("messages_to_send", [])
     return messages_to_send
 
 
@@ -144,6 +156,7 @@ async def _handle(websocket: WebSocket) -> None:
             inactivity_task["status"] = "sending"
             for item in messages_to_send:
                 await websocket.send_json(item)
+                await asyncio.sleep(random.randint(8, 22) * 0.1)
             inactivity_task["status"] = "completed"
         except asyncio.CancelledError:
             return
@@ -174,7 +187,6 @@ async def _handle(websocket: WebSocket) -> None:
                     "message": data.get("message"),
                 }
             )
-            print("temp_messages:", temp_messages)
 
             # 若当前存在正在pending的定时任务，取消当前定时任务，重新开始倒计时
             # 注意：进入处理阶段不可取消，新消息放在清空后的temp_messages中
@@ -230,37 +242,54 @@ async def recalculateContextBlock(request: Request) -> dict:
     )
     relation_chain_id = data["relation_chain_id"]
     narrative = data.get("narrative", None)
-    # 鉴权
-    with session() as db:
-        relation_chain = db.get(RelationChain, int(relation_chain_id))
-        if relation_chain is None:
-            return {
-                "status": -1,
-                "message": "Relation chain not found",
-            }
-        if relation_chain.user_id != user_id:
-            return {
-                "status": -2,
-                "message": "You are not in this relation chain",
-            }
-    # 调用图
-    context_graph = await getContextGraph()
-    initial_state = initContextGraphState(
-        {
-            "user_id": user_id,
-            "relation_chain_id": int(relation_chain_id),
-            "narrative": narrative,
-        }
-    )
-    context_state: ContextGraphState = await context_graph.ainvoke(initial_state)
-    context_block = context_state["context_block"]
-    with session() as db:
-        relation_chain = db.get(RelationChain, int(relation_chain_id))
-        relation_chain.context_block = context_block
-        db.commit()
 
-    return {
-        "status": 200,
-        "message": "Success",
-        "context_block": context_block,
-    }
+    res = await vfRecalculateContextBlock(user_id, relation_chain_id, narrative)
+    return res
+
+
+if __name__ == "__main__":
+
+    async def demo(relation_chain_id: int):
+        graph = await getVirtualFigureGraph()
+        short_term_memory_config = {
+            "configurable": {"thread_id": str(relation_chain_id)}
+        }
+        state1 = initVirtualFigureGraphState(
+            {
+                "user_id": 1,
+                "relation_chain_id": relation_chain_id,
+                "messages_received": [
+                    {"message": "哈咯", "relation_chain_id": relation_chain_id},
+                ],
+            }
+        )
+        session1_start = time.perf_counter()
+        res = await graph.ainvoke(state1, config=short_term_memory_config)
+        messages_to_send = res["llm_output"].get("messages_to_send", [])
+        thinking = res["llm_output"].get("thinking", "")
+        print(
+            f"session1 耗时：{time.perf_counter() - session1_start}\n\n回复：{messages_to_send}\n\n分析：{thinking}\n"
+        )
+        # state2 = initVirtualFigureGraphState(
+        #     {
+        #         "user_id": 1,
+        #         "relation_chain_id": relation_chain_id,
+        #         "messages_received": [
+        #             {
+        #                 "message": "你下午去图书馆不",
+        #                 "relation_chain_id": relation_chain_id,
+        #             },
+        #             {
+        #                 "message": "我刚吃啥来着？？",
+        #                 "relation_chain_id": relation_chain_id,
+        #             },
+        #         ],
+        #     }
+        # )
+        # session2_start = time.perf_counter()
+        # res = await graph.ainvoke(state2, config=short_term_memory_config)
+        # print(
+        #     f"session2 耗时：{time.perf_counter() - session2_start}\n\n回复：{res}\n\n"
+        # )
+
+    asyncio.run(demo(1))
