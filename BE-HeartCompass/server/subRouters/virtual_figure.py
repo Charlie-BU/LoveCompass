@@ -83,7 +83,7 @@ async def _validateConnection(websocket: WebSocket) -> tuple[int, int] | None:
 # 注意：耗时操作
 async def _processMessages(relation_chain_id: int, temp_messages: list) -> list:
     session_start = time.perf_counter()
-    logger.info(f"开始处理本批次消息")
+    logger.info(f"开始处理本批次消息：{temp_messages}")
 
     graph = await getVirtualFigureGraph()
     short_term_memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
@@ -97,7 +97,7 @@ async def _processMessages(relation_chain_id: int, temp_messages: list) -> list:
     res: VirtualFigureGraphOutput = await graph.ainvoke(
         state, config=short_term_memory_config
     )
-    
+
     logger.info(f"处理完成，耗时：{time.perf_counter() - session_start}s\n\n")
     messages_to_send = res["llm_output"].get("messages_to_send", [])
     return messages_to_send
