@@ -2,8 +2,10 @@ import json
 import os
 import logging
 from typing import Any, List, Literal
+import math
+from datetime import datetime, timezone
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-
 
 from database.models import (
     ContextEmbedding,
@@ -203,7 +205,7 @@ def buildEmbeddingText4DerivedInsight(
     return "\n".join(parts)
 
 
-async def createOrUpdateEmbedding(
+async def createOrUpdateEmbedding2DB(
     db: Session,
     from_where: Literal[
         "knowledge",
@@ -318,8 +320,17 @@ async def createOrUpdateEmbedding(
     }
 
 
-# todo: 引入weight排序
-async def recallEmbedding(
+# 时间衰减函数
+def _timeDecay(created_at: datetime) -> float:
+    now = datetime.now(timezone.utc)
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    delta_days = (now - created_at).days
+
+    return math.exp(-delta_days / int(os.getenv("HALF_LIFE_DAYS")))
+
+
+async def recallEmbeddingFromDB(
     db: Session,
     text: str,
     top_k: int = 10,
@@ -336,11 +347,12 @@ async def recallEmbedding(
     ] = ["all"],
     relation_chain_id: int | None = None,
 ) -> dict[str, Any]:
-    if not text or not isinstance(text, str) or not text.strip():
+
+    if not text or not text.strip():
         return {"status": -1, "message": "Text is required"}
 
-    if top_k <= 0 or top_k > 100:
-        return {"status": -2, "message": "top_k must be between 1 and 100"}
+    if top_k <= 0 or top_k > 50:
+        return {"status": -2, "message": "top_k must be 1-50"}
 
     valid_sources = {
         "knowledge",
@@ -351,6 +363,7 @@ async def recallEmbedding(
         "non-knowledge",
         "all",
     }
+
     if (
         not isinstance(recall_from, list)
         or not recall_from
@@ -358,13 +371,6 @@ async def recallEmbedding(
     ):
         return {"status": -3, "message": "Invalid recall_from"}
 
-    if "non-knowledge" in recall_from:
-        recall_from = [
-            "crush_profile",
-            "event",
-            "chat_topic",
-            "derived_insight",
-        ]
     if "all" in recall_from:
         recall_from = [
             "knowledge",
@@ -373,150 +379,133 @@ async def recallEmbedding(
             "chat_topic",
             "derived_insight",
         ]
+
+    if "non-knowledge" in recall_from:
+        recall_from = [
+            "crush_profile",
+            "event",
+            "chat_topic",
+            "derived_insight",
+        ]
+    
+    relation_chain = None
+    crush_id = None
+
     if relation_chain_id is None:
         if "knowledge" not in recall_from:
             return {"status": -4, "message": "Relation_chain_id is required"}
         if len(recall_from) > 1:
             recall_from = ["knowledge"]
+    else:
+        relation_chain = db.get(RelationChain, relation_chain_id)
+        if relation_chain:
+            crush_id = relation_chain.crush_id
 
     try:
         vector = await vectorizeText(text)
     except Exception as e:
-        return {"status": -5, "message": f"Embedding generation failed: {str(e)}"}
+        return {"status": -4, "message": f"Embedding failed: {str(e)}"}
 
-    if not isinstance(vector, list) or not vector:
-        return {"status": -6, "message": "Invalid embedding result"}
+    selected_types = [
+        embedding_type
+        for source, embedding_type in [
+            ("knowledge", EmbeddingType.FROM_KNOWLEDGE),
+            ("crush_profile", EmbeddingType.FROM_CRUSH_PROFILE),
+            ("event", EmbeddingType.FROM_EVENT),
+            ("chat_topic", EmbeddingType.FROM_CHAT_TOPIC),
+            ("derived_insight", EmbeddingType.FROM_DERIVED_INSIGHT),
+        ]
+        if source in recall_from
+    ]
+    if not selected_types:
+        return {"status": -3, "message": "Invalid recall_from"}
 
-    items: list[dict[str, Any]] = []
-    message_parts: list[str] = []
+    distance = ContextEmbedding.embedding.cosine_distance(vector)
 
-    distance = ContextEmbedding.embedding.cosine_distance(vector).label("distance")
-
-    if "knowledge" in recall_from:
-        knowledge_query = (
-            db.query(ContextEmbedding, distance)
-            .filter(ContextEmbedding.type == EmbeddingType.FROM_KNOWLEDGE)
-            .join(ContextEmbedding.knowledge)
-            .order_by(distance.asc())
-            .limit(top_k)
+    query = (
+        db.query(
+            ContextEmbedding,
+            distance.label("distance"),
         )
-        for embedding, dist in knowledge_query.all():
-            if not embedding.knowledge:
+        .filter(ContextEmbedding.type.in_(selected_types))
+        .order_by(distance.asc())
+        .limit(int(os.getenv("VECTOR_CANDIDATES")))
+    )
+
+    candidates = query.all()
+    results = []
+
+    for embedding, dist in candidates:
+
+        semantic_score = 1 - float(dist)
+
+        source = embedding.type
+
+        data = None
+        weight = 1.0
+        created_at = None
+
+        if source == EmbeddingType.FROM_KNOWLEDGE and embedding.knowledge:
+            data = embedding.knowledge.toJson()
+            weight = embedding.knowledge.weight
+
+        elif source == EmbeddingType.FROM_CRUSH_PROFILE and embedding.crush:
+            if crush_id and embedding.crush.id != crush_id:
                 continue
-            items.append(
-                {
-                    "source": "knowledge",
-                    "embedding_id": embedding.id,
-                    "distance": float(dist),
-                    "data": embedding.knowledge.toJson(),
-                }
-            )
+            data = embedding.crush.toJson()
+            weight = embedding.crush.weight
 
-    if relation_chain_id is not None:
-        relation_chain = db.get(RelationChain, relation_chain_id)
-        crush_id = relation_chain.crush_id if relation_chain else None
+        elif source == EmbeddingType.FROM_EVENT and embedding.event:
+            if relation_chain_id and embedding.event.relation_chain_id != relation_chain_id:
+                continue
+            data = embedding.event.toJson()
+            weight = embedding.event.weight
+            created_at = embedding.event.created_at
 
-        if "crush_profile" in recall_from:
-            if crush_id is None:
-                return {"status": -7, "message": "Crush not found in relation chain"}
-            else:
-                crush_query = (
-                    db.query(ContextEmbedding, distance)
-                    .filter(
-                        ContextEmbedding.type == EmbeddingType.FROM_CRUSH_PROFILE,
-                        ContextEmbedding.crush_id == crush_id,
-                    )
-                    .join(ContextEmbedding.crush)
-                    .order_by(distance.asc())
-                    .limit(top_k)
-                )
-                for embedding, dist in crush_query.all():
-                    if not embedding.crush:
-                        continue
-                    items.append(
-                        {
-                            "source": "crush_profile",
-                            "embedding_id": embedding.id,
-                            "distance": float(dist),
-                            "data": embedding.crush.toJson(),
-                        }
-                    )
+        elif source == EmbeddingType.FROM_CHAT_TOPIC and embedding.chat_topic:
+            if relation_chain_id and embedding.chat_topic.relation_chain_id != relation_chain_id:
+                continue
+            data = embedding.chat_topic.toJson()
+            weight = embedding.chat_topic.weight
+            created_at = embedding.chat_topic.created_at
 
-        if "event" in recall_from:
-            event_query = (
-                db.query(ContextEmbedding, distance)
-                .filter(ContextEmbedding.type == EmbeddingType.FROM_EVENT)
-                .join(ContextEmbedding.event)
-                .filter(
-                    Event.is_active.is_(True),
-                    Event.relation_chain_id == relation_chain_id,
-                )
-                .order_by(distance.asc())
-                .limit(top_k)
-            )
-            for embedding, dist in event_query.all():
-                if not embedding.event:
-                    continue
-                items.append(
-                    {
-                        "source": "event",
-                        "embedding_id": embedding.id,
-                        "distance": float(dist),
-                        "data": embedding.event.toJson(),
-                    }
-                )
+        elif source == EmbeddingType.FROM_DERIVED_INSIGHT and embedding.derived_insight:
+            if relation_chain_id and embedding.derived_insight.relation_chain_id != relation_chain_id:
+                continue
+            data = embedding.derived_insight.toJson()
+            weight = embedding.derived_insight.weight
+            created_at = embedding.derived_insight.created_at
 
-        if "chat_topic" in recall_from:
-            chat_topic_query = (
-                db.query(ContextEmbedding, distance)
-                .filter(ContextEmbedding.type == EmbeddingType.FROM_CHAT_TOPIC)
-                .join(ContextEmbedding.chat_topic)
-                .filter(
-                    ChatTopic.is_active.is_(True),
-                    ChatTopic.relation_chain_id == relation_chain_id,
-                )
-                .order_by(distance.asc())
-                .limit(top_k)
-            )
-            for embedding, dist in chat_topic_query.all():
-                if not embedding.chat_topic:
-                    continue
-                items.append(
-                    {
-                        "source": "chat_topic",
-                        "embedding_id": embedding.id,
-                        "distance": float(dist),
-                        "data": embedding.chat_topic.toJson(),
-                    }
-                )
+        else:
+            continue
 
-        if "derived_insight" in recall_from:
-            derived_insight_query = (
-                db.query(ContextEmbedding, distance)
-                .filter(ContextEmbedding.type == EmbeddingType.FROM_DERIVED_INSIGHT)
-                .join(ContextEmbedding.derived_insight)
-                .filter(
-                    DerivedInsight.is_active.is_(True),
-                    DerivedInsight.relation_chain_id == relation_chain_id,
-                )
-                .order_by(distance.asc())
-                .limit(top_k)
-            )
-            for embedding, dist in derived_insight_query.all():
-                if not embedding.derived_insight:
-                    continue
-                items.append(
-                    {
-                        "source": "derived_insight",
-                        "embedding_id": embedding.id,
-                        "distance": float(dist),
-                        "data": embedding.derived_insight.toJson(),
-                    }
-                )
+        time_decay = _timeDecay(created_at) if created_at else 1.0
 
-    items.sort(key=lambda x: x["distance"])
-    items = items[:top_k]
-    message = "Recall embeddings success"
-    if message_parts:
-        message = f"{message}; " + "; ".join(message_parts)
-    return {"status": 200, "message": message, "items": items}
+        raw_score = (
+            semantic_score * 0.8
+            + weight * 0.2
+        )
+        score = raw_score * time_decay
+
+        results.append(
+            {
+                "source": source.name.lower(),
+                "embedding_id": embedding.id,
+                "distance": float(dist),
+                "score": score,
+                "semantic_score": semantic_score,
+                "weight": weight,
+                "time_decay": time_decay,
+                "data": data,
+            }
+        )
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+    results = results[:top_k]
+
+    return {
+        "status": 200,
+        "message": "Recall success",
+        "items": results,
+    }

@@ -9,7 +9,7 @@ from .ai import (
     extractKnowledge,
     extractContextFromNaturalLanguage,
 )
-from .embedding import createOrUpdateEmbedding
+from .embedding import createOrUpdateEmbedding2DB
 from database.models import RelationChain, Knowledge, Event, ChatTopic
 from database.enums import parseEnum, Attitude, ChatChannel, RelationStage
 from utils import cleanList
@@ -86,7 +86,7 @@ async def contextAddKnowledge(
     if with_embedding:
         for knowledge in knowledge_items:
             embedding_result.append(
-                await createOrUpdateEmbedding(
+                await createOrUpdateEmbedding2DB(
                     db=db, from_where="knowledge", knowledge=knowledge
                 )
             )
@@ -300,7 +300,7 @@ async def contextAddContextByNaturalLanguage(
         }
         # 若需向量化，向量化并落库
         if with_embedding:
-            crush_embedding_res = await createOrUpdateEmbedding(
+            crush_embedding_res = await createOrUpdateEmbedding2DB(
                 db, from_where="crush_profile", crush=crush
             )
 
@@ -312,7 +312,7 @@ async def contextAddContextByNaturalLanguage(
         }
         # 若需向量化，向量化并落库
         if with_embedding:
-            event_embedding_res = await createOrUpdateEmbedding(
+            event_embedding_res = await createOrUpdateEmbedding2DB(
                 db, from_where="event", event=new_event
             )
 
@@ -598,7 +598,7 @@ async def contextAddContextByScreenshots(
         }
         # 若需向量化，向量化并落库
         if with_embedding:
-            crush_embedding_res = await createOrUpdateEmbedding(
+            crush_embedding_res = await createOrUpdateEmbedding2DB(
                 db, from_where="crush_profile", crush=crush
             )
 
@@ -610,7 +610,7 @@ async def contextAddContextByScreenshots(
         }
         # 若需向量化，向量化并落库
         if with_embedding:
-            chat_topic_embedding_res = await createOrUpdateEmbedding(
+            chat_topic_embedding_res = await createOrUpdateEmbedding2DB(
                 db, from_where="chat_topic", chat_topic=new_chat_topic
             )
 

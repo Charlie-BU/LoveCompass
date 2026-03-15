@@ -10,7 +10,7 @@ from ..services.context import (
     contextAddContextByNaturalLanguage,
     contextAddContextByScreenshots,
 )
-from ..services.embedding import recallEmbedding
+from ..services.embedding import recallEmbeddingFromDB
 
 context_router = SubRouter(__file__, prefix="/context")
 
@@ -39,7 +39,7 @@ async def recallContextFromEmbedding(request: Request):
     relation_chain_id = data["relation_chain_id"]
 
     with session() as db:
-        res = await recallEmbedding(
+        res = await recallEmbeddingFromDB(
             db=db,
             text=text,
             top_k=int(top_k),

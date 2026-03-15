@@ -19,7 +19,7 @@ from server.services.ai import (
     generateRecallQueriesFromNarrative,
     generateRecallQueriesSimplyFromProfile,
 )
-from server.services.embedding import recallEmbedding
+from server.services.embedding import recallEmbeddingFromDB
 from .state import (
     AllContext,
     RecallQueries,
@@ -214,7 +214,7 @@ async def stepRecallKnowledge(
     # knowledge_query = recall_queries.get("knowledge_query")
     # if knowledge_query is not None:
     #     with session() as db:
-    #         res = await recallEmbedding(
+    #         res = await recallEmbeddingFromDB(
     #             db=db,
     #             text=knowledge_query,
     #             top_k=10,
@@ -240,7 +240,7 @@ async def stepRecallNonKnowledge(
     non_knowledge_vector_query = recall_queries.get("non_knowledge_query")
     if non_knowledge_vector_query is not None:
         with session() as db:
-            res = await recallEmbedding(
+            res = await recallEmbeddingFromDB(
                 db=db,
                 text=non_knowledge_vector_query,
                 top_k=30,

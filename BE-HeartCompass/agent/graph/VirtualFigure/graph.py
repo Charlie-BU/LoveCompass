@@ -19,7 +19,7 @@ from ...prompt import getPrompt
 from database.database import session
 from database.models import RelationChain
 from server.services.virtual_figure import vfRecalculateContextBlock
-from server.services.embedding import recallEmbedding
+from server.services.embedding import recallEmbeddingFromDB
 
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
     chat_topics = []
     derived_insights = []
     with session() as db:
-        res = await recallEmbedding(
+        res = await recallEmbeddingFromDB(
             db=db,
             text=messages_text,
             top_k=30,

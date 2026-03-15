@@ -3,6 +3,7 @@ from robyn.robyn import Request, Response
 from robyn.authentication import BearerGetter
 
 from ..authentication import AuthHandler
+from ..services.context_crud import ccDeleteEvent
 from database.database import session
 
 
@@ -17,3 +18,12 @@ def handleException(error):
 
 # 鉴权中间件
 context_crud_router.configure_authentication(AuthHandler(token_getter=BearerGetter()))
+
+
+@context_crud_router.post("/deleteEvent", auth_required=True)
+async def deleteEvent(request: Request):
+    body = request.json()
+    event_id = body["id"]
+    with session() as db:
+        res = await ccDeleteEvent(db=db, id=int(event_id))
+    return res
