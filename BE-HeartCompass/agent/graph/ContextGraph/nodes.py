@@ -272,7 +272,9 @@ async def nodeOrganizeContext(
 ) -> dict:
     logger.info("nodeOrganizeContext is called")
     basic_context = state["basic_context"]
-    recalled_items = state["recalled_items"]
+    recalled_items = state.get(
+        "recalled_items"
+    )  # no_material的情况无recalled_items，不能直接下标取值
     mbti_knowledges = state["mbti_knowledges"]
     interaction_signals = state["interaction_signals"]
 
@@ -302,66 +304,67 @@ async def nodeOrganizeContext(
 
     context_block += "\n"
 
-    if len(events := recalled_items.get("events")) > 0:
-        context_block += "**可能参考的过往事件**：\n"
-        for idx, event in enumerate(events):
-            content = getValueFromEntity(event, "content")
-            summary = getValueFromEntity(event, "summary")
-            date = getValueFromEntity(event, "date")
-            outcome = getValueFromEntity(event, "outcome")
-            weight = getValueFromEntity(event, "weight")
-            other_info = formatList(getValueFromEntity(event, "other_info"))
+    if recalled_items is not None and len(recalled_items) > 0:
+        if len(events := recalled_items.get("events")) > 0:
+            context_block += "**可能参考的过往事件**：\n"
+            for idx, event in enumerate(events):
+                content = getValueFromEntity(event, "content")
+                summary = getValueFromEntity(event, "summary")
+                date = getValueFromEntity(event, "date")
+                outcome = getValueFromEntity(event, "outcome")
+                weight = getValueFromEntity(event, "weight")
+                other_info = formatList(getValueFromEntity(event, "other_info"))
 
-            context_block += f"事件{idx+1}：\n"
-            # context_block += appendLabelIfValue("摘要", summary)
-            context_block += appendLabelIfValue("内容", content)
-            context_block += appendLabelIfValue("时间", date)
-            context_block += appendLabelIfValue("结果导向", outcome)
-            # context_block += appendLabelIfValue("重要性", weight)
-            context_block += appendLabelIfValue("其他信息", other_info)
-            context_block += "\n"
+                context_block += f"事件{idx+1}：\n"
+                # context_block += appendLabelIfValue("摘要", summary)
+                context_block += appendLabelIfValue("内容", content)
+                context_block += appendLabelIfValue("时间", date)
+                context_block += appendLabelIfValue("结果导向", outcome)
+                # context_block += appendLabelIfValue("重要性", weight)
+                context_block += appendLabelIfValue("其他信息", other_info)
+                context_block += "\n"
 
-    if len(chat_topics := recalled_items.get("chat_topics")) > 0:
-        context_block += "**可能参考的过往聊天话题**：\n"
-        for idx, chat_topic in enumerate(chat_topics):
-            title = getValueFromEntity(chat_topic, "title")
-            summary = getValueFromEntity(chat_topic, "summary")
-            content = getValueFromEntity(chat_topic, "content")
-            # tags = formatList(getValueFromEntity(chat_topic, "tags"))
-            # participants = formatList(getValueFromEntity(chat_topic, "participants"))
-            topic_time = getValueFromEntity(chat_topic, "topic_time")
-            attitude = getValueFromEntity(chat_topic, "attitude")
-            weight = getValueFromEntity(chat_topic, "weight")
-            other_info = formatList(getValueFromEntity(chat_topic, "other_info"))
+        if len(chat_topics := recalled_items.get("chat_topics")) > 0:
+            context_block += "**可能参考的过往聊天话题**：\n"
+            for idx, chat_topic in enumerate(chat_topics):
+                title = getValueFromEntity(chat_topic, "title")
+                summary = getValueFromEntity(chat_topic, "summary")
+                content = getValueFromEntity(chat_topic, "content")
+                # tags = formatList(getValueFromEntity(chat_topic, "tags"))
+                # participants = formatList(getValueFromEntity(chat_topic, "participants"))
+                topic_time = getValueFromEntity(chat_topic, "topic_time")
+                attitude = getValueFromEntity(chat_topic, "attitude")
+                weight = getValueFromEntity(chat_topic, "weight")
+                other_info = formatList(getValueFromEntity(chat_topic, "other_info"))
 
-            context_block += f"聊天话题{idx+1}：\n"
-            context_block += appendLabelIfValue("标题", title)
-            # context_block += appendLabelIfValue("摘要", summary)
-            context_block += appendLabelIfValue("内容", content)
-            # context_block += appendLabelIfValue("标签", tags)
-            # context_block += appendLabelIfValue("参与者", participants)
-            context_block += appendLabelIfValue("时间", topic_time)
-            context_block += appendLabelIfValue("情绪", attitude)
-            # context_block += appendLabelIfValue("重要性", weight)
-            context_block += appendLabelIfValue("其他信息", other_info)
-            context_block += "\n"
+                context_block += f"聊天话题{idx+1}：\n"
+                context_block += appendLabelIfValue("标题", title)
+                # context_block += appendLabelIfValue("摘要", summary)
+                context_block += appendLabelIfValue("内容", content)
+                # context_block += appendLabelIfValue("标签", tags)
+                # context_block += appendLabelIfValue("参与者", participants)
+                context_block += appendLabelIfValue("时间", topic_time)
+                context_block += appendLabelIfValue("情绪", attitude)
+                # context_block += appendLabelIfValue("重要性", weight)
+                context_block += appendLabelIfValue("其他信息", other_info)
+                context_block += "\n"
 
-    if len(derived_insights := recalled_items.get("derived_insights")) > 0:
-        context_block += "**可能参考的推断/洞察**：\n"
-        for idx, derived_insight in enumerate(derived_insights):
-            insight = getValueFromEntity(derived_insight, "insight")
-            confidence = getValueFromEntity(derived_insight, "confidence")
-            weight = getValueFromEntity(derived_insight, "weight")
-            additional_info = formatList(
-                getValueFromEntity(derived_insight, "additional_info")
-            )
+        if len(derived_insights := recalled_items.get("derived_insights")) > 0:
+            context_block += "**可能参考的推断/洞察**：\n"
+            for idx, derived_insight in enumerate(derived_insights):
+                insight = getValueFromEntity(derived_insight, "insight")
+                confidence = getValueFromEntity(derived_insight, "confidence")
+                weight = getValueFromEntity(derived_insight, "weight")
+                additional_info = formatList(
+                    getValueFromEntity(derived_insight, "additional_info")
+                )
 
-            context_block += f"推断/洞察{idx+1}：\n"
-            context_block += appendLabelIfValue("洞察", insight)
-            # context_block += appendLabelIfValue("置信度", confidence)
-            # context_block += appendLabelIfValue("重要性", weight)
-            context_block += appendLabelIfValue("其他信息", additional_info)
-            context_block += "\n"
+                context_block += f"推断/洞察{idx+1}：\n"
+                context_block += appendLabelIfValue("洞察", insight)
+                # context_block += appendLabelIfValue("置信度", confidence)
+                # context_block += appendLabelIfValue("重要性", weight)
+                context_block += appendLabelIfValue("其他信息", additional_info)
+                context_block += "\n"
 
     if len(interaction_signals) > 0:
         context_block += "**可能参考的互动信号**：\n"

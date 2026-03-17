@@ -254,6 +254,7 @@ class RelationChain(Base, SerializableMixin):
 
     # 在虚拟形象对话中，放到SystemMessage中
     context_block = Column(Text, nullable=True, comment="关系与画像上下文")
+    relevant_knowledge = Column(Text, nullable=True, comment="相关知识")
 
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="关系链创建时间"

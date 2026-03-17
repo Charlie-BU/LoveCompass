@@ -32,9 +32,6 @@ async def analysisConversationAnalysis(
                 "status": -2,
                 "message": "You are not in this relation chain",
             }
-        # 调用图
-        context_graph = await getContextGraph()
-        analysis_graph = await getAnalysisGraph()
         # 落库
         new_analysis = Analysis(
             relation_chain_id=int(relation_chain_id),
@@ -46,6 +43,7 @@ async def analysisConversationAnalysis(
         db.commit()
         db.refresh(new_analysis)
 
+    # 调用图
     initial_state = initContextGraphState(
         {
             "user_id": user_id,
@@ -57,6 +55,9 @@ async def analysisConversationAnalysis(
             "additional_context": additional_context,
         }
     )
+    context_graph = await getContextGraph()
+    analysis_graph = await getAnalysisGraph()
+    # todo
     context_state: ContextGraphOutput = await context_graph.ainvoke(initial_state)
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
         AnalysisGraphInput(

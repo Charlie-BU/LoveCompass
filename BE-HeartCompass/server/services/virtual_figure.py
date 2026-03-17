@@ -38,15 +38,18 @@ async def vfRecalculateContextBlock(
             "narrative": narrative,
         }
     )
-    context_state: ContextGraphOutput = await context_graph.ainvoke(initial_state)
-    context_block = context_state["context_block"]
+    context: ContextGraphOutput = await context_graph.ainvoke(initial_state)
+    context_block = context.get("context_block")
+    relevant_knowledge = context.get("relevant_knowledge")
     with session() as db:
         relation_chain = db.get(RelationChain, int(relation_chain_id))
         relation_chain.context_block = context_block
+        relation_chain.relevant_knowledge = relevant_knowledge
         db.commit()
 
     return {
         "status": 200,
         "message": "Success",
         "context_block": context_block,
+        "relevant_knowledge": relevant_knowledge,
     }
