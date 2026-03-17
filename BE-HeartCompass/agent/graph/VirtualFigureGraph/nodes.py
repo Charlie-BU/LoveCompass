@@ -11,6 +11,7 @@ from .state import (
 )
 from ...llm import prepareLLM
 from ...prompt import getPrompt
+from ..utils import getValueFromEntity, formatList, appendLabelIfValue
 from database.database import session
 from database.models import RelationChain
 from server.services.virtual_figure import vfRecalculateContextBlock
@@ -96,82 +97,58 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
 
         recalled_facts = events + chat_topics + derived_insights
 
-    def _getValue(item, key):
-        if isinstance(item, dict):
-            value = item.get(key)
-        else:
-            value = getattr(item, key, None)
-        return value.value if hasattr(value, "value") else value  # 同时处理Enum类型
-
-    def _formatList(value):
-        if value is None:
-            return ""
-        if isinstance(value, list):
-            return "、".join(
-                [str(v) for v in value if v is not None and str(v).strip()]
-            )
-        return str(value)
-
-    def _appendIfValue(label, value):
-        if value is None:
-            return ""
-        text = str(value).strip()
-        if not text:
-            return ""
-        return f"{label}：{text}\n"
-
     recalled_facts = ""
     for event in events:
-        content = _getValue(event, "content")
-        summary = _getValue(event, "summary")
-        date = _getValue(event, "date")
-        outcome = _getValue(event, "outcome")
-        weight = _getValue(event, "weight")
-        other_info = _formatList(_getValue(event, "other_info"))
+        content = getValueFromEntity(event, "content")
+        summary = getValueFromEntity(event, "summary")
+        date = getValueFromEntity(event, "date")
+        outcome = getValueFromEntity(event, "outcome")
+        weight = getValueFromEntity(event, "weight")
+        other_info = formatList(getValueFromEntity(event, "other_info"))
 
         recalled_facts += "**过往事件**：\n"
-        recalled_facts += _appendIfValue("摘要", summary)
-        recalled_facts += _appendIfValue("内容", content)
-        recalled_facts += _appendIfValue("时间", date)
-        recalled_facts += _appendIfValue("结果导向", outcome)
-        recalled_facts += _appendIfValue("重要性", weight)
-        recalled_facts += _appendIfValue("其他信息", other_info)
+        recalled_facts += appendLabelIfValue("摘要", summary)
+        recalled_facts += appendLabelIfValue("内容", content)
+        recalled_facts += appendLabelIfValue("时间", date)
+        recalled_facts += appendLabelIfValue("结果导向", outcome)
+        recalled_facts += appendLabelIfValue("重要性", weight)
+        recalled_facts += appendLabelIfValue("其他信息", other_info)
         recalled_facts += "\n"
 
     for chat_topic in chat_topics:
-        title = _getValue(chat_topic, "title")
-        summary = _getValue(chat_topic, "summary")
-        content = _getValue(chat_topic, "content")
-        tags = _formatList(_getValue(chat_topic, "tags"))
-        participants = _formatList(_getValue(chat_topic, "participants"))
-        topic_time = _getValue(chat_topic, "topic_time")
-        attitude = _getValue(chat_topic, "attitude")
-        weight = _getValue(chat_topic, "weight")
-        other_info = _formatList(_getValue(chat_topic, "other_info"))
+        title = getValueFromEntity(chat_topic, "title")
+        summary = getValueFromEntity(chat_topic, "summary")
+        content = getValueFromEntity(chat_topic, "content")
+        tags = formatList(getValueFromEntity(chat_topic, "tags"))
+        participants = formatList(getValueFromEntity(chat_topic, "participants"))
+        topic_time = getValueFromEntity(chat_topic, "topic_time")
+        attitude = getValueFromEntity(chat_topic, "attitude")
+        weight = getValueFromEntity(chat_topic, "weight")
+        other_info = formatList(getValueFromEntity(chat_topic, "other_info"))
 
         recalled_facts += "**过往聊天话题**：\n"
-        recalled_facts += _appendIfValue("标题", title)
-        recalled_facts += _appendIfValue("摘要", summary)
-        recalled_facts += _appendIfValue("内容", content)
-        recalled_facts += _appendIfValue("标签", tags)
-        recalled_facts += _appendIfValue("参与者", participants)
-        recalled_facts += _appendIfValue("时间", topic_time)
-        recalled_facts += _appendIfValue("情绪", attitude)
-        recalled_facts += _appendIfValue("重要性", weight)
-        recalled_facts += _appendIfValue("其他信息", other_info)
+        recalled_facts += appendLabelIfValue("标题", title)
+        recalled_facts += appendLabelIfValue("摘要", summary)
+        recalled_facts += appendLabelIfValue("内容", content)
+        recalled_facts += appendLabelIfValue("标签", tags)
+        recalled_facts += appendLabelIfValue("参与者", participants)
+        recalled_facts += appendLabelIfValue("时间", topic_time)
+        recalled_facts += appendLabelIfValue("情绪", attitude)
+        recalled_facts += appendLabelIfValue("重要性", weight)
+        recalled_facts += appendLabelIfValue("其他信息", other_info)
         recalled_facts += "\n"
 
     for derived_insight in derived_insights:
-        insight = _getValue(derived_insight, "insight")
-        confidence = _getValue(derived_insight, "confidence")
-        weight = _getValue(derived_insight, "weight")
-        additional_info = _formatList(_getValue(derived_insight, "additional_info"))
+        insight = getValueFromEntity(derived_insight, "insight")
+        confidence = getValueFromEntity(derived_insight, "confidence")
+        weight = getValueFromEntity(derived_insight, "weight")
+        additional_info = formatList(getValueFromEntity(derived_insight, "additional_info"))
 
         recalled_facts += "**部分推断/洞察**：\n"
-        recalled_facts += _appendIfValue("洞察", insight)
-        recalled_facts += _appendIfValue("置信度", confidence)
-        recalled_facts += _appendIfValue("重要性", weight)
-        recalled_facts += _appendIfValue("其他信息", additional_info)
+        recalled_facts += appendLabelIfValue("洞察", insight)
+        recalled_facts += appendLabelIfValue("置信度", confidence)
+        recalled_facts += appendLabelIfValue("重要性", weight)
+        recalled_facts += appendLabelIfValue("其他信息", additional_info)
         recalled_facts += "\n"
 
     state["memory"]["recalled_facts_from_db"] = recalled_facts

@@ -1,10 +1,6 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Literal
 
 from database.models import (
-    User,
-    Crush,
-    RelationChain,
-    ChainStageHistory,
     Knowledge,
     Event,
     ChatTopic,
@@ -16,48 +12,54 @@ from database.models import (
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int
-    # 情况1: 聊天记录分析
+    for_virtual_figure: bool = False
+    type: Literal["conversation", "narrative", "no_material"]
+    # 情况1: conversation - 聊天记录分析
     conversation_screenshots: List[str] | None
     crush_name: str | None  # 对方在截图中出现的姓名或位置（左侧/右侧）
     additional_context: str | None
-    # 情况2: 自然语言叙述分析
+    # 情况2: narrative - 自然语言叙述分析
     narrative: str | None
+    # 情况3: no_material - 无聊天记录、无自然语言叙述
 
 
-class Entities(TypedDict):
-    user: User | None
-    crush: Crush | None
-    relation_chain: RelationChain | None
-    stage_histories: List[ChainStageHistory] | None
+class BasicContext(TypedDict):
+    his_mbti: str | None  # 对方的MBTI
+    his_profile: dict  # 汇总、去噪、裁剪后的对方的“可读画像摘要”
+    current_stage: str | None  # 当前关系
 
 
-class CrushProfileContext(TypedDict):
-    crush_mbti: str | None
-    crush_profile: dict  # 将 Crush 字段汇总、去噪、裁剪后的“可读画像摘要”
-
-
-class RecallQueries(TypedDict):
-    knowledge_query: str | None  # 从已知信息归一化
-    non_knowledge_query: str | None  # 从已知信息归一化
-
-
-class AllContext(TypedDict):
-    knowledge: List[Knowledge]
-    event: List[Event]
-    chat_topic: List[ChatTopic]
-    derived_insight: List[DerivedInsight]
-    interaction_signal: List[
-        InteractionSignal
-    ]  # 单独引入InteractionSignal，不走召回链路
+class RecallItems(TypedDict):
+    events: List[Event]
+    chat_topics: List[ChatTopic]
+    derived_insights: List[DerivedInsight]
 
 
 class ContextGraphState(TypedDict):
     request: Request
-    context_block: str  # 关系与画像上下文
+    basic_context: BasicContext
+    recall_query: str | None
+    recalled_items: RecallItems | None
+    mbti_knowledges: List[Knowledge] | None
+    interaction_signals: List[InteractionSignal] | None
+    context_block: str | None  # 组织后的关系与画像上下文
 
 
 def initContextGraphState(request: Request) -> ContextGraphState:
     return {
         "request": request,
-        "context_block": "",
+        "basic_context": {
+            "his_mbti": None,
+            "his_profile": {},
+            "current_stage": None,
+        },
+        "recall_query": None,
+        "recalled_items": {
+            "events": [],
+            "chat_topics": [],
+            "derived_insights": [],
+        },
+        "mbti_knowledges": [],
+        "interaction_signals": [],
+        "context_block": None,
     }

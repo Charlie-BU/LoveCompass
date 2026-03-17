@@ -74,11 +74,7 @@
 - 最终分：
     - `score = raw_score * time_decay`
 
-其中：
-
-- `delta_days = (now_utc - created_at).days`
-- 若 `created_at` 无时区信息，会按 UTC 处理
-- `HALF_LIFE_DAYS` 来自环境变量
+其中：`delta_days = (now_utc - created_at).days`。若 `created_at` 无时区信息，会按 UTC 处理
 
 ### 排序与截断
 

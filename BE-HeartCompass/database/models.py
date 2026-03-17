@@ -269,35 +269,6 @@ class RelationChain(Base, SerializableMixin):
         return f"<RelationChain {self.id}>"
 
 
-# ---- 阶段变更历史（由模型根据上下文推断） ----
-class ChainStageHistory(Base, SerializableMixin):
-    __tablename__ = "chain_stage_history"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    relation_chain_id = Column(
-        Integer,
-        ForeignKey("relation_chain.id", ondelete="CASCADE"),
-        nullable=False,
-        comment="关联关系链ID",
-    )
-    relation_chain = relationship("RelationChain", backref="stage_histories")
-
-    previous_stage = Column(
-        Enum(RelationStage), nullable=True, comment="变更前的关系阶段"
-    )
-    new_stage = Column(Enum(RelationStage), nullable=False, comment="变更后的关系阶段")
-    trigger_reason = Column(Text, nullable=True, comment="触发变更的原因")
-    confidence = Column(
-        Float, nullable=False, default=1.0, comment="变更后的关系阶段置信度"
-    )
-    created_at = Column(
-        DateTime, default=datetime.now(timezone.utc), comment="变更时间"
-    )
-
-    def __repr__(self):
-        return f"<ChainStageHistory {self.id}>"
-
-
 # ---- 以下均为上下文 ----
 # ---- 事件 ----
 class Event(Base, SerializableMixin):

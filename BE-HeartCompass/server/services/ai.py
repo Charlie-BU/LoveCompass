@@ -91,8 +91,6 @@ async def generateRecallQueriesFromScreenshots(
     screenshot_urls: List[str],
     crush_name: str,
     additional_context: str,
-    profile: dict,
-    is_self: bool,
 ) -> str:
     if not isinstance(screenshot_urls, list) or len(screenshot_urls) == 0:
         return "Wrong screenshot format"
@@ -107,15 +105,10 @@ async def generateRecallQueriesFromScreenshots(
             return "Wrong screenshot url"
         cleaned_urls.append(url)
     prompt = await getPrompt(
-        os.getenv(
-            "GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS_SELF"
-            if is_self
-            else "GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS"
-        ),
+        os.getenv("GENERATE_RECALL_QUERIES_FROM_SCREENSHOTS"),
         {
             "crush_name": crush_name,  # 对方在截图中出现的姓名或位置（左侧/右侧）
             "additional_context": additional_context,
-            "profile": json.dumps(profile, ensure_ascii=False),
         },
     )
     llm = prepareLLM(model="DOUBAO_2_0_MINI")
@@ -125,37 +118,13 @@ async def generateRecallQueriesFromScreenshots(
 # 根据自然语言叙述和对方画像生成向量召回query
 async def generateRecallQueriesFromNarrative(
     narrative: str,
-    profile: dict,
-    is_self: bool,
 ) -> str:
     if not isinstance(narrative, str) or not narrative.strip():
         return "Wrong narrative format"
     prompt = await getPrompt(
-        os.getenv(
-            "GENERATE_RECALL_QUERIES_FROM_NARRATIVE_SELF"
-            if is_self
-            else "GENERATE_RECALL_QUERIES_FROM_NARRATIVE"
-        ),
+        os.getenv("GENERATE_RECALL_QUERIES_FROM_NARRATIVE"),
         {
             "narrative": narrative.strip(),
-            "profile": json.dumps(profile, ensure_ascii=False),
-        },
-    )
-    llm = prepareLLM(model="DOUBAO_2_0_MINI")
-    return await ainvokeWithNoContext(
-        llm=llm,
-        prompt=prompt,
-    )
-
-
-# 根据画像生成向量召回query
-async def generateRecallQueriesSimplyFromProfile(
-    profile: dict,
-) -> str:
-    prompt = await getPrompt(
-        os.getenv("GENERATE_RECALL_QUERIES_FROM_PROFILE"),
-        {
-            "profile": json.dumps(profile, ensure_ascii=False),
         },
     )
     llm = prepareLLM(model="DOUBAO_2_0_MINI")
