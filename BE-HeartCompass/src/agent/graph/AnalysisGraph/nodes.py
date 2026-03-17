@@ -1,15 +1,10 @@
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 import json
 import logging
 import os
 
-from .state import (
-    LLMOutput,
-    Request,
-    AnalysisGraphOutput,
-    AnalysisGraphState,
-)
+from .state import AnalysisGraphState
 from ...tools import useKnowledge
 from ...llm import prepareLLM
 from ...prompt import getPrompt
@@ -69,8 +64,47 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
     messages.append(SystemMessage(content=state["system_prompt"]))
     messages.append(SystemMessage(content=state["context_block"]))
     messages.append(HumanMessage(content=human_message))
-    
+
     response = await llm_with_tools.ainvoke(messages)
+
+    # 处理工具调用
+    # todo：可封装
+    tool_round = 0
+    while (
+        getattr(response, "tool_calls", None)
+        and isinstance(response.tool_calls, list)
+        and len(response.tool_calls) > 0
+        and tool_round < 3
+    ):
+        messages.append(response)
+        for tool_call in response.tool_calls:
+            tool_name = tool_call.get("name")
+            tool_call_id = tool_call.get("id")
+
+            # 处理工具调用参数
+            args = tool_call.get("args") or {}
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except json.JSONDecodeError:
+                    args = {}
+            if not isinstance(args, dict):
+                args = {}
+            # 处理relation_chain_id参数
+            args["relation_chain_id"] = state["request"].get("relation_chain_id")
+            tool_result = ""
+            if tool_name == "useKnowledge":
+                try:
+                    tool_result = (await useKnowledge.ainvoke(args)) or ""
+                except Exception as e:
+                    logger.warning(f"useKnowledge invoke failed: {e}")
+            logger.info(f"tool_result: {tool_result}\n")
+            messages.append(
+                ToolMessage(content=tool_result, tool_call_id=tool_call_id or "")
+            )
+        response = await llm_with_tools.ainvoke(messages)
+        tool_round += 1
+
     response_content = response.content if hasattr(response, "content") else response
     parsed = None
     if isinstance(response_content, dict):
@@ -85,7 +119,7 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
         "message_candidates": [],
         "risks": [],
         "suggestions": [],
-        "message": None,
+        "message": "模型输出解析失败",
     }
     if isinstance(parsed, dict):
         if parsed.get("status") == 200:
@@ -93,6 +127,7 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
             llm_output["message_candidates"] = data.get("message_candidates", []) or []
             llm_output["risks"] = data.get("risks", []) or []
             llm_output["suggestions"] = data.get("suggestions", []) or []
+            llm_output["message"] = None
         else:
             llm_output["message"] = parsed.get("message") or ""
 
