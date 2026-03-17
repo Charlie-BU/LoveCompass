@@ -81,7 +81,7 @@ async def _validateConnection(websocket: WebSocket) -> tuple[int, int] | None:
 
 # 将消息递交agent，返回对方回复
 # 注意：耗时操作
-async def _processMessages(relation_chain_id: int, temp_messages: list) -> list:
+async def _processMessages(user_id: int, relation_chain_id: int, temp_messages: list) -> list:
     session_start = time.perf_counter()
     logger.info(f"开始处理本批次消息：{temp_messages}")
 
@@ -89,7 +89,7 @@ async def _processMessages(relation_chain_id: int, temp_messages: list) -> list:
     short_term_memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
     state = initVirtualFigureGraphState(
         {
-            "user_id": 1,
+            "user_id": user_id,
             "relation_chain_id": relation_chain_id,
             "messages_received": temp_messages,
         }
@@ -149,7 +149,7 @@ async def _handle(websocket: WebSocket) -> None:
             messages_to_process.extend(temp_messages)
             temp_messages.clear()
             messages_to_send = await _processMessages(
-                relation_chain_id, messages_to_process
+                user_id, relation_chain_id, messages_to_process
             )
             messages_to_process.clear()
             # step 3: 发送消息

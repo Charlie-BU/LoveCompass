@@ -10,57 +10,67 @@ from .state import (
     AnalysisGraphOutput,
     AnalysisGraphState,
 )
+from ...tools import useKnowledge
 from ...llm import prepareLLM
 from ...prompt import getPrompt
 
 logger = logging.getLogger(__name__)
 
 
-async def stepFetchPromptFromScreenshots(request: Request) -> str:
-    crush_name = request.get("crush_name") or ""
-    additional_context = request.get("additional_context") or ""
-    final_prompt = await getPrompt(
+async def nodeFetchSystemPromptFromScreenshots(state: AnalysisGraphState) -> dict:
+    system_prompt = await getPrompt(
+        # todo: 提示词修改
         os.getenv("CONVERSATION_ANALYSIS"),
-        {
-            "crush_name": crush_name,  # 对方在截图中出现的姓名或位置（左侧/右侧）
-            "additional_context": additional_context,
-        },
+        # {
+        #     "crush_name": crush_name,  # 对方在截图中出现的姓名或位置（左侧/右侧）
+        #     "additional_context": additional_context,
+        # },
     )
-    return final_prompt
+    return {"system_prompt": system_prompt}
 
 
-async def stepFetchPromptFromNarrative(request: Request) -> str:
-    narrative = request.get("narrative") or ""
-    final_prompt = await getPrompt(
+async def nodeFetchSystemPromptFromNarrative(state: AnalysisGraphState) -> dict:
+    system_prompt = await getPrompt(
+        # todo: 提示词修改
         os.getenv("NARRATIVE_ANALYSIS"),
-        {
-            "narrative": narrative,
-        },
     )
-    return final_prompt
+    return {"system_prompt": system_prompt}
 
 
-async def stepCallLLM(
-    request: Request,
-    context_block: str,
-    final_prompt: str,
-) -> LLMOutput:
+async def nodeCallLLM(state: AnalysisGraphState) -> dict:
     llm: ChatOpenAI = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm_with_tools = llm.bind_tools([useKnowledge])
 
-    msg = [{"type": "text", "text": final_prompt}]
-    # 聊天记录分析才会有图片
-    screenshot_urls = request.get("conversation_screenshots")
-    if screenshot_urls:
-        for url in screenshot_urls:
-            if not url:
-                continue
-            msg.append({"type": "image_url", "image_url": {"url": url}})
+    type = state["request"].get("type")
+    match type:
+        case "conversation":
+            human_message = [
+                {
+                    "type": "text",
+                    "text": f"补充上下文：{state['request'].get('additional_context')}\n对方在截图中为{state['request'].get('crush_name')}",
+                }
+            ]
+            # 聊天记录分析才会有图片
+            screenshot_urls = state["request"].get("conversation_screenshots")
+            if screenshot_urls:
+                for url in screenshot_urls:
+                    if not url:
+                        continue
+                    human_message.append(
+                        {"type": "image_url", "image_url": {"url": url}}
+                    )
+        case "narrative":
+            human_message = [
+                {"type": "text", "text": state["request"].get("narrative")}
+            ]
 
     messages = []
     # context_block 放到System Message中
-    messages.append(SystemMessage(content=context_block))
-    messages.append(HumanMessage(content=msg))
-    response = await llm.ainvoke(messages)
+    messages.append(SystemMessage(content=state["system_prompt"]))
+    messages.append(SystemMessage(content=state["context_block"]))
+    messages.append(HumanMessage(content=human_message))
+    
+    response = await llm_with_tools.ainvoke(messages)
     response_content = response.content if hasattr(response, "content") else response
     parsed = None
     if isinstance(response_content, dict):
@@ -86,24 +96,4 @@ async def stepCallLLM(
         else:
             llm_output["message"] = parsed.get("message") or ""
 
-    return llm_output
-
-
-async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
-    request = state["request"]
-    context_block = state["context_block"]
-    if request.get("narrative") and request.get("narrative") != "":
-        # narrative
-        final_prompt = await stepFetchPromptFromNarrative(request)
-    else:
-        # conversation
-        final_prompt = await stepFetchPromptFromScreenshots(request)
-
-    llm_output = await stepCallLLM(
-        request=request,
-        context_block=context_block,
-        final_prompt=final_prompt,
-    )
-    return {
-        "llm_output": llm_output,
-    }
+    return {"llm_output": llm_output}

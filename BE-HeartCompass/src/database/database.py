@@ -7,13 +7,34 @@ from dotenv import load_dotenv
 _project_root = Path(__file__).resolve().parents[2]
 load_dotenv(_project_root / ".env", override=True)
 
-engine = create_engine(
-    url=os.getenv("DATABASE_URI") or "",
-    echo=False,  # 关闭SQL语句输出
-    pool_size=20,  # 默认连接池大小
-    max_overflow=30,  # 最大溢出连接数
-    pool_timeout=60,  # 连接超时时间
-    pool_recycle=3600,  # 连接回收时间，防止连接被数据库关闭
-    pool_pre_ping=True,  # 每次借出连接前 ping 一下，防止取到断开的连接
-)
-session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+_engine = None
+_session_factory = None
+_session_factory_pid = None
+
+
+def _buildEngine():
+    return create_engine(
+        url=os.getenv("DATABASE_URI") or "",
+        echo=False,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "60")),
+        pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "3600")),
+        pool_pre_ping=True,
+    )
+
+
+def _getSessionFactory():
+    global _engine, _session_factory, _session_factory_pid
+    pid = os.getpid()
+    if _session_factory is None or _session_factory_pid != pid:
+        if _engine is not None:
+            _engine.dispose()
+        _engine = _buildEngine()
+        _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+        _session_factory_pid = pid
+    return _session_factory
+
+
+def session():
+    return _getSessionFactory()()

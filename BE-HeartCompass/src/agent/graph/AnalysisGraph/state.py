@@ -1,9 +1,11 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Literal
+from langgraph.graph import MessagesState
 
 
 class Request(TypedDict):
     user_id: int
     relation_chain_id: int
+    type: Literal["conversation", "narrative"]
     # 情况1: 聊天记录分析
     conversation_screenshots: List[str] | None
     crush_name: str | None  # 对方在截图中出现的姓名或位置（左侧/右侧）
@@ -24,9 +26,10 @@ class AnalysisGraphInput(TypedDict):
     context_block: str  # 关系与画像上下文
 
 
-class AnalysisGraphState(TypedDict):
+class AnalysisGraphState(MessagesState):
     request: Request
     context_block: str  # 关系与画像上下文
+    system_prompt: str
     llm_output: LLMOutput
 
 

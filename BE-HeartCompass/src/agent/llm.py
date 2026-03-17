@@ -47,5 +47,5 @@ async def ainvokeWithNoContext(
         messages.append(HumanMessage(content=content))
     else:
         messages.append(HumanMessage(content=prompt))
-    resp = await llm.ainvoke(messages)
+    resp = llm.invoke(messages)
     return resp.content if resp else ""

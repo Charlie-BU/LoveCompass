@@ -58,11 +58,11 @@ async def analysisConversationAnalysis(
     context_graph = getContextGraph()
     analysis_graph = getAnalysisGraph()
     # todo
-    context_state: ContextGraphOutput = await context_graph.ainvoke(initial_state)
+    context: ContextGraphOutput = await context_graph.ainvoke(initial_state)
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
         AnalysisGraphInput(
             request=initial_state["request"],
-            context_block=context_state.get("context_block") or "",
+            context_block=context.get("context_block") or "",
         ),
     )
 
@@ -75,7 +75,7 @@ async def analysisConversationAnalysis(
             )
             analysis.risks = result["llm_output"].get("risks", [])
             analysis.suggestions = result["llm_output"].get("suggestions", [])
-            analysis.context_block = context_state["context_block"]
+            analysis.context_block = context["context_block"]
             db.commit()
 
     return {
@@ -104,17 +104,6 @@ async def analysisNarrativeAnalysis(
                 "status": -2,
                 "message": "You are not in this relation chain",
             }
-        # 调用图
-        context_graph = await getContextGraph()
-        analysis_graph = await getAnalysisGraph()
-        initial_state = initContextGraphState(
-            {
-                "user_id": user_id,
-                "relation_chain_id": int(relation_chain_id),
-                "type": "narrative",
-                "narrative": narrative,
-            }
-        )
         # 落库
         new_analysis = Analysis(
             relation_chain_id=int(relation_chain_id),
@@ -125,11 +114,24 @@ async def analysisNarrativeAnalysis(
         db.commit()
         db.refresh(new_analysis)
 
-    context_state: ContextGraphOutput = await context_graph.ainvoke(initial_state)
+    # 调用图
+    context_graph = getContextGraph()
+    analysis_graph = getAnalysisGraph()
+    initial_state = initContextGraphState(
+        {
+            "user_id": user_id,
+            "relation_chain_id": int(relation_chain_id),
+            "type": "narrative",
+            "for_virtual_figure": False,
+            "narrative": narrative,
+        }
+    )
+    # todo
+    context: ContextGraphOutput = await context_graph.ainvoke(initial_state)
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
         AnalysisGraphInput(
             request=initial_state["request"],
-            context_block=context_state.get("context_block") or "",
+            context_block=context.get("context_block") or "",
         )
     )
     # 两阶段 session，避免ainvoke耗时操作长时间占用数据库连接
@@ -141,7 +143,7 @@ async def analysisNarrativeAnalysis(
             )
             analysis.risks = result["llm_output"].get("risks", [])
             analysis.suggestions = result["llm_output"].get("suggestions", [])
-            analysis.context_block = context_state["context_block"]
+            analysis.context_block = context["context_block"]
             db.commit()
 
     return {

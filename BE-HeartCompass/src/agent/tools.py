@@ -1,32 +1,19 @@
-# from typing import Annotated
-# from langchain_core.tools import tool
+import logging
+from typing import Annotated
+from langchain_core.tools import tool
 
-# from database.database import session
+from src.database.database import session
+from src.database.models import RelationChain
 
-# @tool
-# async def recallNonKnowledge(query: Annotated[str, "Key words for non-knowledge recall"]) -> str:
-#     """Recall event, chat_topic, derived_insight related to the query"""
-#     try:
-#         with session() as db:
-#             res = await recallEmbeddingFromDB(
-#                 db=db,
-#                 text=query,
-#                 top_k=30,
-#                 recall_from=["event", "chat_topic", "derived_insight"],
-#                 relation_chain_id=request.get("relation_chain_id"),
-#             )
-#             if res["status"] == 200:
-#                 recalled_items = res["items"]
-#                 for item in recalled_items:
-#                     match item["source"]:
-#                         case "event":
-#                             events.append(item["data"])
-#                         case "chat_topic":
-#                             chat_topics.append(item["data"])
-#                         case "derived_insight":
-#                             derived_insights.append(item["data"])
-#             else:
-#                 logger.warning(f"Error recalling non-knowledge items: {res}")
+logger = logging.getLogger(__name__)
 
-#     except Exception as e:
-#         return f"Error: {str(e)}"
+
+@tool
+def useKnowledge(relation_chain_id: Annotated[str, "Relation chain id"]) -> str:
+    """Use relevant knowledge from relation chain"""
+    with session() as db:
+        relation_chain = db.get(RelationChain, relation_chain_id)
+        if relation_chain is None:
+            logger.error(f"Relation chain {relation_chain_id} not found")
+            return ""
+        return relation_chain.relevant_knowledge
