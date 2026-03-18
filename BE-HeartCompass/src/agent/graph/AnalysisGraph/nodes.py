@@ -1,11 +1,11 @@
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 import json
 import logging
 import os
 
 from .state import AnalysisGraphState
-from ...tools import useKnowledge
+from ...tools import useKnowledge, ToolAndItsArgsHandler, handleIfToolCall
 from ...llm import prepareLLM
 from ...prompt import getPrompt
 
@@ -66,44 +66,21 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
     messages.append(HumanMessage(content=human_message))
 
     response = await llm_with_tools.ainvoke(messages)
-
-    # 处理工具调用
-    # todo：可封装
-    tool_round = 0
-    while (
-        getattr(response, "tool_calls", None)
-        and isinstance(response.tool_calls, list)
-        and len(response.tool_calls) > 0
-        and tool_round < 3
-    ):
-        messages.append(response)
-        for tool_call in response.tool_calls:
-            tool_name = tool_call.get("name")
-            tool_call_id = tool_call.get("id")
-
-            # 处理工具调用参数
-            args = tool_call.get("args") or {}
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    args = {}
-            if not isinstance(args, dict):
-                args = {}
-            # 处理relation_chain_id参数
-            args["relation_chain_id"] = state["request"].get("relation_chain_id")
-            tool_result = ""
-            if tool_name == "useKnowledge":
-                try:
-                    tool_result = (await useKnowledge.ainvoke(args)) or ""
-                except Exception as e:
-                    logger.warning(f"useKnowledge invoke failed: {e}")
-            logger.info(f"tool_result: {tool_result}\n")
-            messages.append(
-                ToolMessage(content=tool_result, tool_call_id=tool_call_id or "")
+    # 处理tool call
+    response = await handleIfToolCall(
+        tools_and_args_handlers=[
+            ToolAndItsArgsHandler(
+                tool=useKnowledge,
+                args_handler=lambda _tool_call, _messages: {
+                    "relation_chain_id": state["request"].get("relation_chain_id")
+                },
             )
-        response = await llm_with_tools.ainvoke(messages)
-        tool_round += 1
+        ],
+        messages=messages,
+        llm_with_tools=llm_with_tools,
+        llm_response=response,
+        max_tool_round=3,
+    )
 
     response_content = response.content if hasattr(response, "content") else response
     parsed = None
