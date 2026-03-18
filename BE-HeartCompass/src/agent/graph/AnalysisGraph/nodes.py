@@ -16,10 +16,6 @@ async def nodeFetchSystemPromptFromScreenshots(state: AnalysisGraphState) -> dic
     system_prompt = await getPrompt(
         # todo: 提示词修改
         os.getenv("CONVERSATION_ANALYSIS"),
-        # {
-        #     "crush_name": crush_name,  # 对方在截图中出现的姓名或位置（左侧/右侧）
-        #     "additional_context": additional_context,
-        # },
     )
     return {"system_prompt": system_prompt}
 
