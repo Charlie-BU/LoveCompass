@@ -15,7 +15,7 @@ from .nodes import (
     nodeBuildMessage,
     nodeCallLLM,
 )
-from ..checkpointer import getCheckpointer
+from ..checkpointer import agetCheckpointer
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,6 @@ async def getVirtualFigureGraph() -> CompiledStateGraph:
         # PostgresSaver实现短期记忆
         # todo：trim
         _virtual_figure_graph_instance = graph.compile(
-            checkpointer=await getCheckpointer()
+            checkpointer=await agetCheckpointer()
         )
         return _virtual_figure_graph_instance

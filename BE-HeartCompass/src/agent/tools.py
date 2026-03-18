@@ -56,7 +56,7 @@ async def handleIfToolCall(
     llm_with_tools: Runnable[LanguageModelInput, AIMessage],
     llm_response: AIMessage,
     max_tool_round: int = 3,
-) -> AIMessage:
+) -> tuple[AIMessage, list]:
     tool_map = {ta.tool.name: ta for ta in tools_and_args_handlers}
     tool_round = 0
 
@@ -109,4 +109,4 @@ async def handleIfToolCall(
         llm_response = await llm_with_tools.ainvoke(messages)
         tool_round += 1
 
-    return llm_response
+    return llm_response, messages

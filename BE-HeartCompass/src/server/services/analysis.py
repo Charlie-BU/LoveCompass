@@ -57,13 +57,15 @@ async def analysisConversationAnalysis(
     )
     context_graph = getContextGraph()
     analysis_graph = getAnalysisGraph()
-    # todo
     context: ContextGraphOutput = await context_graph.ainvoke(initial_state)
+
+    memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
         AnalysisGraphInput(
             request=initial_state["request"],
             context_block=context.get("context_block") or "",
         ),
+        config=memory_config,
     )
 
     # 两阶段 session，避免ainvoke耗时操作长时间占用数据库连接
@@ -126,13 +128,15 @@ async def analysisNarrativeAnalysis(
             "narrative": narrative,
         }
     )
-    # todo
     context: ContextGraphOutput = await context_graph.ainvoke(initial_state)
+
+    memory_config = {"configurable": {"thread_id": str(relation_chain_id)}}
     result: AnalysisGraphOutput = await analysis_graph.ainvoke(
         AnalysisGraphInput(
             request=initial_state["request"],
             context_block=context.get("context_block") or "",
-        )
+        ),
+        config=memory_config,
     )
     # 两阶段 session，避免ainvoke耗时操作长时间占用数据库连接
     with session() as db:

@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, RemoveMessage
 import json
 import logging
 import os
@@ -67,20 +67,22 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
 
     response = await llm_with_tools.ainvoke(messages)
     # 处理tool call
-    response = await handleIfToolCall(
-        tools_and_args_handlers=[
-            ToolAndItsArgsHandler(
-                tool=useKnowledge,
-                args_handler=lambda _tool_call, _messages: {
-                    "relation_chain_id": state["request"].get("relation_chain_id")
-                },
-            )
-        ],
-        messages=messages,
-        llm_with_tools=llm_with_tools,
-        llm_response=response,
-        max_tool_round=3,
-    )
+    response = (
+        await handleIfToolCall(
+            tools_and_args_handlers=[
+                ToolAndItsArgsHandler(
+                    tool=useKnowledge,
+                    args_handler=lambda _tool_call, _messages: {
+                        "relation_chain_id": state["request"].get("relation_chain_id")
+                    },
+                )
+            ],
+            messages=messages,
+            llm_with_tools=llm_with_tools,
+            llm_response=response,
+            max_tool_round=3,
+        )
+    )[0]
 
     response_content = response.content if hasattr(response, "content") else response
     parsed = None
@@ -108,4 +110,19 @@ async def nodeCallLLM(state: AnalysisGraphState) -> dict:
         else:
             llm_output["message"] = parsed.get("message") or ""
 
-    return {"llm_output": llm_output}
+    # 把新一轮加入记忆
+    messages_in_memory = state.get("messages", [])
+    messages_to_update_memory = []
+    non_system_messages = []
+    for msg in messages_in_memory:
+        if isinstance(msg, SystemMessage):
+            if getattr(msg, "id", None) is not None:
+                messages_to_update_memory.append(RemoveMessage(id=msg.id))
+            continue
+        non_system_messages.append(msg)
+    messages_to_update_memory.append(SystemMessage(content=state["system_prompt"]))
+    messages_to_update_memory.append(SystemMessage(content=state["context_block"]))
+    messages_to_update_memory.extend(non_system_messages)
+    messages_to_update_memory.append(HumanMessage(content=human_message))
+    messages_to_update_memory.append(response)
+    return {"llm_output": llm_output, "messages": messages_to_update_memory}

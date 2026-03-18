@@ -1,6 +1,7 @@
 # todo: Needs refactor
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.checkpoint.memory import InMemorySaver
 import logging
 
 from src.agent.graph.AnalysisGraph.state import (
@@ -17,7 +18,7 @@ from src.agent.graph.AnalysisGraph.nodes import (
 logger = logging.getLogger(__name__)
 
 
-def buildAnalysisGraph() -> CompiledStateGraph:
+def buildBaseAnalysisGraph() -> StateGraph:
     graph = StateGraph(
         state_schema=AnalysisGraphState,
         input_schema=AnalysisGraphInput,
@@ -52,11 +53,23 @@ def buildAnalysisGraph() -> CompiledStateGraph:
     graph.add_edge("nodeFetchSystemPromptFromNarrative", "nodeCallLLM")
     graph.add_edge("nodeCallLLM", END)
 
+    return graph
+    # return graph.compile(checkpointer=InMemorySaver())
+
+
+def buildAnalysisGraph() -> CompiledStateGraph:
+    graph = buildBaseAnalysisGraph()
     return graph.compile()
 
 
+def buildAnalysisGraphWithMemory() -> CompiledStateGraph:
+    # todo: PostgresSaver 报500，暂用 InMemorySaver
+    graph = buildBaseAnalysisGraph()
+    return graph.compile(checkpointer=InMemorySaver())
+
+
 # 全局单例：在模块导入时执行一次，进程内后续都复用同一个对象
-AnalysisGraph = buildAnalysisGraph()
+AnalysisGraph = buildAnalysisGraphWithMemory()
 
 
 def getAnalysisGraph() -> CompiledStateGraph:

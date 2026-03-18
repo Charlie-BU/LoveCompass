@@ -1,5 +1,6 @@
-from typing import List, TypedDict, Literal
-from langgraph.graph import MessagesState
+from typing import Annotated, List, TypedDict, Literal
+from langchain_core.messages import BaseMessage
+from langgraph.graph import MessagesState, add_messages
 
 
 class Request(TypedDict):
@@ -26,7 +27,9 @@ class AnalysisGraphInput(TypedDict):
     context_block: str  # 关系与画像上下文
 
 
-class AnalysisGraphState(MessagesState):
+class AnalysisGraphState(
+    MessagesState
+):  # 继承自MessagesState，自动包含messages: Annotated[list[AnyMessage], add_messages]字段
     request: Request
     context_block: str  # 关系与画像上下文
     system_prompt: str
