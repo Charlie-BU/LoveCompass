@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from .ark import arkClient
+from src.agent.ark import arkClient
 
 # 全局单例
 _ark_client = arkClient()

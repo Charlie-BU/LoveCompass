@@ -5,6 +5,11 @@ from typing import List
 from src.agent.prompt import getPrompt
 from src.agent.llm import prepareLLM, ainvokeWithNoContext
 
+SUMMARY_LLM_OPTIONS = {"temperature": 0.2, "reasoning_effort": "low"}
+KNOWLEDGE_EXTRACTION_LLM_OPTIONS = {"temperature": 0.1, "reasoning_effort": "medium"}
+EXTRACT_CONTEXT_LLM_OPTIONS = {"temperature": 0.2, "reasoning_effort": "high"}
+RECALL_QUERY_LLM_OPTIONS = {"temperature": 0.35, "reasoning_effort": "minimal"}
+
 
 # 对上下文记录或知识库条目进行摘要
 async def summarizeContext(content: str) -> str:
@@ -12,7 +17,7 @@ async def summarizeContext(content: str) -> str:
         os.getenv("SUMMARIZE_CONTENT"),
         {"content": content},
     )
-    llm = prepareLLM(model="DOUBAO_2_0_MINI")
+    llm = prepareLLM(model="DOUBAO_2_0_MINI", options=SUMMARY_LLM_OPTIONS)
     return await ainvokeWithNoContext(
         llm=llm,
         prompt=prompt,
@@ -25,7 +30,7 @@ async def extractKnowledge(content: str) -> str:
         os.getenv("EXTRACT_KNOWLEDGE"),
         {"content": content},
     )
-    llm = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm = prepareLLM(model="DOUBAO_2_0_LITE", options=KNOWLEDGE_EXTRACTION_LLM_OPTIONS)
     return await ainvokeWithNoContext(
         llm=llm,
         prompt=prompt,
@@ -42,7 +47,10 @@ async def extractContextFromNaturalLanguage(content: str, is_self: bool) -> str:
         ),
         {"content": content},
     )
-    llm = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm = prepareLLM(
+        model="DOUBAO_2_0_LITE",
+        options=EXTRACT_CONTEXT_LLM_OPTIONS,
+    )
     return await ainvokeWithNoContext(
         llm=llm,
         prompt=prompt,
@@ -82,7 +90,7 @@ async def extractContextFromScreenshots(
             "additional_context": additional_context,
         },
     )
-    llm = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm = prepareLLM(model="DOUBAO_2_0_LITE", options=EXTRACT_CONTEXT_LLM_OPTIONS)
     return await ainvokeWithNoContext(llm=llm, prompt=prompt, images_urls=cleaned_urls)
 
 
@@ -111,7 +119,7 @@ async def generateRecallQueriesFromScreenshots(
             "additional_context": additional_context,
         },
     )
-    llm = prepareLLM(model="DOUBAO_2_0_MINI")
+    llm = prepareLLM(model="DOUBAO_2_0_MINI", options=RECALL_QUERY_LLM_OPTIONS)
     return await ainvokeWithNoContext(llm=llm, prompt=prompt, images_urls=cleaned_urls)
 
 
@@ -127,7 +135,7 @@ async def generateRecallQueriesFromNarrative(
             "narrative": narrative.strip(),
         },
     )
-    llm = prepareLLM(model="DOUBAO_2_0_MINI")
+    llm = prepareLLM(model="DOUBAO_2_0_MINI", options=RECALL_QUERY_LLM_OPTIONS)
     return await ainvokeWithNoContext(
         llm=llm,
         prompt=prompt,

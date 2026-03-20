@@ -1,20 +1,29 @@
 import logging
 import os
-from typing import Literal, List
+from typing import Literal, List, Mapping, TypedDict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
 
 
-def prepareLLM(model: Literal["DOUBAO_2_0_LITE", "DOUBAO_2_0_MINI"]) -> ChatOpenAI:
+class LLMOptions(TypedDict, total=False):
+    temperature: float | None
+    max_tokens: int | None
+    reasoning_effort: Literal["minimal", "low", "medium", "high"] | None
+    extra_body: Mapping[str, Any] | None
+
+
+def prepareLLM(
+    model: Literal["DOUBAO_2_0_LITE", "DOUBAO_2_0_MINI"],
+    options: LLMOptions | None = None,
+) -> ChatOpenAI:
     ARK_BASE_URL = os.getenv("ARK_BASE_URL", "")
     assert ARK_BASE_URL, "required 'ARK_BASE_URL' for AI Agent!!!"
-    logger.info(f"ARK_BASE_URL={ARK_BASE_URL}")
+    logger.info(f"LLM prepared")
 
     model_name = os.getenv(model, "")
     api_key = os.getenv("ENDPOINT_API_KEY", "")
-
     assert (
         model_name and api_key
     ), f"required '{model}' and 'ENDPOINT_API_KEY' for AI Agent!!!"
@@ -25,8 +34,9 @@ def prepareLLM(model: Literal["DOUBAO_2_0_LITE", "DOUBAO_2_0_MINI"]) -> ChatOpen
         "base_url": ARK_BASE_URL,
     }
     callbacks = []
+    options = options or {}
 
-    llm = ChatOpenAI(**model_args, callbacks=callbacks)
+    llm = ChatOpenAI(**model_args, callbacks=callbacks, **options)
     return llm
 
 
@@ -47,5 +57,5 @@ async def ainvokeWithNoContext(
         messages.append(HumanMessage(content=content))
     else:
         messages.append(HumanMessage(content=prompt))
-    resp = llm.invoke(messages)
+    resp = await llm.ainvoke(messages)
     return resp.content if resp else ""

@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 async def nodeFetchSystemPromptFromScreenshots(state: AnalysisGraphState) -> dict:
     system_prompt = await getPrompt(
-        # todo: 提示词修改
         os.getenv("CONVERSATION_ANALYSIS"),
     )
     return {"system_prompt": system_prompt}
@@ -22,14 +21,16 @@ async def nodeFetchSystemPromptFromScreenshots(state: AnalysisGraphState) -> dic
 
 async def nodeFetchSystemPromptFromNarrative(state: AnalysisGraphState) -> dict:
     system_prompt = await getPrompt(
-        # todo: 提示词修改
         os.getenv("NARRATIVE_ANALYSIS"),
     )
     return {"system_prompt": system_prompt}
 
 
 async def nodeCallLLM(state: AnalysisGraphState) -> dict:
-    llm: ChatOpenAI = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm: ChatOpenAI = prepareLLM(model="DOUBAO_2_0_LITE", options={
+        "temperature": 0.2,
+        "reasoning_effort": "medium",
+    })
     llm_with_tools = llm.bind_tools([useKnowledge])
 
     type = state["request"].get("type")

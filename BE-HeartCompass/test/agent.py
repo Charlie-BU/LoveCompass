@@ -9,7 +9,10 @@ async def testLLM():
     prompt = """
     请告诉我这两张图片分别是什么
     """
-    llm = prepareLLM(model="DOUBAO_2_0_LITE")
+    llm = prepareLLM(model="DOUBAO_2_0_LITE", options={
+        "temperature": 0.2,
+        "reasoning_effort": "high",
+    })
     res = await ainvokeWithNoContext(
         llm=llm,
         prompt=prompt,
