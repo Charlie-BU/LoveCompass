@@ -2,7 +2,8 @@
   "dockerfile_lines": [],
   "graphs": {
     "ContextGraph": "./src/agent/graph/ContextGraph/graph.py:ContextGraph",
-    "AnalysisGraph": "./src/agent/graph/AnalysisGraph/graph.py:AnalysisGraph"
+    "AnalysisGraph": "./src/agent/graph/AnalysisGraph/graph.py:AnalysisGraph",
+    "VirtualFigureGraph": "./src/agent/graph/VirtualFigureGraph/graph.py:VirtualFigureGraph"
   },
   "python_version": "3.13",
   "env": "./.env",
