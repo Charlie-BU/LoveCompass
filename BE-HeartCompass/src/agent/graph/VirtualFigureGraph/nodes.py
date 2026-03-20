@@ -105,11 +105,11 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
             recalled_items = res["items"]
             for item in recalled_items:
                 match item["source"]:
-                    case "event":
+                    case "from_event":
                         events.append(item["data"])
-                    case "chat_topic":
+                    case "from_chat_topic":
                         chat_topics.append(item["data"])
-                    case "derived_insight":
+                    case "from_derived_insight":
                         derived_insights.append(item["data"])
         else:
             logger.warning(f"Error recalling non-knowledge items: {res}")
