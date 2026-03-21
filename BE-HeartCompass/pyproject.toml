@@ -24,4 +24,5 @@ dependencies = [
     "langgraph-checkpoint-postgres>=3.0.4",
     "langgraph-cli[inmem]>=0.4.18",
     "hupper>=1.12.1",
+    "mem0ai>=1.0.6",
 ]
