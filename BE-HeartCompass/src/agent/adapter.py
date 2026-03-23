@@ -1,6 +1,12 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import time
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+    AIMessage,
+)
 import uuid
 
 from .namespaces import (
@@ -126,9 +132,7 @@ def processResponseMessage(msg: LLMChunkResponse):
     return f"data:{msg.model_dump_json(exclude_unset=True, exclude_none=True)}\r\n\r\n"
 
 
-def fromAinvokeModelMessages(
-    messages, debug: bool = False
-) -> list[LLMChunkResponse]:
+def fromAinvokeModelMessages(messages, debug: bool = False) -> list[LLMChunkResponse]:
     """Convert a list of messages to a list of LLMChunkResponse."""
     res = []
     for message in messages:
@@ -137,3 +141,62 @@ def fromAinvokeModelMessages(
         elif isinstance(message, ToolMessage):
             res.append(fromToolMessage(message, debug))
     return res
+
+
+# 【重要‼️】将 LangChain messages 转换为 Ark Responses API 格式
+# 适配 Ark SDK
+def langchain2ArkResponsesMessages(messages: List[BaseMessage]) -> List[Dict[str, Any]]:
+    def _roleMap(message: BaseMessage) -> str:
+        if isinstance(message, HumanMessage):
+            return "user"
+        elif isinstance(message, AIMessage):
+            return "assistant"
+        elif isinstance(message, SystemMessage):
+            return "system"
+        else:
+            raise ValueError(f"Unsupported message type: {type(message)}")
+
+    # 将不同格式统一为 Ark Responses API 格式
+    def _normalizeBlock(block: Dict[str, Any]) -> Dict[str, Any]:
+        block_type = block.get("type")
+        # 文本统一
+        if block_type in ("text", "input_text"):
+            return {"type": "input_text", "text": block.get("text", "")}
+        # 图片统一
+        elif block_type in ("image_url", "input_image"):
+            return {
+                "type": "input_image",
+                "image_url": block.get("image_url") or block.get("url"),
+            }
+        # 视频统一
+        elif block_type in ("video_url", "input_video"):
+            return {
+                "type": "input_video",
+                "video_url": block.get("video_url") or block.get("url"),
+            }
+        # 文档统一
+        elif block_type in ("file_url", "input_file"):
+            return {
+                "type": "input_file",
+                "file_url": block.get("file_url") or block.get("url"),
+            }
+        # 未知类型直接报错
+        raise ValueError(f"Unsupported content block type: {block_type}")
+
+    def _contentMap(content: Any) -> List[Dict[str, Any]]:
+        # 字符串 → text block
+        if isinstance(content, str):
+            return [{"type": "input_text", "text": content}]
+
+        # list → 多模态
+        if isinstance(content, list):
+            return [_normalizeBlock(item) for item in content]
+
+        raise ValueError(f"Unsupported content type: {type(content)}")
+
+    result = []
+
+    for msg in messages:
+        result.append({"role": _roleMap(msg), "content": _contentMap(msg.content)})
+
+    return result
