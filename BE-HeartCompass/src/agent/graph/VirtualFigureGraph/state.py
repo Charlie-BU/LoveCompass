@@ -16,6 +16,7 @@ class Request(TypedDict):
 
 class LLMOutput(TypedDict):
     messages_to_send: List[str]  # 本轮要发送的消息
+    reasoning_content: str  # 本轮推理内容
 
 
 class VirtualFigureGraphState(
