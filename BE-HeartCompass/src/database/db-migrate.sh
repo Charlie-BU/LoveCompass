@@ -1,7 +1,7 @@
 
 #!/bin/bash
 # Switch to the project root directory (BE-CAM)
-cd "$(dirname "$0")/.." || exit
+cd "$(dirname "$0")/../.." || exit
 
 echo "Database Migration Start..."
 uv run alembic upgrade head

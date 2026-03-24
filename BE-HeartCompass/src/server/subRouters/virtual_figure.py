@@ -1,5 +1,11 @@
 import random
-from robyn import Request, Response, SubRouter, WebSocket, WebSocketDisconnect
+from robyn import (
+    Request,
+    Response,
+    SubRouter,
+    WebSocketAdapter,
+    WebSocketDisconnect,
+)
 from robyn.authentication import BearerGetter
 import asyncio
 import os
@@ -31,7 +37,7 @@ _active_lock = asyncio.Lock()
 
 # 发送统一结构的错误消息
 async def _sendError(
-    websocket: WebSocket, relation_chain_id: int, message: str
+    websocket: WebSocketAdapter, relation_chain_id: int, message: str
 ) -> None:
     await websocket.send_json(
         {"relation_chain_id": relation_chain_id, "message": message}
@@ -39,7 +45,7 @@ async def _sendError(
 
 
 # 校验连接参数
-async def _validateConnection(websocket: WebSocket) -> tuple[int, int] | None:
+async def _validateConnection(websocket: WebSocketAdapter) -> tuple[int, int] | None:
     relation_chain_id = websocket.query_params.get("relation_chain_id", None)
     if not relation_chain_id:
         await _sendError(websocket, -1, "relation_chain_id is required")
@@ -81,7 +87,9 @@ async def _validateConnection(websocket: WebSocket) -> tuple[int, int] | None:
 
 # 将消息递交agent，返回对方回复
 # 注意：耗时操作
-async def _processMessages(user_id: int, relation_chain_id: int, temp_messages: list) -> list:
+async def _processMessages(
+    user_id: int, relation_chain_id: int, temp_messages: list
+) -> list:
     session_start = time.perf_counter()
     logger.info(f"开始处理本批次消息：{temp_messages}")
 
@@ -103,7 +111,7 @@ async def _processMessages(user_id: int, relation_chain_id: int, temp_messages: 
     return messages_to_send
 
 
-async def _handle(websocket: WebSocket) -> None:
+async def _handle(websocket: WebSocketAdapter) -> None:
     # 校验连接参数
     validated = await _validateConnection(websocket)
     if not validated:
@@ -137,14 +145,12 @@ async def _handle(websocket: WebSocket) -> None:
     async def scheduleFlush():
         try:
             # step 1: 等待 WAITING_SECONDS_FOR_VIRTUAL_FIGURE 秒
-            # print("等待阶段")  # todo
             inactivity_task["status"] = "pending"
             await asyncio.sleep(int(os.getenv("WAITING_SECONDS_FOR_VIRTUAL_FIGURE")))
         except asyncio.CancelledError:
             return
         try:
             # step 2: 处理消息
-            # print("处理阶段")  # todo
             inactivity_task["status"] = "processing"
             messages_to_process.extend(temp_messages)
             temp_messages.clear()
@@ -181,7 +187,7 @@ async def _handle(websocket: WebSocket) -> None:
                     websocket, relation_chain_id, "Please finish current session first"
                 )
                 continue
-            
+
             logger.info(f"收到消息：{data.get("message")}")
             temp_messages.append(
                 {
@@ -193,7 +199,6 @@ async def _handle(websocket: WebSocket) -> None:
             # 若当前存在正在pending的定时任务，取消当前定时任务，重新开始倒计时
             # 注意：进入处理阶段不可取消，新消息放在清空后的temp_messages中
             if inactivity_task["task"] and inactivity_task["status"] == "pending":
-                # print("等待阶段：重新计时")  # todo
                 inactivity_task["task"].cancel()
                 try:
                     await inactivity_task["task"]
@@ -216,7 +221,7 @@ async def _handle(websocket: WebSocket) -> None:
 
 
 @virtual_figure_router.websocket("/send")
-async def send(websocket: WebSocket) -> None:
+async def send(websocket: WebSocketAdapter) -> None:
     await _handle(websocket)
 
 

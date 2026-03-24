@@ -1,3 +1,4 @@
+from langgraph.graph.state import CompiledStateGraph
 from robyn.robyn import Response
 
 from .subRouters.user import user_router
@@ -8,7 +9,7 @@ from .subRouters.virtual_figure import virtual_figure_router
 from src.agent.react_agent import wrapChat
 
 
-async def registerRouters(app, react_agent):
+async def registerRouters(app, react_agent: CompiledStateGraph | None = None):
     # 全局异常处理
     @app.exception
     def handleException(error):
@@ -22,4 +23,5 @@ async def registerRouters(app, react_agent):
 
     app.get("/ping")(lambda: "pong")
     # chat_completions
-    app.post("/api/v3/bots/chat/completions")(await wrapChat(react_agent))
+    if react_agent:
+        app.post("/api/v3/bots/chat/completions")(await wrapChat(react_agent))

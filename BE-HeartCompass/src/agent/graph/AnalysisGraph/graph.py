@@ -68,6 +68,7 @@ def buildAnalysisGraphWithMemory() -> CompiledStateGraph:
 
 # 全局单例：在模块导入时执行一次，进程内后续都复用同一个对象
 AnalysisGraph = buildAnalysisGraphWithMemory()
+# AnalysisGraph = buildAnalysisGraph()
 
 
 def getAnalysisGraph() -> CompiledStateGraph:

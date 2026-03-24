@@ -2,9 +2,9 @@ from robyn import SubRouter
 from robyn.robyn import Request, Response
 from robyn.authentication import BearerGetter
 
-from ..authentication import AuthHandler
 from src.database.database import session
-from ..services.user import (
+from src.server.authentication import AuthHandler
+from src.server.services.user import (
     userGetUserIdByAccessToken,
     userLogin,
     userRegister,

@@ -7,14 +7,14 @@ from robyn import Robyn
 from src.agent.react_agent import getAgent
 from src.server.faas import initFaaSServer
 
-
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 
 async def main() -> Robyn:
     app = Robyn(__file__)
-    react_agent = await getAgent()
+    react_agent = None  # 暂弃用
+    # react_agent = await getAgent()
     await initFaaSServer(app, react_agent)
     return app
 

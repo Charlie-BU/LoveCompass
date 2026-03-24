@@ -436,9 +436,7 @@ async def recallEmbeddingFromDB(
     results = []
 
     for embedding, dist in candidates:
-
         semantic_score = 1 - float(dist)
-
         source = embedding.type
 
         data = None
