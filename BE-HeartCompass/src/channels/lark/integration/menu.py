@@ -13,12 +13,12 @@ def _sendText2OpenId(open_id: str, text: str) -> None:
     sendText2OpenId(open_id, text)
 
 
-def _getRelationChainId(open_id: str, crush_id: int) -> int | None:
+def _getRelationChainIdAndCrushName(open_id: str, crush_id: int) -> dict:
     with session() as db:
         user = db.query(User).filter(User.lark_open_id == open_id).first()
         if user is None:
             logger.warning(f"open_id：{open_id} 未授权")
-            return None
+            return {}
         user_id = user.id
         relation_chain = (
             db.query(RelationChain)
@@ -29,8 +29,11 @@ def _getRelationChainId(open_id: str, crush_id: int) -> int | None:
         )
         if relation_chain is None:
             logger.warning(f"不存在关系链")
-            return None
-        return relation_chain.id
+            return {}
+        return {
+            "relation_chain_id": relation_chain.id,
+            "crush_name": relation_chain.crush.name,
+        }
 
 
 def showMenu(open_id: str) -> None:
@@ -46,22 +49,60 @@ def showMenu(open_id: str) -> None:
     _sendText2OpenId(open_id, menu_text)
 
 
+def listAvailablePersons(open_id: str) -> None:
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            logger.warning(f"open_id：{open_id} 未授权")
+            return
+        user_id = user.id
+        relation_chains = (
+            db.query(RelationChain).filter(RelationChain.user_id == user_id).all()
+        )
+        if not relation_chains:
+            logger.warning(f"open_id：{open_id} 未绑定任何关系链")
+            return
+        persons_text = "\n\n".join(
+            [
+                f"{index}. {rc.crush.name} - person_id: {rc.crush_id}"
+                for index, rc in enumerate(relation_chains, start=1)
+            ]
+        )
+        _sendText2OpenId(open_id, f"【System】可选对话对象：\n{persons_text}")
+
+
 def switchRelationChain(open_id: str, crush_id: int) -> None:
     from src.channels.lark.integration import index as lark_integration
 
-    relation_chain_id = _getRelationChainId(open_id, crush_id)
-    if relation_chain_id is None:
+    res = _getRelationChainIdAndCrushName(open_id, crush_id)
+    if res.get("relation_chain_id") is None:
         _sendText2OpenId(
             open_id, f"【System】切换失败，未找到 crush_id={crush_id} 对应关系链"
         )
         return
 
+    relation_chain_id = res.get("relation_chain_id")
+    crush_name = res.get("crush_name")
+
     with lark_integration._state_lock:
         lark_integration._active_relation_chain_by_open_id[open_id] = relation_chain_id
         lark_integration._pending_messages_by_open_id.pop(open_id, None)
         lark_integration._cancelFlushTimerLocked(open_id)
-    logger.info(f"切换relation_chain成功，relation_chain_id：{relation_chain_id}")
-    _sendText2OpenId(open_id, f"【System】已切换 relation_chain_id={relation_chain_id}")
+    logger.info(
+        f"切换relation_chain成功，relation_chain_id：{relation_chain_id}，crush_name：{crush_name}"
+    )
+    _sendText2OpenId(open_id, f"【System】已切换，当前对话对象为 {crush_name}")
+
+
+def clearCurrentRelationChain(open_id: str) -> None:
+    from src.channels.lark.integration import index as lark_integration
+
+    with lark_integration._state_lock:
+        lark_integration._active_relation_chain_by_open_id.pop(open_id, None)
+        lark_integration._pending_messages_by_open_id.pop(open_id, None)
+        lark_integration._cancelFlushTimerLocked(open_id)
+    logger.info(f"清除relation_chain成功，open_id：{open_id}")
+    _sendText2OpenId(open_id, "【System】已清除当前对话对象")
 
 
 def addContextByNarrative(open_id: str, narrative: str) -> None:
@@ -82,10 +123,22 @@ def addContextByScreenshot(
 
 menu = [
     {
+        "hint": "/list_available_persons",
+        "content": "查找可选对话对象 person_id",
+        "regex": r"/list_available_persons",
+        "command": listAvailablePersons,
+    },
+    {
         "hint": "/<person_id>",
         "content": "切换当前对话对象",
         "regex": r"/(\d+)",
         "command": switchRelationChain,
+    },
+    {
+        "hint": "/clear_current_person",
+        "content": "清除当前对话对象",
+        "regex": r"/clear_current_person",
+        "command": clearCurrentRelationChain,
     },
     {
         "hint": "/add-context-by-narrative:\n<narrative>",
@@ -122,13 +175,18 @@ def handleMenuCommand(message: str, open_id: str) -> bool:
 
     current_item = menu[index_hit]
     command = current_item["command"]
+
     if command == switchRelationChain:
         command(open_id, int(match.group(1)))
     elif command == addContextByNarrative:
         command(open_id, match.group(1))
     elif command == addContextByScreenshot:
         command(open_id, match.group(1), match.group(2), match.group(3))
-    elif command == showMenu:
+    elif (
+        command == showMenu
+        or command == listAvailablePersons
+        or command == clearCurrentRelationChain
+    ):
         command(open_id)
     else:
         logger.error(f"未实现的菜单命令：{current_item}")

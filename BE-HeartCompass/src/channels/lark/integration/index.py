@@ -129,7 +129,9 @@ def _sendBatchMessages(open_id: str) -> None:
     with _state_lock:
         relation_chain_id = _active_relation_chain_by_open_id.get(open_id)
     if relation_chain_id is None:
-        sendText2OpenId(open_id, "【System】请先通过 /<crush_id> 切换当前对话对象，例如 /1")
+        sendText2OpenId(
+            open_id, "【System】请先通过 /<crush_id> 切换当前对话对象，例如 /1"
+        )
         return
 
     if not relationChainBelongsToUser(user_id, relation_chain_id):
@@ -176,7 +178,9 @@ def _scheduleFlush(open_id: str) -> None:
 # 过滤重复消息
 def filterDuplicatedMessage(message: str, open_id: str) -> bool:
     current_time = int(time.time())
-    second_threshold = 30  # 30秒内完全相同消息视为重复
+    second_threshold = (
+        10 if message.startswith("/") else 30
+    )  # 30秒内完全相同消息视为重复，菜单命令10秒内视为重复
     is_duplicate = False
 
     with _state_lock:
@@ -218,7 +222,9 @@ def messageHandler(message: str, open_id: str) -> None:
 
     relation_chain_id = _active_relation_chain_by_open_id.get(open_id)
     if relation_chain_id is None:
-        sendText2OpenId(open_id, "【System】请先通过 /<crush_id> 切换当前对话对象，例如 /1")
+        sendText2OpenId(
+            open_id, "【System】请先通过 /<crush_id> 切换当前对话对象，例如 /1"
+        )
         return
 
     if not relationChainBelongsToUser(user_id, relation_chain_id):
