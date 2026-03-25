@@ -7,6 +7,7 @@ from src.agent.mem0 import (
     recallMemories,
     getMemoryHistory,
     updateMemory,
+    getMemoryDetail,
     deleteMemory,
     deleteAllMemoriesByRelationChainId,
 )
@@ -17,10 +18,14 @@ async def main():
     # print(res)
     # while True:
     #     # status = checkJobStatus(res["results"][0]["event_id"])
-    #     status = await checkJobStatus("14a10a_RVOC20260324220849_mp-cnlfhdfjyr1jcylbay6pxw7uavvs")
+    #     status = await checkJobStatus("2d953b_MVOC20260324220940_mp-cnlfhdfjyr1jcylbay6pxw7uavvs")
     #     print(status)
     #     time.sleep(1)
-    print(recallMemories(1, "何海涛"))
+    print(getAllMemoriesByRelationChainId(1), end="\n\n")
+    print(recallMemories(1, "何海涛"), end="\n\n")
+    print(getMemoryHistory("2d953b_MVOC20260324220940_mp-cnlfhdfjyr1jcylbay6pxw7uavvs"), end="\n\n")
+    # print(updateMemory("2d953b_MVOC20260324220940_mp-cnlfhdfjyr1jcylbay6pxw7uavvs", "专业是车辆工程"), end="\n\n")
+    print(getMemoryDetail("2d953b_MVOC20260324220940_mp-cnlfhdfjyr1jcylbay6pxw7uavvs"), end="\n\n")
 
 
 if __name__ == "__main__":

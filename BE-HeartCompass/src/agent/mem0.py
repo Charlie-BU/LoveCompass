@@ -84,7 +84,7 @@ def updateMemory(
     new_memory: str,
 ) -> Dict[str, Any]:
     client = mem0Client()
-    res = client.update(memory_id, new_memory)
+    res = client.update(memory_id=memory_id, text=new_memory)
     return res
 
 
