@@ -52,6 +52,7 @@ async def nodeLoadPersona(state: VirtualFigureGraphState) -> dict:
         relation_chain = db.get(RelationChain, int(relation_chain_id))
         context_block = relation_chain.context_block
         if context_block is None or context_block == "":
+            # 若当前关系链无context_block，先计算后写入
             try:
                 res = await vfRecalculateContextBlock(
                     user_id,
@@ -196,8 +197,6 @@ async def nodeBuildMessage(state: VirtualFigureGraphState) -> dict:
     reply_prompt = "\n".join(messages_received_parsed)
 
     state["messages"].append(HumanMessage(content=reply_prompt or ""))
-    # todo: 调试，上线删
-    print(f"当前短期记忆：\n{state['messages']}\n\n")
     return {
         "messages": state["messages"],
     }
@@ -274,6 +273,9 @@ async def nodeCallLLM(state: VirtualFigureGraphState) -> VirtualFigureGraphOutpu
 
     # parse成功写入short-term memory
     state["messages"].append(ai_message)
+
+    # todo: 调试，线上删
+    logger.info(f"\n当前state：\n{state}\n\n")
 
     return {
         "llm_output": state["llm_output"],
