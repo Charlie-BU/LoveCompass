@@ -155,7 +155,6 @@ def _sendBatchMessages(open_id: str) -> None:
         sendText2OpenId(open_id, "【System】消息处理失败，请稍后重试")
         return
 
-    logger.info(f"\n思考内容：{reasoning_content}\n")
     for item in messages_to_send:
         text = normalizeReply(item)
         if text is not None:

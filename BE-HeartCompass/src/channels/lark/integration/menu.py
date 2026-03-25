@@ -62,7 +62,7 @@ def listAvailablePersons(open_id: str) -> None:
         if not relation_chains:
             logger.warning(f"open_id：{open_id} 未绑定任何关系链")
             return
-        persons_text = "\n\n".join(
+        persons_text = "\n".join(
             [
                 f"{index}. {rc.crush.name} - person_id: {rc.crush_id}"
                 for index, rc in enumerate(relation_chains, start=1)
