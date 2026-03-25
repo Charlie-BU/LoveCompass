@@ -3,7 +3,7 @@ import dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agent.ark import arkClient
-from src.agent.adapter import langchain2ArkResponsesMessages
+from src.agent.adapter import langchain2OpenAIChatMessages
 from src.agent.llm import arkAinvoke
 
 
@@ -28,7 +28,10 @@ async def testArkResponseAPI():
         SystemMessage(content=f"你叫卜天，是一个帅哥，负责用攻击性的语言与用户互动"),
         HumanMessage(
             content=[
-                {"type": "input_image", "image_url": "https://ark-project.tos-cn-beijing.volces.com/doc_image/ark_demo_img_1.png"},
+                {
+                    "type": "input_image",
+                    "image_url": "https://ark-project.tos-cn-beijing.volces.com/doc_image/ark_demo_img_1.png",
+                },
                 {"type": "input_text", "text": "你看见了什么？"},
             ]
         ),
@@ -38,7 +41,9 @@ async def testArkResponseAPI():
         # input=[
         #     {"role": "user", "content": "我们刚刚在聊什么"},
         # ],
-        input=langchain2ArkResponsesMessages(messages_to_send),
+        input=langchain2OpenAIChatMessages(
+            messages=messages_to_send, is_ark_responses_messages=True
+        ),
     )
     print(resp)
     return resp
@@ -48,12 +53,14 @@ async def testarkAinvoke():
     resp = await arkAinvoke(
         model="DOUBAO_2_0_LITE",
         messages=[
-            SystemMessage(content=f"你叫卜天，是一个帅哥，负责用攻击性的语言与用户互动"),
+            SystemMessage(
+                content=f"你叫卜天，是一个帅哥，负责用攻击性的语言与用户互动"
+            ),
             HumanMessage(content="你好"),
         ],
         model_options={
             "reasoning_effort": "minimal",
-        }
+        },
     )
     print(resp)
     return resp

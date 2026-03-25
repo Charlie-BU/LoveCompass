@@ -145,7 +145,10 @@ def fromAinvokeModelMessages(messages, debug: bool = False) -> list[LLMChunkResp
 
 # 【重要‼️】将 LangChain messages 转换为 Ark Responses API 格式
 # 适配 Ark SDK
-def langchain2ArkResponsesMessages(messages: List[BaseMessage]) -> List[Dict[str, Any]]:
+def langchain2OpenAIChatMessages(
+    messages: List[BaseMessage], is_ark_responses_messages: bool = False
+) -> List[Dict[str, Any]]:
+
     def _roleMap(message: BaseMessage) -> str:
         if isinstance(message, HumanMessage):
             return "user"
@@ -157,46 +160,81 @@ def langchain2ArkResponsesMessages(messages: List[BaseMessage]) -> List[Dict[str
             raise ValueError(f"Unsupported message type: {type(message)}")
 
     # 将不同格式统一为 Ark Responses API 格式
-    def _normalizeBlock(block: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalizeBlock(
+        block: Dict[str, Any], is_ark_responses_messages: bool
+    ) -> Dict[str, Any]:
         block_type = block.get("type")
         # 文本统一
         if block_type in ("text", "input_text"):
-            return {"type": "input_text", "text": block.get("text", "")}
+            if is_ark_responses_messages:
+                return {"type": "input_text", "text": block.get("text", "")}
+            return {"type": "text", "text": block.get("text", "")}
         # 图片统一
         elif block_type in ("image_url", "input_image"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_image",
+                    "image_url": block.get("image_url") or block.get("url"),
+                }
             return {
-                "type": "input_image",
-                "image_url": block.get("image_url") or block.get("url"),
+                "type": "image_url",
+                "image_url": block.get("image_url") or block.get("url", ""),
             }
         # 视频统一
         elif block_type in ("video_url", "input_video"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_video",
+                    "video_url": block.get("video_url") or block.get("url"),
+                }
             return {
-                "type": "input_video",
-                "video_url": block.get("video_url") or block.get("url"),
+                "type": "video_url",
+                "video_url": block.get("video_url") or block.get("url", ""),
             }
         # 文档统一
         elif block_type in ("file_url", "input_file"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_file",
+                    "file_url": block.get("file_url") or block.get("url"),
+                }
             return {
-                "type": "input_file",
-                "file_url": block.get("file_url") or block.get("url"),
+                "type": "file_url",
+                "file_url": block.get("file_url") or block.get("url", ""),
             }
         # 未知类型直接报错
         raise ValueError(f"Unsupported content block type: {block_type}")
 
-    def _contentMap(content: Any) -> List[Dict[str, Any]]:
+    def _contentMap(
+        content: Any, role: str, is_ark_responses_messages: bool
+    ) -> List[Dict[str, Any]] | str:
+        # system / assistant 为纯文本
+        if role in ("system", "assistant"):
+            return content
+
         # 字符串 → text block
         if isinstance(content, str):
-            return [{"type": "input_text", "text": content}]
+            if is_ark_responses_messages:
+                return [{"type": "input_text", "text": content}]
+            return content
 
         # list → 多模态
         if isinstance(content, list):
-            return [_normalizeBlock(item) for item in content]
+            return [
+                _normalizeBlock(item, is_ark_responses_messages) for item in content
+            ]
 
         raise ValueError(f"Unsupported content type: {type(content)}")
 
     result = []
 
     for msg in messages:
-        result.append({"role": _roleMap(msg), "content": _contentMap(msg.content)})
+        role = _roleMap(msg)
+        result.append(
+            {
+                "role": role,
+                "content": _contentMap(msg.content, role, is_ark_responses_messages),
+            }
+        )
 
     return result
