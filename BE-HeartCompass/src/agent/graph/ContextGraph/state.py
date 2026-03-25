@@ -1,12 +1,4 @@
-from typing import List, TypedDict, Literal
-
-from src.database.models import (
-    Knowledge,
-    Event,
-    ChatTopic,
-    InteractionSignal,
-    DerivedInsight,
-)
+from typing import Any, List, TypedDict, Literal
 
 
 class Request(TypedDict):
@@ -30,9 +22,9 @@ class BasicContext(TypedDict):
 
 
 class RecallItems(TypedDict):
-    events: List[Event]
-    chat_topics: List[ChatTopic]
-    derived_insights: List[DerivedInsight]
+    events: List[dict[str, Any]]
+    chat_topics: List[dict[str, Any]]
+    derived_insights: List[dict[str, Any]]
 
 
 class ContextGraphState(TypedDict):
@@ -40,8 +32,8 @@ class ContextGraphState(TypedDict):
     basic_context: BasicContext
     recall_query: str | None
     recalled_items: RecallItems | None
-    mbti_knowledges: List[Knowledge] | None
-    interaction_signals: List[InteractionSignal] | None
+    mbti_knowledges: List[dict[str, Any]] | None
+    interaction_signals: List[dict[str, Any]] | None
     context_block: str | None  # 组织后的关系与画像上下文
     relevant_knowledge: str | None  # 组织后的相关知识
 

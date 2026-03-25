@@ -211,7 +211,9 @@ async def nodeGetMBTIKnowledge(
             .order_by(Knowledge.weight.desc())
             .all()
         )
-        mbti_knowledges.extend(knowledges_for_this_mbti)
+        mbti_knowledges.extend(
+            [knowledge.toJson() for knowledge in knowledges_for_this_mbti]
+        )
 
     # 不使用向量召回知识
     # knowledge_query = recall_queries.get("knowledge_query")
@@ -253,7 +255,7 @@ async def nodeGetInteractionSignal(
             .first()
         )
         if latest_interaction_signal:
-            interaction_signals.append(latest_interaction_signal)
+            interaction_signals.append(latest_interaction_signal.toJson())
 
     return {
         "interaction_signals": interaction_signals,
@@ -296,7 +298,7 @@ async def nodeOrganizeContext(
             basic_context["his_profile"].get("words_from_user"),
         )
 
-    context_block += f"**对方画像**：\n"
+    context_block += f"**人物画像**：\n"
     for key, value in basic_context["his_profile"].items():
         if key in ["words_to_user", "words_from_user"]:
             continue
