@@ -27,7 +27,7 @@ async def nodeInitState(state: VirtualFigureGraphState) -> dict:
     context_block = state.get("context_block", "")
     words_to_user = state.get("words_to_user", "")
     recalled_facts_from_db = state.get("recalled_facts_from_db", "")
-    recalled_facts_from_mem0 = state.get("recalled_facts_from_mem0", [])
+    recalled_facts_from_viking = state.get("recalled_facts_from_viking", [])
     llm_output = state.get(
         "llm_output",
         {"messages_to_send": [], "reasoning_content": ""},
@@ -37,7 +37,7 @@ async def nodeInitState(state: VirtualFigureGraphState) -> dict:
         "context_block": context_block,
         "words_to_user": words_to_user,
         "recalled_facts_from_db": recalled_facts_from_db,
-        "recalled_facts_from_mem0": recalled_facts_from_mem0,
+        "recalled_facts_from_viking": recalled_facts_from_viking,
         "llm_output": llm_output,
     }
 
@@ -180,12 +180,12 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
 
 
 # todo：接入方舟Mem0
-async def nodeRecallFromMem0(state: VirtualFigureGraphState) -> dict:
-    logger.info("nodeRecallFromMem0 is called")
+async def nodeRecallFromViking(state: VirtualFigureGraphState) -> dict:
+    logger.info("nodeRecallFromViking is called")
 
-    state["recalled_facts_from_mem0"] = []
+    state["recalled_facts_from_viking"] = []
     return {
-        "recalled_facts_from_mem0": state["recalled_facts_from_mem0"],
+        "recalled_facts_from_viking": state["recalled_facts_from_viking"],
     }
 
 
@@ -228,7 +228,7 @@ async def nodeCallLLM(state: VirtualFigureGraphState) -> VirtualFigureGraphOutpu
         ),
         # 4. Viking召回的长期记忆（不可信）
         SystemMessage(
-            content=f"可能参考的召回的长期记忆：\n{json.dumps(state['recalled_facts_from_mem0'], ensure_ascii=False)}"
+            content=f"可能参考的召回的长期记忆：\n{json.dumps(state['recalled_facts_from_viking'], ensure_ascii=False)}"
         ),
     ] + state["messages"]
 

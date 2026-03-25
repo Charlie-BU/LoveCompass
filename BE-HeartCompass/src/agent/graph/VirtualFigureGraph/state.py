@@ -26,7 +26,7 @@ class VirtualFigureGraphState(
     context_block: str  # 关系与画像上下文
     words_to_user: str  # 非常重要，所以单独放在state顶层
     recalled_facts_from_db: str  # 根据本轮消息召回的Knowledge、Event、ChatTopic、InteractionSignal、DerivedInsight
-    recalled_facts_from_mem0: List[dict]  # Mem0 记忆库召回的记忆
+    recalled_facts_from_viking: List[dict]  # Viking 记忆库召回的记忆
     llm_output: LLMOutput
 
 

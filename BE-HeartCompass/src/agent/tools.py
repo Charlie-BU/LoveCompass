@@ -57,6 +57,7 @@ async def handleIfToolCall(
     llm_response: AIMessage,
     max_tool_round: int = 3,
 ) -> tuple[AIMessage, list]:
+    # 为降低时间复杂度，提前构建tool_name到ToolAndItsArgsHandler的映射
     tool_map = {ta.tool.name: ta for ta in tools_and_args_handlers}
     tool_round = 0
 

@@ -12,7 +12,7 @@ from src.agent.graph.VirtualFigureGraph.nodes import (
     nodeInitState,
     nodeLoadPersona,
     nodeRecallFromDB,
-    nodeRecallFromMem0,
+    nodeRecallFromViking,
     nodeBuildMessage,
     nodeCallLLM,
 )
@@ -30,7 +30,7 @@ def buildBaseVirtualFigureGraph() -> StateGraph:
     graph.add_node("nodeInitState", nodeInitState)
     graph.add_node("nodeLoadPersona", nodeLoadPersona)
     graph.add_node("nodeRecallFromDB", nodeRecallFromDB)
-    graph.add_node("nodeRecallFromMem0", nodeRecallFromMem0)
+    graph.add_node("nodeRecallFromViking", nodeRecallFromViking)
     graph.add_node("nodeBuildMessage", nodeBuildMessage)
     graph.add_node("nodeCallLLM", nodeCallLLM)
 
@@ -38,7 +38,7 @@ def buildBaseVirtualFigureGraph() -> StateGraph:
     # 四链路并行
     graph.add_edge("nodeInitState", "nodeLoadPersona")
     graph.add_edge("nodeInitState", "nodeRecallFromDB")
-    graph.add_edge("nodeInitState", "nodeRecallFromMem0")
+    graph.add_edge("nodeInitState", "nodeRecallFromViking")
     graph.add_edge("nodeInitState", "nodeBuildMessage")
 
     # 汇聚
@@ -46,7 +46,7 @@ def buildBaseVirtualFigureGraph() -> StateGraph:
         [
             "nodeLoadPersona",
             "nodeRecallFromDB",
-            "nodeRecallFromMem0",
+            "nodeRecallFromViking",
             "nodeBuildMessage",
         ],
         "nodeCallLLM",
