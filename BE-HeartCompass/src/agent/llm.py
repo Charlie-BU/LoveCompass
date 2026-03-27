@@ -32,10 +32,10 @@ def prepareLLM(
     logger.info(f"LLM prepared")
 
     model_name = os.getenv(model, "")
-    api_key = os.getenv("ENDPOINT_API_KEY", "")
+    api_key = os.getenv("ARK_API_KEY", "")
     assert (
         model_name and api_key
-    ), f"required '{model}' and 'ENDPOINT_API_KEY' for AI Agent!!!"
+    ), f"required '{model}' and 'ARK_API_KEY' for AI Agent!!!"
 
     model_args = {
         "model": model_name,

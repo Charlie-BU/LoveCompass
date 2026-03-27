@@ -179,7 +179,7 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
     }
 
 
-# todo：接入方舟Mem0
+# todo：接入火山Viking记忆库
 async def nodeRecallFromViking(state: VirtualFigureGraphState) -> dict:
     logger.info("nodeRecallFromViking is called")
 
