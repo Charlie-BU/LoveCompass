@@ -608,7 +608,7 @@ call LLM
 
 agent/graph 目录中，以 graph 种类组织工程结构。
 
-![graph 目录架构重构](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_27d6e6fa0a.png?x-oss-process=image/resize,w_800)
+![graph 目录架构重构](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_27d6e6fa0a.png?x-oss-process=image/resize,w_500)
 
 #### 向量召回策略重构
 
@@ -854,11 +854,150 @@ graph.add_edge("nodeCallLLM", END)
 
 ![可视化 AnalysisGraph](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_bba3b331c1.png?x-oss-process=image/resize,w_800)
 
-
 ##### Tool Call 引入
 
+在AnalysisGraph中，Knowledge的获取不再采用之前每次调用都需要召回。我希望让模型判断当前语境是否是需要触发Knowledge召回的时机，如果是再按需召回。
 
-### TENTH ENTRY - 2026.03.24-27
+这就需要用到 Tool Call了——通过提示词和Tool Description，让模型自行判断。
+
+首先，我把获取Knowledge封装成 Tool，Description 为：
+
+```plain
+Get MBTI/personality knowledge for this relation_chain to enrich persona and relationship context.
+```
+
+需要说明的是，这个Tool接受的参数是当前的relation_chain_id，而Knowledge的来源是在ContextGraph计算时连同context_block一并计算落入RelationChain表中。
+
+而在模型触发tool call时，模型不能稳定地给出当前的relation_chain_id作为tool call参数。所以这意味着，我们需要在tool call发生前，劫持模型的tool call参数，换成当前的relation_chain_id。
+
+于是我设计了一个`ToolAndItsArgsHandler`，存放tool本身和处理其参数的回调函数`args_handler`。
+
+另外我单独封装了`handleIfToolCall ()`方法，这样在graph node中一旦需要引入tool call就可以方便复用：
+
+```python
+class ToolAndItsArgsHandler:
+    def __init__(self, tool: BaseTool, args_handler: Callable | None = None):
+        self.tool = tool
+        self.args_handler = args_handler  # 手动处理tool call参数的方法。接受两个参数：tool_call和messages。返回处理后的参数dict。
+
+    def process_args(self, tool_call: dict, messages: list) -> dict:
+        # llm 给出的tool call参数
+        tool_args = tool_call.get("args") or {}
+        if isinstance(tool_args, str):
+            try:
+                tool_args = json.loads(tool_args)
+            except json.JSONDecodeError:
+                tool_args = {}
+        if not isinstance(tool_args, dict):
+            tool_args = {}
+        if self.args_handler:
+            handled_args = self.args_handler(tool_call, messages)
+            if isinstance(handled_args, dict):
+                tool_args = handled_args
+            else:
+                logger.error(
+                    f"Args handler {self.args_handler.__name__} return non-dict value {handled_args}"
+                )
+        return tool_args
+
+async def handleIfToolCall(
+    tools_and_args_handlers: List[ToolAndItsArgsHandler],
+    messages: list,
+    llm_with_tools: Runnable[LanguageModelInput, AIMessage],
+    llm_response: AIMessage,
+    max_tool_round: int = 3,
+) -> tuple[AIMessage, list]:
+    # 为降低时间复杂度，提前构建tool_name到ToolAndItsArgsHandler的映射
+    tool_map = {ta.tool.name: ta for ta in tools_and_args_handlers}
+    tool_round = 0
+
+    while (
+        getattr(llm_response, "tool_calls", None)
+        and isinstance(llm_response.tool_calls, list)
+        and len(llm_response.tool_calls) > 0
+        and tool_round < max(0, max_tool_round)
+    ):
+        # 把新一轮的llm_response加入messages
+        messages.append(llm_response)
+
+        for tool_call in llm_response.tool_calls:
+            tool_name = tool_call.get("name")
+            tool_call_id = tool_call.get("id")
+            if not tool_call_id:
+                logger.error(f"Tool call id not found in {tool_call}")
+                continue
+
+            # find tool
+            tool_and_args_handler = tool_map.get(tool_name)
+            if tool_and_args_handler is None:
+                logger.error(f"Tool {tool_name} not found")
+                messages.append(
+                    ToolMessage(
+                        content=f"ERROR: tool {tool_name} not found\nThis message should be ignored.",
+                        tool_call_id=tool_call_id,
+                    )
+                )
+                continue
+
+            # call tool
+            tool = tool_and_args_handler.tool
+            tool_args = tool_and_args_handler.process_args(tool_call, messages)
+
+            tool_result = None
+            try:
+                tool_result = await tool.ainvoke(tool_args)
+            except Exception as e:
+                logger.error(f"Tool {tool_name} error: {e}")
+                tool_result = f"ERROR: {e}\nThis message should be ignored."
+
+            messages.append(
+                ToolMessage(
+                    content=str(tool_result),
+                    tool_call_id=tool_call_id,
+                )
+            )
+
+        llm_response = await llm_with_tools.ainvoke(messages)
+        tool_round += 1
+
+    return llm_response, messages
+```
+
+下游AnalysisGraph node中，引入tool call如此：
+
+```python
+llm_with_tools = llm.bind_tools([useKnowledge])
+response = await llm_with_tools.ainvoke(messages)
+# 处理tool call
+response = (
+    await handleIfToolCall(
+        tools_and_args_handlers=[
+            ToolAndItsArgsHandler(
+                tool=useKnowledge,
+                args_handler=lambda _tool_call, _messages: {
+                    "relation_chain_id": state["request"].get("relation_chain_id")
+                },
+            )
+        ],
+        messages=messages,
+        llm_with_tools=llm_with_tools,
+        llm_response=response,
+        max_tool_round=3,
+    )
+)[0]
+```
+
+显然这套流程下来比LangChain ReAct Agent的tool call复杂的多。后者只需要在`create_agent`时注册工具直接invoke即可。在agent执行过程中会自动处理tool call。但LangGraph node工作流编排等优点就不用我赘述了，我们采取手动处理tool call的流程。
+
+```python
+agent = create_agent(
+    llm=llm,
+    tools=[useKnowledge],
+)
+agent.invoke(messages)
+```
+
+### TENTH ENTRY - 2026.03.24-28
 
 #### VirtualFigureGraph 重构
 
@@ -924,7 +1063,9 @@ graph.add_edge(
 graph.add_edge("nodeCallLLM", END)
 ```
 
-!(可视化 VirtualFigureGraph)[https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_ef2b0b63b1.png?x-oss-process=image/resize,w_1000]
+![可视化 VirtualFigureGraph](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_ef2b0b63b1.png?x-oss-process=image/resize,w_1000)
+
+##### VirtualFigureGraph 上下文设计
 
 在 VirtualFigureGraph 中，模型输入的上下文分为5个部分：
 
@@ -936,10 +1077,372 @@ graph.add_edge("nodeCallLLM", END)
 
 ##### 推理内容reasoning_content的获取
 
+到目前为止，我们调用**LLM**的方式全部是基于LangStack ChatOpenAI的API。直接`llm.ainvoke()`获取结构化的标准的LLM响应。
 
+> OpenAI标准Chat API请求及响应参数可参考：[OpenAI Chat API 参数完整中文指南](https://cloud.tencent.com/developer/article/2565819)
+
+::: warning
+由于方舟的向量模型不支持，Embedding 模型并不是通过LangStack的API调用，而是使用方舟 SDK。这是模型调用的第二种方式。
+:::
+
+我们使用的LLM是doubao-seed-2-0-lite-260215和doubao-seed-2-0-mini-260215，都支持深度思考。在VirtualFigureGraph中，我们希望在最终模型返回时不仅拿到本轮要发送的消息，还能拿到思考推理内容reasoning_content。但我翻遍了`llm.ainvoke()` 的响应结构也没有找到这个字段。直到我看到了这样的内容......
+
+![ChatOpenAI Integration](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_d72ac856d5.png)
+
+而由于方舟模型在 LangStack 中并没有 provider-specific package 的支持，这就意味着通过 LangStack 调用方舟模型无法获取 reasoning_content。
+
+看来我们又要转回方舟 SDK 了，方舟 SDK 自然支持直接获取 reasoning_content。参考[深度思考](https://www.volcengine.com/docs/82379/1449737)。
+
+方舟有两种调用模型的API，一种是普遍而传统的Chat API，另一种是新的Responses API。二者的关系和差异可参考：[迁移至 Responses API](https://www.volcengine.com/docs/82379/1585128)。
+
+项目基于LangStack工具链，我们在graph state中和模型交互的信息都是LangChain的标准信息结构`SystemMessage`, `HumanMessage`, `AIMessage`等。但既然在这个场景下我们需要切换到方舟 SDK进行invoke，自然我们需要把LangChain的信息结构转换为方舟的API的输入格式。于是我专门设计了一个转换方法，并支持了Chat API和Ark Responses API两种格式转换：
+
+```python
+# 【重要‼️】将 LangChain messages 转换为 Ark Responses API 格式
+# 适配 Ark SDK
+def langchain2OpenAIChatMessages(
+    messages: List[BaseMessage], is_ark_responses_messages: bool = False
+) -> List[Dict[str, Any]]:
+
+    def _roleMap(message: BaseMessage) -> str:
+        if isinstance(message, HumanMessage):
+            return "user"
+        elif isinstance(message, AIMessage):
+            return "assistant"
+        elif isinstance(message, SystemMessage):
+            return "system"
+        else:
+            raise ValueError(f"Unsupported message type: {type(message)}")
+
+    # 将不同格式统一为 Ark Responses API 格式
+    def _normalizeBlock(
+        block: Dict[str, Any], is_ark_responses_messages: bool
+    ) -> Dict[str, Any]:
+        block_type = block.get("type")
+        # 文本统一
+        if block_type in ("text", "input_text"):
+            if is_ark_responses_messages:
+                return {"type": "input_text", "text": block.get("text", "")}
+            return {"type": "text", "text": block.get("text", "")}
+        # 图片统一
+        elif block_type in ("image_url", "input_image"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_image",
+                    "image_url": block.get("image_url") or block.get("url"),
+                }
+            return {
+                "type": "image_url",
+                "image_url": block.get("image_url") or block.get("url", ""),
+            }
+        # 视频统一
+        elif block_type in ("video_url", "input_video"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_video",
+                    "video_url": block.get("video_url") or block.get("url"),
+                }
+            return {
+                "type": "video_url",
+                "video_url": block.get("video_url") or block.get("url", ""),
+            }
+        # 文档统一
+        elif block_type in ("file_url", "input_file"):
+            if is_ark_responses_messages:
+                return {
+                    "type": "input_file",
+                    "file_url": block.get("file_url") or block.get("url"),
+                }
+            return {
+                "type": "file_url",
+                "file_url": block.get("file_url") or block.get("url", ""),
+            }
+        # 未知类型直接报错
+        raise ValueError(f"Unsupported content block type: {block_type}")
+
+    def _contentMap(
+        content: Any, role: str, is_ark_responses_messages: bool
+    ) -> List[Dict[str, Any]] | str:
+        # system / assistant 为纯文本
+        if role in ("system", "assistant"):
+            return content
+
+        # 字符串 → text block
+        if isinstance(content, str):
+            if is_ark_responses_messages:
+                return [{"type": "input_text", "text": content}]
+            return content
+
+        # list → 多模态
+        if isinstance(content, list):
+            return [
+                _normalizeBlock(item, is_ark_responses_messages) for item in content
+            ]
+
+        raise ValueError(f"Unsupported content type: {type(content)}")
+
+    result = []
+
+    for msg in messages:
+        role = _roleMap(msg)
+        result.append(
+            {
+                "role": role,
+                "content": _contentMap(msg.content, role, is_ark_responses_messages),
+            }
+        )
+
+    return result
+```
+
+随后，我又基于Ark Responses API专门封装了`arkAinvoke`方法，用来替换LangStack的`llm.ainvoke`：
+
+```python
+# 通过 Ark SDK ainvoke llm
+# todo：暂不支持 ToolMessage
+async def arkAinvoke(
+    model: Literal["DOUBAO_2_0_LITE", "DOUBAO_2_0_MINI"],
+    messages: List[BaseMessage],
+    model_options: LLMOptions = {},
+) -> ArkLLMResponse:
+    model_name = os.getenv(model, "")
+    assert model_name, f"required '{model}' for AI Agent!!!"
+
+    # 全局单例
+    _ark_client = arkClient()
+
+    reasoning_effort = model_options.get("reasoning_effort", None)
+    resp = await _ark_client.responses.create(
+        model=model_name,
+        input=langchain2OpenAIChatMessages(
+            messages=messages, is_ark_responses_messages=True
+        ),
+        temperature=model_options.get("temperature", None),
+        max_output_tokens=model_options.get("max_tokens", None),
+        reasoning=(
+            {
+                "effort": reasoning_effort,
+            }
+            if reasoning_effort
+            else None
+        ),
+        extra_body=model_options.get("extra_body", None),
+    )
+
+    output_chunks: List[str] = []
+    reasoning_chunks: List[str] = []
+    for item in getattr(resp, "output", None) or []:
+        item_type = getattr(item, "type", None)
+        if item_type == "message":
+            for block in getattr(item, "content", None) or []:
+                text = getattr(block, "text", None)
+                if isinstance(text, str) and text:
+                    output_chunks.append(text)
+        elif item_type == "reasoning":
+            for summary in getattr(item, "summary", None) or []:
+                text = getattr(summary, "text", None)
+                if isinstance(text, str) and text:
+                    reasoning_chunks.append(text)
+
+    output_text = "\n".join(output_chunks)
+    reasoning_content = "\n".join(reasoning_chunks)
+
+    return {
+        "output": output_text,
+        "reasoning_content": reasoning_content,
+        "ai_message": AIMessage(
+            content=output_text,
+            id=str(getattr(resp, "id", "")) or None,
+            response_metadata={
+                "model": getattr(resp, "model", None),
+                "status": getattr(resp, "status", None),
+                "reasoning_content": reasoning_content or None,
+            },
+        ),
+    }
+```
+
+下游VirtualFigureGraph的 node 进行消费就十分方便，reasoning_content也顺利获取。
+
+```python
+messages_to_send = [
+    # 1. 系统提示词
+    SystemMessage(
+        content=(
+            await getPrompt(
+                os.getenv("VIRTUAL_FIGURE_SYSTEM_PROMPT"),
+                {
+                    "words_to_user": state["words_to_user"],
+                    "current_timestamp": current_timestamp,
+                },
+            )
+        )
+    ),
+    # 2. 关系与画像上下文
+    SystemMessage(content=f"关系与画像上下文：\n{state['context_block']}"),
+    # 3. DB召回的长期记忆（真实）
+    SystemMessage(
+        content=f"可能参考的召回的长期记忆：\n{state['recalled_facts_from_db']}"
+    ),
+    # 4. Viking召回的长期记忆（不可信）
+    SystemMessage(
+        content=f"可能参考的召回的长期记忆：\n{json.dumps(state['recalled_facts_from_viking'], ensure_ascii=False)}"
+    ),
+] + state["messages"]
+
+resp = await arkAinvoke(
+    model="DOUBAO_2_0_LITE",
+    messages=messages_to_send,
+    model_options={
+        "temperature": 0.3,
+        "reasoning_effort": "low",
+    },
+)
+output = resp["output"]
+reasoning_content = resp["reasoning_content"]
+ai_message = resp["ai_message"]
+```
 
 #### Prompt 备份的教训
 
+2026.3.22，Prompt Minder网站服务跪了。本工程中所有提示词都储存在Prompt Minder平台上，通过`getPrompt()`从远端实时拉取。遗憾的是，这些提示词既没有在本地备份，又没有做兜底。所以一时间本项目中涉及提示词的链路全部挂掉......
+
+事故发生后我迅速在github中[PromptMinder 项目](https://github.com/aircrushin/promptMinder)寻找作者联系方式，是 Monash University 在读硕士......于是我赶快和他联系：
+
+![Email](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_6d04fc5465.png?x-oss-process=image/resize,w_800)
+
+两天后，3月24号，事故终于得到了解决。
+
+这件事情告诉我们：使用不成熟的外部服务（Github就不必😂）一定要做好数据备份，最好设计兜底，不要100%相信，不要把命运交到别人手中......
+
 #### 接入飞书 Bot
 
-#### 接下来的TODOs
+> 重中之重，革命性的一集
+
+在项目初期，我就在考虑产品最终的产出最好是什么形式。不论是Web App还是移动端App，都意味着繁重的前端开发。
+
+::: primary
+近两年，AI Agent大行其道，RAG、MCP、Skills横空出世。最近几个月爆火的OpenClaw，直到最近我才空下来部署体验。它给我的使用体验是空前的，浅浅研究了它的架构之后，给了我的非常多高质量的ideas和启发。其中很大一部分可以在本项目中得到落地。
+
+虽然有命令行的TUI，但OpenClaw具有巨大价值的特性之一在于可插拔 —— 它支持用户接入各大IM Platforms 作为Channel，如飞书、Discord、WhatsApp。随后用户只需要在日常使用的IM Platform上使用产品，既降低了用户的理解使用成本，又省去了传统前端开发的工作量。
+
+> IM：即时通讯（Instant Messaging）是一个实时通信系统，允许两人或多人使用网络进行实时的文字消息传递以及语音与视频交流。
+>
+> 应用场景：用于个人或企业在网络环境下进行实时沟通，通过文字、语音或视频快速交流信息，提高沟通效率和协作体验。
+
+![Chat Channels](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_289ba1d3a7.png?x-oss-process=image/resize,w_800)
+:::
+
+回到我们的项目，其中主链路Virtual Figure接受用户的输入消息，处理后返回虚拟人的回复消息。这个场景下即便不接入IM Platform，也需要单独构建IM的前端架构。那我们完全可以参考OpenClaw可插拔的特性，直接接入。
+
+**飞书是首选**。
+
+[飞书开放平台](https://open.larkoffice.com/app/) 中提供了非常丰富的应用能力，其中**机器人**能力正是我们需要的。它是与用户在聊天中交互的应用，它可以向用户或群组自动发送消息，响应用户的消息，并能进行群组管理（这个暂时不需要）。另外其支持的API和文档十分完善，在Python项目中通过SDK可以直接调用，且看我操作。
+
+##### 飞书开放平台侧
+
+- 创建一个企业自建应用，启用“机器人”能力
+- 获取 app_id 和 app_secret
+- 订阅接收消息（im.message.receive_v1）事件，使用基于 SDK 的长连接订阅
+- 申请以应用的身份发消息（im:message:send_as_bot）权限
+- 创建版本并发布
+
+##### 代码侧
+
+- 安装SDK `lark_oapi`，可参考文档[Python SDK 指南](https://open.larkoffice.com/document/server-side-sdk/python--sdk/preparations-before-development)和[Python SDK Demo](https://github.com/larksuite/oapi-sdk-python-demo).
+- 基于 app_id 和 app_secret 鉴权，初始化larkClient
+- 封装常用的IM API：`sendText()`、`sendImage()`、`sendFile()`等。
+- 创建WebSocketServer，作为服务的唯一入口
+- 通过`messageHandler()`将Virtual Figure等已有功能集成到WebSocketServer中
+- 引入Menu和特定command，允许用户直接通过发送指令触发特定功能
+
+为了适配用户发的`str`类型的消息和SDK event_handler接受的`P2ImMessageReceiveV1`类型的消息，我专门做了一层`messageAdapter()`依旧作为回调函数适配类型差异。
+
+```python
+event_handler = (
+    lark.EventDispatcherHandler.builder("", "", lark.LogLevel.INFO)
+    .register_p2_im_message_receive_v1(
+        lambda data: messageAdapter(data, message_handler)
+    )
+    .build()
+)
+```
+
+`messageHandler()`依旧采用**15s缓冲——批量处理——分条返回**的策略。接下来就是通过WebSocketServer向用户推送消息。值得注意的是，飞书SDK向用户推送消息需要一个id对用户进行标识。大致有以下三类id：
+
+![三类用户标识id](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_42d6a4afe3.png?x-oss-process=image/resize,w_800)
+
+我们这里采用open_id标识用户身份。我在数据库User表新开了一个字段`lark_open_id`，将本系统的用户和飞书绑定。至于如何获取open_id，可以参考[如何获取用户的 Open ID](https://open.larkoffice.com/document/faq/trouble-shooting/how-to-obtain-openid)。
+
+后续会通过用户在HeartCompass中的手机号或者邮箱获取open_id来绑定飞书。这就要求用户在本系统中的手机号或者邮箱和飞书账号保持一致。
+
+::: warning
+这个链路和之前开发微信小程序时微信登录的鉴权颇有几分神似，回旋镖🪃！当时还专门写了一篇文档，详见 [微信小程序调用微信登录接口实现登录和鉴权的方案](https://charliebu.cn/articles/NzI4NzpDaGFybGllJ3NBcnRpY2xlczoxNzc0NzAxNzM4MjMy)。
+:::
+
+##### Menu 设计
+
+在 OpenClaw 中，用户可以通过发送特殊的指令进行对话之外的操作，如`/new`指令用来开启新的对话session。受其启发，我们既然抛弃了前端，那自然也需要留一个接口让用户进行除了对话之外的操作和配置。于是我设计了Menu，包含了一系列`/`开头的指令，如下：
+
+```python
+menu = [
+    {
+        "hint": "/list_available_persons",
+        "content": "查找可选对话对象 person_id",
+        "regex": r"/list_available_persons",
+        "command": listAvailablePersons,
+    },
+    {
+        "hint": "/<person_id>",
+        "content": "切换当前对话对象",
+        "regex": r"/(\d+)",
+        "command": switchRelationChain,
+    },
+    {
+        "hint": "/clear_current_person",
+        "content": "清除当前对话对象",
+        "regex": r"/clear_current_person",
+        "command": clearCurrentRelationChain,
+    },
+    # todo：提高优先级，通过单独agent操作落库
+    {
+        "hint": "/add-context-by-narrative:<person_id>\n<narrative>",
+        "content": "通过自然语言添加上下文",
+        "regex": r"/add-context-by-narrative:(\d+)\n(.*)",
+        "command": addContextByNarrative,
+    },
+    # todo：降低优先级，很少需要
+    {
+        "hint": "/add-context-by-screenshot:\n<screenshot>\n<additional_context>\n<his_name_or_position_on_screenshot>",
+        "content": "通过聊天记录截图添加上下文",
+        "regex": r"/add-context-by-screenshot:\n(.*)\n(.*)\n(.*)",
+        "command": addContextByScreenshot,
+    },
+    {
+        "hint": "/flush-context:<person_id>",
+        "content": "刷新关系与画像上下文（添加上下文后请刷新）",
+        "regex": r"/flush-context:(\d+)",
+        "command": flushContext,
+    },
+    {
+        "hint": "/menu",
+        "content": "显示菜单",
+        "regex": r"/menu",
+        "command": showMenu,
+    },
+]
+```
+
+`messageHandler()`收到用户消息后，先通过正则判断是否是已有的指令，提取规定的参数。然后直接绕过VirtualFigureGraph链路，直接触发对应的command函数。
+
+#### 接下来的 TODOs
+
+首先请观赏下到目前为止的成果：
+
+![Demo](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/20260327004123_rec__741092ca7b.gif)
+
+从现在VirtualFigureGraph的架构来讲，我把上下文分成5个部分（详见前文 VirtualFigureGraph 上下文设计）。在记忆部分，数据库中存放的是用户根据当前人物的 & 这段关系中的事实填充的**可信的**上下文；而仅仅有真实的可信上下文显然不足。在用户和虚拟人对话过程中，形成的非真实（不是现实中）的记忆也是重要的。否则虚拟人就会像傻子一样对前面对话的内容一无所知......
+
+这些**不可信**的记忆我希望按照两种途径进入上下文 —— 一种LangChain官方支持的短期记忆存储checkpoint（只包含双方的对话记录，HumanMessage和AIMessage）在内存`InMemorySaver()`，这些短期记忆自然会在进程重启后丢失，进程不重启也会大量慢慢膨胀，容易塞满上下文窗口，所以需要不时trim；另种是将两人的对话传入远端记忆库，经过总结、提炼，形成长期记忆落库。
+
+对于远端记忆库，一开始我看到刚刚推出的火山Mem0记忆库，认定是个不错的选择。

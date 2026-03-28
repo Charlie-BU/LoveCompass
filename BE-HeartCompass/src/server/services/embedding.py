@@ -4,7 +4,6 @@ import logging
 from typing import Any, List, Literal
 import math
 from datetime import datetime, timezone
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.database.models import (
@@ -22,6 +21,26 @@ from src.utils import cleanList
 
 
 logger = logging.getLogger(__name__)
+
+
+def buildOtherInfoText(other_info: Any) -> str:
+    if other_info is None:
+        return ""
+    if isinstance(other_info, str):
+        return other_info.strip()
+    if isinstance(other_info, dict):
+        try:
+            return json.dumps(other_info, ensure_ascii=False, sort_keys=True)
+        except Exception:
+            return str(other_info).strip()
+    if isinstance(other_info, list):
+        parts = []
+        for item in other_info:
+            item_text = buildOtherInfoText(item)
+            if item_text:
+                parts.append(item_text)
+        return ", ".join(parts)
+    return str(other_info).strip()
 
 
 def buildEmbeddingText4Knowledge(
@@ -108,17 +127,9 @@ def buildEmbeddingText4CrushProfile(
     if appearance_tags:
         parts.append(f"外在特征: {', '.join(appearance_tags)}")
 
-    if crush.other_info:
-        other_info_parts = []
-        for item in crush.other_info:
-            if isinstance(item, dict):
-                other_info_parts.append(
-                    json.dumps(item, ensure_ascii=False, sort_keys=True)
-                )
-            elif isinstance(item, str) and item.strip():
-                other_info_parts.append(item.strip())
-        if other_info_parts:
-            parts.append(f"其他信息: {', '.join(other_info_parts)}")
+    other_info_text = buildOtherInfoText(crush.other_info)
+    if other_info_text:
+        parts.append(f"其他信息: {other_info_text}")
 
     return "\n".join(parts)
 
@@ -133,17 +144,9 @@ def buildEmbeddingText4Event(
         parts.append(f"{event.content}")
     if event.date:
         parts.append(f"{event.date}")
-    if event.other_info:
-        other_info_parts = []
-        for item in event.other_info:
-            if isinstance(item, dict):
-                other_info_parts.append(
-                    json.dumps(item, ensure_ascii=False, sort_keys=True)
-                )
-            elif isinstance(item, str) and item.strip():
-                other_info_parts.append(item.strip())
-        if other_info_parts:
-            parts.append(f"其他信息: {', '.join(other_info_parts)}")
+    other_info_text = buildOtherInfoText(event.other_info)
+    if other_info_text:
+        parts.append(f"其他信息: {other_info_text}")
     return "\n".join(parts)
 
 
@@ -171,17 +174,9 @@ def buildEmbeddingText4ChatTopic(
     participants = cleanList(chat_topic.participants)
     if participants:
         parts.append(f"参与者: {', '.join(participants)}")
-    if chat_topic.other_info:
-        other_info_parts = []
-        for item in chat_topic.other_info:
-            if isinstance(item, dict):
-                other_info_parts.append(
-                    json.dumps(item, ensure_ascii=False, sort_keys=True)
-                )
-            elif isinstance(item, str) and item.strip():
-                other_info_parts.append(item.strip())
-        if other_info_parts:
-            parts.append(f"其他信息: {', '.join(other_info_parts)}")
+    other_info_text = buildOtherInfoText(chat_topic.other_info)
+    if other_info_text:
+        parts.append(f"其他信息: {other_info_text}")
     return "\n".join(parts)
 
 
@@ -191,17 +186,9 @@ def buildEmbeddingText4DerivedInsight(
     parts = ["洞察"]
     if derived_insight.insight:
         parts.append(f"{derived_insight.insight}")
-    if derived_insight.additional_info:
-        additional_info_parts = []
-        for item in derived_insight.additional_info:
-            if isinstance(item, dict):
-                additional_info_parts.append(
-                    json.dumps(item, ensure_ascii=False, sort_keys=True)
-                )
-            elif isinstance(item, str) and item.strip():
-                additional_info_parts.append(item.strip())
-        if additional_info_parts:
-            parts.append(f"其他信息: {', '.join(additional_info_parts)}")
+    additional_info_text = buildOtherInfoText(derived_insight.additional_info)
+    if additional_info_text:
+        parts.append(f"其他信息: {additional_info_text}")
     return "\n".join(parts)
 
 
