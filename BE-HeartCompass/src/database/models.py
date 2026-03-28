@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.mutable import MutableList
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY
 from pgvector.sqlalchemy import Vector
 from bcrypt import hashpw, gensalt, checkpw
 from datetime import datetime, timezone
@@ -102,7 +102,9 @@ class User(Base, SerializableMixin):
     level = Column(Enum(UserLevel), default=UserLevel.L4, comment="用户等级")
     mbti = Column(Enum(MBTI), nullable=True, comment="用户MBTI类型")
 
-    lark_open_id = Column(String(128), nullable=True, unique=True, comment="用户飞书open_id")
+    lark_open_id = Column(
+        String(128), nullable=True, unique=True, comment="用户飞书open_id"
+    )
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="用户创建时间"
     )
@@ -124,6 +126,12 @@ class Crush(Base, SerializableMixin):
     __tablename__ = "crush"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+
+    creator_id = Column(
+        Integer, ForeignKey("user.id"), nullable=False, comment="创建Crush的用户ID"
+    )
+    creator = relationship("User", backref="created_crushes")
+
     name = Column(String(64), nullable=False, comment="Crush 姓名")
     gender = Column(Enum(UserGender), nullable=False, comment="Crush 性别")
     mbti = Column(Enum(MBTI), nullable=True, comment="Crush MBTI 类型")
@@ -181,9 +189,9 @@ class Crush(Base, SerializableMixin):
         comment="外在特征",
     )
     other_info = Column(
-        MutableList.as_mutable(ARRAY(JSONB)),
+        Text,  # 须为MarkDown格式，动态填充
         nullable=False,
-        default=[],
+        default="",
         comment="其他信息",
     )
     # 重要：双方对彼此的语言风格，决定虚拟形象准确与否的关键
@@ -255,6 +263,7 @@ class RelationChain(Base, SerializableMixin):
     )
 
     # 在虚拟形象对话中，放到SystemMessage中
+    exact_relation = Column(Text, nullable=True, comment="精确关系描述")
     context_block = Column(Text, nullable=True, comment="关系与画像上下文")
     relevant_knowledge = Column(Text, nullable=True, comment="相关知识")
 
@@ -304,9 +313,9 @@ class Event(Base, SerializableMixin):
         comment="事件结果导向",
     )
     other_info = Column(
-        MutableList.as_mutable(ARRAY(JSONB)),
+        Text,  # 须为MarkDown格式，动态填充
         nullable=False,
-        default=[],
+        default="",
         comment="其他信息",
     )
     is_active = Column(
@@ -386,9 +395,9 @@ class ChatTopic(Base, SerializableMixin):
         Float, nullable=False, index=True, default=1.0, comment="权重（重要性）"
     )
     other_info = Column(
-        MutableList.as_mutable(ARRAY(JSONB)),
+        Text,  # 须为MarkDown格式，动态填充
         nullable=False,
-        default=[],
+        default="",
         comment="其他信息",
     )
     is_active = Column(
@@ -499,9 +508,9 @@ class DerivedInsight(Base, SerializableMixin):
         Float, nullable=False, index=True, default=1.0, comment="洞察权重（重要性）"
     )
     additional_info = Column(
-        MutableList.as_mutable(ARRAY(JSONB)),
+        Text,  # 须为MarkDown格式，动态填充
         nullable=False,
-        default=[],
+        default="",
         comment="其他信息",
     )
     is_active = Column(

@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import List
+from typing import Any, List
 from sqlalchemy.orm import Session
 
 from .ai import (
@@ -15,6 +15,35 @@ from src.database.enums import parseEnum, Attitude, ChatChannel, RelationStage
 from src.utils import cleanList
 
 logger = logging.getLogger(__name__)
+
+
+def normalizeOtherInfo(other_info: Any) -> str | None:
+    if other_info is None:
+        return None
+    if isinstance(other_info, str):
+        normalized = other_info.strip()
+        return normalized if normalized else None
+    if isinstance(other_info, dict):
+        lines = []
+        for key, value in other_info.items():
+            key_text = str(key).strip()
+            value_text = "" if value is None else str(value).strip()
+            if key_text and value_text:
+                lines.append(f"- {key_text}: {value_text}")
+            elif key_text:
+                lines.append(f"- {key_text}")
+            elif value_text:
+                lines.append(f"- {value_text}")
+        return "\n".join(lines) if lines else None
+    if isinstance(other_info, list):
+        blocks = []
+        for item in other_info:
+            normalized_item = normalizeOtherInfo(item)
+            if normalized_item:
+                blocks.append(normalized_item)
+        return "\n".join(blocks) if blocks else None
+    normalized = str(other_info).strip()
+    return normalized if normalized else None
 
 
 async def contextAddKnowledge(
@@ -158,7 +187,7 @@ async def contextAddContextByNaturalLanguage(
                 new_lifestyle_tags = crush_profile.get("lifestyle_tags")
                 new_values = crush_profile.get("values")
                 new_appearance_tags = crush_profile.get("appearance_tags")
-                new_other_info = crush_profile.get("other_info")
+                new_other_info = normalizeOtherInfo(crush_profile.get("other_info"))
                 new_birthday = crush_profile.get("birthday")
                 new_occupation = crush_profile.get("occupation")
                 new_education = crush_profile.get("education")
@@ -223,9 +252,17 @@ async def contextAddContextByNaturalLanguage(
                         if item not in current_communication_style:
                             crush.communication_style.append(item)
                             current_communication_style.add(item)
-                # dict类型：新增
-                if new_other_info is not None and isinstance(new_other_info, dict):
-                    crush.other_info.append(new_other_info)
+                if new_other_info is not None:
+                    current_other_info = (
+                        crush.other_info.strip()
+                        if isinstance(crush.other_info, str)
+                        else ""
+                    )
+                    crush.other_info = (
+                        f"{current_other_info}\n\n{new_other_info}"
+                        if current_other_info
+                        else new_other_info
+                    )
 
                 # str类型：直接替换
                 if isinstance(new_birthday, str) and new_birthday.strip():
@@ -268,11 +305,12 @@ async def contextAddContextByNaturalLanguage(
                         event_outcome = parseEnum(Attitude, outcome_value)
                     except ValueError:
                         return {"status": -6, "message": "Invalid event outcome"}
-                    event_other_info = event.get("other_info")
-                    if event_other_info is not None and not isinstance(
-                        event_other_info, dict
+                    event_other_info_raw = event.get("other_info")
+                    if event_other_info_raw is not None and not isinstance(
+                        event_other_info_raw, (dict, str, list)
                     ):
                         return {"status": -6, "message": "Invalid event other_info"}
+                    event_other_info = normalizeOtherInfo(event_other_info_raw)
 
                 new_event = Event(
                     relation_chain_id=relation_chain_id,
@@ -283,7 +321,7 @@ async def contextAddContextByNaturalLanguage(
                     outcome=event_outcome,
                 )
                 if event_other_info is not None:
-                    new_event.other_info = [event_other_info]
+                    new_event.other_info = event_other_info
                 db.add(new_event)
 
             db.flush()
@@ -398,7 +436,7 @@ async def contextAddContextByScreenshots(
                 new_lifestyle_tags = crush_profile.get("lifestyle_tags")
                 new_values = crush_profile.get("values")
                 new_appearance_tags = crush_profile.get("appearance_tags")
-                new_other_info = crush_profile.get("other_info")
+                new_other_info = normalizeOtherInfo(crush_profile.get("other_info"))
                 new_birthday = crush_profile.get("birthday")
                 new_occupation = crush_profile.get("occupation")
                 new_education = crush_profile.get("education")
@@ -487,9 +525,17 @@ async def contextAddContextByScreenshots(
                     # 最多保留MAX_WORDS_FROM_USER条，多余从头部删除
                     if len(crush.words_from_user) > int(os.getenv("MAX_WORDS_FROM_USER")):
                         del crush.words_from_user[:-int(os.getenv("MAX_WORDS_FROM_USER"))]
-                # dict类型：新增
-                if new_other_info is not None and isinstance(new_other_info, dict):
-                    crush.other_info.append(new_other_info)
+                if new_other_info is not None:
+                    current_other_info = (
+                        crush.other_info.strip()
+                        if isinstance(crush.other_info, str)
+                        else ""
+                    )
+                    crush.other_info = (
+                        f"{current_other_info}\n\n{new_other_info}"
+                        if current_other_info
+                        else new_other_info
+                    )
 
                 # str类型：直接替换
                 if isinstance(new_birthday, str) and new_birthday.strip():
@@ -547,11 +593,12 @@ async def contextAddContextByScreenshots(
                     except ValueError:
                         return {"status": -6, "message": "Invalid chat_topic attitude"}
 
-                topic_other_info = chat_topic.get("other_info")
-                if topic_other_info is not None and not isinstance(
-                    topic_other_info, dict
+                topic_other_info_raw = chat_topic.get("other_info")
+                if topic_other_info_raw is not None and not isinstance(
+                    topic_other_info_raw, (dict, str, list)
                 ):
                     return {"status": -6, "message": "Invalid chat_topic other_info"}
+                topic_other_info = normalizeOtherInfo(topic_other_info_raw)
 
                 new_chat_topic = ChatTopic(
                     relation_chain_id=relation_chain_id,
@@ -581,7 +628,7 @@ async def contextAddContextByScreenshots(
                     weight=float(topic_weight),
                 )
                 if topic_other_info is not None:
-                    new_chat_topic.other_info = [topic_other_info]
+                    new_chat_topic.other_info = topic_other_info
                 db.add(new_chat_topic)
 
             db.flush()
