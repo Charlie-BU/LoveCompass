@@ -124,7 +124,7 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
         date = getValueFromEntity(event, "date")
         outcome = getValueFromEntity(event, "outcome")
         weight = getValueFromEntity(event, "weight")
-        other_info = formatList(getValueFromEntity(event, "other_info"))
+        other_info = getValueFromEntity(event, "other_info")
 
         recalled_facts += "**可能参考的过往事件**：\n"
         # recalled_facts += appendLabelIfValue("摘要", summary)
@@ -144,7 +144,7 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
         topic_time = getValueFromEntity(chat_topic, "topic_time")
         attitude = getValueFromEntity(chat_topic, "attitude")
         weight = getValueFromEntity(chat_topic, "weight")
-        other_info = formatList(getValueFromEntity(chat_topic, "other_info"))
+        other_info = getValueFromEntity(chat_topic, "other_info")
 
         recalled_facts += "**可能参考的过往聊天话题**：\n"
         recalled_facts += appendLabelIfValue("标题", title)
@@ -162,9 +162,7 @@ async def nodeRecallFromDB(state: VirtualFigureGraphState) -> dict:
         insight = getValueFromEntity(derived_insight, "insight")
         confidence = getValueFromEntity(derived_insight, "confidence")
         weight = getValueFromEntity(derived_insight, "weight")
-        additional_info = formatList(
-            getValueFromEntity(derived_insight, "additional_info")
-        )
+        additional_info = getValueFromEntity(derived_insight, "additional_info")
 
         recalled_facts += "**可能参考的推断/洞察**：\n"
         recalled_facts += appendLabelIfValue("洞察", insight)

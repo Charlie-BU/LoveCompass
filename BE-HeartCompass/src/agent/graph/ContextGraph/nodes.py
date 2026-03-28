@@ -315,7 +315,7 @@ async def nodeOrganizeContext(
                 date = getValueFromEntity(event, "date")
                 outcome = getValueFromEntity(event, "outcome")
                 weight = getValueFromEntity(event, "weight")
-                other_info = formatList(getValueFromEntity(event, "other_info"))
+                other_info = getValueFromEntity(event, "other_info")
 
                 context_block += f"事件{idx+1}：\n"
                 # context_block += appendLabelIfValue("摘要", summary)
@@ -337,7 +337,7 @@ async def nodeOrganizeContext(
                 topic_time = getValueFromEntity(chat_topic, "topic_time")
                 attitude = getValueFromEntity(chat_topic, "attitude")
                 weight = getValueFromEntity(chat_topic, "weight")
-                other_info = formatList(getValueFromEntity(chat_topic, "other_info"))
+                other_info = getValueFromEntity(chat_topic, "other_info")
 
                 context_block += f"聊天话题{idx+1}：\n"
                 context_block += appendLabelIfValue("标题", title)
@@ -357,9 +357,7 @@ async def nodeOrganizeContext(
                 insight = getValueFromEntity(derived_insight, "insight")
                 confidence = getValueFromEntity(derived_insight, "confidence")
                 weight = getValueFromEntity(derived_insight, "weight")
-                additional_info = formatList(
-                    getValueFromEntity(derived_insight, "additional_info")
-                )
+                additional_info = getValueFromEntity(derived_insight, "additional_info")
 
                 context_block += f"推断/洞察{idx+1}：\n"
                 context_block += appendLabelIfValue("洞察", insight)
