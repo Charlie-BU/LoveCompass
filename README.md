@@ -119,7 +119,7 @@ def getAgent():
 我又尝试了让用户上传聊天记录的截图交给模型处理（还构思了一些 rules，如**截图必须至少包含一个时间**、**必须按时间顺序上传**、**不得多于 5 张**），让模型返回符合 ChatLog 规范的结构化的 json：
 
 ```python
-## 从截图中提取聊天记录
+# 从截图中提取聊天记录
 async def extractChatFromScreenshots(screenshot_urls: List[str]) → str:
     if not isinstance(screenshot_urls, list) or len(screenshot_urls) == 0:
         return "Wrong screenshot format"
@@ -198,7 +198,7 @@ prompt：
 graph 编译：
 
 ```python
-## 通过 PostgresSaver 保存 checkpoint 实现短期记忆
+# 通过 PostgresSaver 保存 checkpoint 实现短期记忆
 with PostgresSaver.from_conn_string(os.getenv("DATABASE_URI")) as checkpointer:
     _graph_instance = graph.compile(checkpointer=checkpointer)
 
@@ -353,7 +353,7 @@ async def node(state: AnalysisGraphState) -> AnalysisGraphOutput:
 为此我设计如下（以 narrative 链路为例）：
 
 ```python
-## 自然语言叙述分析
+# 自然语言叙述分析
 @app_router.post("/narrativeAnalysis", auth_required=True)
 async def narrativeAnalysis(request: Request):
     data = request.json()
@@ -415,7 +415,7 @@ async def narrativeAnalysis(request: Request):
     }
 
 
-## 基于分析记录短期记忆连续分析（无需重新调用 ContextGraph）
+# 基于分析记录短期记忆连续分析（无需重新调用 ContextGraph）
 @app_router.post("/continuousAnalysis", auth_required=True)
 async def continuousAnalysis(request: Request):
     data = request.json()
