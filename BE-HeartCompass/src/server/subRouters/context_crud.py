@@ -10,6 +10,13 @@ from src.server.services.context_crud import (
     ccGetEventsByRelationChainId,
     ccCreateCrush,
     ccCreateRelationChain,
+    ccDeleteCrush,
+    ccDeleteRelationChain,
+    ccGetCrushById,
+    ccGetCrushByUser,
+    ccGetRelationChainById,
+    ccGetRelationChainByUser,
+    ccUpdateCrush,
 )
 from src.database.database import session
 from src.database.enums import UserGender, RelationStage, MBTI
@@ -96,4 +103,86 @@ async def createRelationChain(request: Request):
             crush_id=crush_id,
             stage=stage,
         )
+        return res
+
+
+@context_crud_router.post("/deleteCrush", auth_required=True)
+async def deleteCrush(request: Request):
+    body = request.json()
+    user_id = userGetUserIdByAccessToken(request)
+    crush_id = body["crush_id"]
+    with session() as db:
+        res = await ccDeleteCrush(db=db, user_id=user_id, crush_id=crush_id)
+        return res
+
+
+@context_crud_router.post("/deleteRelationChain", auth_required=True)
+async def deleteRelationChain(request: Request):
+    body = request.json()
+    user_id = userGetUserIdByAccessToken(request)
+    relation_chain_id = body["relation_chain_id"]
+    with session() as db:
+        res = await ccDeleteRelationChain(
+            db=db, user_id=user_id, relation_chain_id=relation_chain_id
+        )
+        return res
+
+
+@context_crud_router.get("/getCrushById", auth_required=True)
+async def getCrushById(request: Request):
+    user_id = userGetUserIdByAccessToken(request)
+    crush_id = request.query_params.get("crush_id", None)
+    with session() as db:
+        res = await ccGetCrushById(db=db, user_id=user_id, crush_id=int(crush_id))
+        return res
+
+
+@context_crud_router.get("/getCrushByUser", auth_required=True)
+async def getCrushByUser(request: Request):
+    user_id = userGetUserIdByAccessToken(request)
+    page_size = request.query_params.get("page_size", "10")
+    current_page = request.query_params.get("current_page", "1")
+    with session() as db:
+        res = await ccGetCrushByUser(
+            db=db,
+            user_id=user_id,
+            page_size=int(page_size),
+            current_page=int(current_page),
+        )
+        return res
+
+
+@context_crud_router.get("/getRelationChainById", auth_required=True)
+async def getRelationChainById(request: Request):
+    user_id = userGetUserIdByAccessToken(request)
+    relation_chain_id = request.query_params.get("id", None)
+    with session() as db:
+        res = await ccGetRelationChainById(
+            db=db, user_id=user_id, relation_chain_id=int(relation_chain_id)
+        )
+        return res
+
+
+@context_crud_router.get("/getRelationChainByUser", auth_required=True)
+async def getRelationChainByUser(request: Request):
+    user_id = userGetUserIdByAccessToken(request)
+    page_size = request.query_params.get("page_size", "10")
+    current_page = request.query_params.get("current_page", "1")
+    with session() as db:
+        res = await ccGetRelationChainByUser(
+            db=db,
+            user_id=user_id,
+            page_size=int(page_size),
+            current_page=int(current_page),
+        )
+        return res
+
+
+@context_crud_router.post("/updateCrush", auth_required=True)
+async def updateCrush(request: Request):
+    body = request.json()
+    user_id = userGetUserIdByAccessToken(request)
+    crush_id = body["crush_id"]
+    with session() as db:
+        res = await ccUpdateCrush(db=db, user_id=user_id, crush_id=crush_id, body=body)
         return res
