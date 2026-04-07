@@ -208,6 +208,12 @@ class Crush(Base, SerializableMixin):
         comment="我对ta讲的话",
     )
 
+    is_active = Column(
+        Boolean,
+        nullable=True,
+        default=True,
+        comment="是否有效",
+    )
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="Crush 创建时间"
     )
@@ -255,18 +261,18 @@ class RelationChain(Base, SerializableMixin):
         default=1.0,
         comment="当前关系阶段置信度",
     )
-    is_active = Column(
-        Boolean,
-        nullable=False,
-        default=True,
-        comment="是否进行中",
-    )
 
     # 在虚拟形象对话中，放到SystemMessage中
     exact_relation = Column(Text, nullable=True, comment="精确关系描述")
     context_block = Column(Text, nullable=True, comment="关系与画像上下文")
     relevant_knowledge = Column(Text, nullable=True, comment="相关知识")
 
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="是否有效",
+    )
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="关系链创建时间"
     )

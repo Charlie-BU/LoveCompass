@@ -145,7 +145,7 @@ async def ccCreateCrush(
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to create crush for user {user_id}: {e}")
-        return {"status": -1, "message": "Internal Database Error"}
+        return {"status": -1, "message": "Internal Server Error"}
 
 
 async def ccCreateRelationChain(
@@ -185,7 +185,7 @@ async def ccCreateRelationChain(
         logger.error(
             f"Failed to create relation for user {user_id} and crush {crush_id}: {e}"
         )
-        return {"status": -4, "message": "Internal Database Error"}
+        return {"status": -4, "message": "Internal Server Error"}
 
 
 async def ccDeleteCrush(db: Session, user_id: int, crush_id: int) -> dict:
@@ -198,14 +198,15 @@ async def ccDeleteCrush(db: Session, user_id: int, crush_id: int) -> dict:
                 "status": -2,
                 "message": "Permission denied: This is not your crush",
             }
-        # TODO:添加is_active后改成软删
-        db.delete(crush)
+        if not crush.is_active:
+            return {"status": -3, "message": "Crush has been deleted"}
+        crush.is_active = False
         db.commit()
-        return {"status": 200, "message": "Crush deleted"}
+        return {"status": 200, "message": "Crush successfully deleted"}
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to delete crush {crush_id}:{e}")
-        return {"status": -3, "message": "Internal Database Error"}
+        return {"status": -4, "message": "Internal Server Error"}
 
 
 async def ccDeleteRelationChain(
@@ -228,7 +229,7 @@ async def ccDeleteRelationChain(
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to delete relationChain {relation_chain_id}:{e}")
-        return {"status": -4, "message": "Internal Database Error"}
+        return {"status": -4, "message": "Internal Server Error"}
 
 
 async def ccGetCrushById(db: Session, user_id: int, crush_id: int) -> dict:
@@ -237,22 +238,19 @@ async def ccGetCrushById(db: Session, user_id: int, crush_id: int) -> dict:
         return {"status": -1, "message": "Crush not found"}
     if crush.creator_id != user_id:
         return {"status": -2, "message": "Permission denied: This is not your crush"}
-    # TODO: 待添加 is_active 字段后，取消下方注释
-    # if not crush.is_active:
-    #     return {"status": -1, "message": "Crush deleted"}
+    if not crush.is_active:
+        return {"status": -3, "message": "Crush has been deleted"}
     return {"status": 200, "message": "Get crush success", "crush": crush.toJson()}
 
 
 async def ccGetCrushByUser(
     db: Session, user_id: int, page_size: int, current_page: int
 ) -> dict:
-    # TODO:Crush.is_active=True
     query = (
         db.query(Crush)
-        .filter(Crush.creator_id == user_id)
+        .filter(Crush.creator_id == user_id, Crush.is_active == True)
         .order_by(Crush.created_at.desc())
     )
-    # TODO:如果crush未创建，怎么防御
     crush = query.limit(page_size).offset((current_page - 1) * page_size).all()
     return {
         "status": 200,
@@ -288,11 +286,10 @@ async def ccGetRelationChainByUser(
 ) -> dict:
     query = (
         db.query(RelationChain)
-        .filter(RelationChain.user_id == user_id)
+        .filter(RelationChain.user_id == user_id, RelationChain.is_active == True)
         .order_by(RelationChain.created_at.desc())
     )
     relation_chain = query.limit(page_size).offset((current_page - 1) * page_size).all()
-    # TODO:如果relation_chain未创建，怎么防御
     return {
         "status": 200,
         "message": "Get relationChain success",
@@ -300,7 +297,6 @@ async def ccGetRelationChainByUser(
         "relation_chains": [
             relation_chain.toJson() for relation_chain in relation_chain
         ],
-        # TODO       "crush_name":
     }
 
 
@@ -314,9 +310,8 @@ async def ccUpdateCrush(db: Session, user_id: int, crush_id: int, body: dict) ->
                 "status": -2,
                 "message": "Permission denied: This is not your crush",
             }
-        # TODO: 待添加 is_active 字段后，取消下方注释
-        # if not crush.is_active:
-        #    return {"status":-3,"message":"Crush has been deleted"}
+        if not crush.is_active:
+            return {"status": -3, "message": "Crush has been deleted"}
         editable_columns = ["name", "mbti", "gender"]
         update_count = 0
         for key in body:
@@ -330,4 +325,4 @@ async def ccUpdateCrush(db: Session, user_id: int, crush_id: int, body: dict) ->
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to update crush {crush_id}:{e}")
-        return {"status": -4, "message": "Internal Database Error"}
+        return {"status": -4, "message": "Internal Server Error"}
