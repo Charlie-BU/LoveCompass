@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.database.enums import FineGrainedFeedConfidence, FineGrainedFeedDimension
+from src.database.enums import FineGrainedFeedConfidence, FineGrainedFeedDimension, OriginalSourceType
 from src.services.fine_grained_feed import (
     addFineGrainedFeed,
     addFineGrainedFeedConflict,
@@ -28,6 +28,7 @@ def testAddOriginalSource(fr_id: int):
     res = addOriginalSource(
         user_id=1,
         fr_id=fr_id,
+        type=OriginalSourceType.NARRATIVE_FROM_USER,
         confidence=FineGrainedFeedConfidence.VERBATIM,
         included_dimensions=[
             FineGrainedFeedDimension.PERSONALITY,

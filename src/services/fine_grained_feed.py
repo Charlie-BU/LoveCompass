@@ -5,7 +5,7 @@ from typing import Any, Literal
 from sqlalchemy.orm import Session
 
 from src.agents.embedding import vectorizeText
-from src.database.enums import FineGrainedFeedConfidence, FineGrainedFeedDimension
+from src.database.enums import FineGrainedFeedConfidence, FineGrainedFeedDimension, OriginalSourceType
 from src.database.index import session
 from src.database.models import (
     FigureAndRelation,
@@ -454,6 +454,7 @@ async def recallFineGrainedFeeds(
 def addOriginalSource(
     user_id: int,
     fr_id: int,
+    type: OriginalSourceType,
     confidence: FineGrainedFeedConfidence,
     included_dimensions: list[FineGrainedFeedDimension],
     content: str,
@@ -466,8 +467,10 @@ def addOriginalSource(
         return {"status": -1, "message": "Invalid user_id"}
     if not isinstance(fr_id, int):
         return {"status": -2, "message": "Invalid fr_id"}
+    if not isinstance(type, OriginalSourceType):
+        return {"status": -3, "message": "Invalid type"}
     if not isinstance(confidence, FineGrainedFeedConfidence):
-        return {"status": -3, "message": "Invalid confidence"}
+        return {"status": -4, "message": "Invalid confidence"}
     if (
         not isinstance(included_dimensions, list)
         or not included_dimensions
@@ -475,19 +478,20 @@ def addOriginalSource(
             isinstance(item, FineGrainedFeedDimension) for item in included_dimensions
         )
     ):
-        return {"status": -4, "message": "Invalid included_dimensions"}
+        return {"status": -5, "message": "Invalid included_dimensions"}
     if not content or content.strip() == "":
-        return {"status": -5, "message": "content cannot be empty"}
+        return {"status": -6, "message": "content cannot be empty"}
     if approx_date is not None and not isinstance(approx_date, str):
-        return {"status": -6, "message": "Invalid approx_date"}
+        return {"status": -7, "message": "Invalid approx_date"}
 
     with session() as db:
         fr = _checkFigureAndRelationOwnership(db, user_id, fr_id)
         if fr is None:
-            return {"status": -7, "message": "FigureAndRelation not found"}
+            return {"status": -8, "message": "FigureAndRelation not found"}
 
         original_source = OriginalSource(
             fr_id=fr_id,
+            type=type,
             approx_date=approx_date if approx_date is not None else None,
             confidence=confidence,
             included_dimensions=included_dimensions,
@@ -499,7 +503,7 @@ def addOriginalSource(
         except Exception as e:
             db.rollback()
             logger.error(f"Add OriginalSource failed: {str(e)}")
-            return {"status": -8, "message": "Add OriginalSource failed"}
+            return {"status": -9, "message": "Add OriginalSource failed"}
 
         return {"status": 200, "message": "Add OriginalSource success"}
 

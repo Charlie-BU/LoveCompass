@@ -26,6 +26,7 @@ from src.database.enums import (
     FineGrainedFeedDimension,
     Gender,
     UserLevel,
+    OriginalSourceType
 )
 
 
@@ -349,6 +350,11 @@ class OriginalSource(Base, SerializableMixin):
     )
 
     # 元数据
+    type = Column(
+        Enum(OriginalSourceType),
+        nullable=False,
+        comment="来源类型",
+    )
     approx_date = Column(
         String(32), nullable=True, comment="大致日期：2025-Q3 / 2026-01-15"
     )
