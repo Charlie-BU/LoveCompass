@@ -9,7 +9,10 @@ from src.database.models import FigureAndRelation
 logger = logging.getLogger(__name__)
 
 
-def _frUpdateFieldCheck(fr_body: dict[str, Any]):
+def _frUpdateFieldCheck(fr_body: dict[str, Any]) -> dict[str, Any]:
+    """
+    校验 FigureAndRelation 更新字段是否合法
+    """
     allowed_fields = {
         "figure_name",
         "figure_gender",
@@ -119,6 +122,9 @@ def addFigureAndRelation(
     figure_hometown: str | None = None,
     exact_relation: str | None = "",
 ) -> dict:
+    """
+    添加 FigureAndRelation
+    """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
     if not figure_name or figure_name.strip() == "":
@@ -157,6 +163,9 @@ def deleteFigureAndRelation(
     user_id: int,
     fr_id: int,
 ) -> dict:
+    """
+    通过 fr_id 软删除 FigureAndRelation
+    """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
     if not isinstance(fr_id, int):
@@ -193,6 +202,9 @@ def updateFigureAndRelation(
     fr_id: int,
     fr_body: dict[str, Any],
 ) -> dict:
+    """
+    通过 fr_id 更新 FigureAndRelation
+    """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
     if not isinstance(fr_id, int):
@@ -240,6 +252,9 @@ def getFigureAndRelation(
     user_id: int,
     fr_id: int,
 ) -> dict:
+    """
+    通过 fr_id 获取 FigureAndRelation
+    """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
     if not isinstance(fr_id, int):
@@ -264,9 +279,12 @@ def getFigureAndRelation(
         }
 
 
-def getAllFigureAndRelation(
+def getAllFigureAndRelations(
     user_id: int,
 ) -> dict:
+    """
+    获取用户所有 FigureAndRelation
+    """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
 

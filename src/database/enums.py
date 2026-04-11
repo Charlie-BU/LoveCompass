@@ -46,7 +46,7 @@ class FigureRole(enum.Enum):
     STRANGER = "stranger"
 
 
-class FineGrainedInfoDimension(enum.Enum):
+class FineGrainedFeedDimension(enum.Enum):
     PERSONALITY = "personality"  # 性格与价值观
     INTERACTION_STYLE = "interaction_style"  # 互动风格
     PROCEDURAL_INFO = "procedural_info"  # 程序性知识
@@ -54,7 +54,7 @@ class FineGrainedInfoDimension(enum.Enum):
     OTHER = "other"  # 其他
 
 
-class FineGrainedInfoConfidence(enum.Enum):
+class FineGrainedFeedConfidence(enum.Enum):
     VERBATIM = "verbatim"  # 原话
     ARTIFACT = "artifact"  # 文档/作品/公开内容中的客观陈述
     IMPRESSION = "impression"  # 提供者补充的主观印象

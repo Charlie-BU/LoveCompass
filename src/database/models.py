@@ -22,8 +22,8 @@ from src.database.enums import (
     MBTI,
     AnalysisType,
     FigureRole,
-    FineGrainedInfoConfidence,
-    FineGrainedInfoDimension,
+    FineGrainedFeedConfidence,
+    FineGrainedFeedDimension,
     Gender,
     UserLevel,
 )
@@ -237,7 +237,7 @@ class FigureAndRelation(Base, SerializableMixin):
         return f"<FigureAndRelation {self.name}>"
 
 
-class FineGrainedInfoPiece(Base, SerializableMixin):
+class FineGrainedFeed(Base, SerializableMixin):
     """细粒度信息，包含：
     性格与价值观 personality、
     互动风格 interaction_style、
@@ -247,11 +247,11 @@ class FineGrainedInfoPiece(Base, SerializableMixin):
     【支持向量化召回】
     """
 
-    __tablename__ = "fine_grained_info_piece"
+    __tablename__ = "fine_grained_feed"
     # 使用HNSW索引加速余弦相似度向量检索
     __table_args__ = (
         Index(
-            "ix_fine_grained_info_piece_embedding_hnsw",
+            "ix_fine_grained_feed_embedding_hnsw",
             "embedding",
             postgresql_using="hnsw",
             postgresql_ops={"embedding": "vector_cosine_ops"},
@@ -267,7 +267,7 @@ class FineGrainedInfoPiece(Base, SerializableMixin):
     )
     figure_and_relation = relationship(
         "FigureAndRelation",
-        backref="fine_grained_info_pieces",
+        backref="fine_grained_feeds",
         lazy="select",
     )
     original_source_id = Column(
@@ -278,12 +278,12 @@ class FineGrainedInfoPiece(Base, SerializableMixin):
     )
     original_source = relationship(
         "OriginalSource",
-        backref="fine_grained_info_pieces",
+        backref="fine_grained_feeds",
         lazy="select",  # 关联查询原始输入材料时，只查询关联的原始输入材料，不查询所有原始输入材料
     )
 
     dimension = Column(
-        Enum(FineGrainedInfoDimension),
+        Enum(FineGrainedFeedDimension),
         nullable=False,
         comment="维度",
     )
@@ -293,7 +293,7 @@ class FineGrainedInfoPiece(Base, SerializableMixin):
         comment="子维度",
     )
     confidence = Column(
-        Enum(FineGrainedInfoConfidence),
+        Enum(FineGrainedFeedConfidence),
         nullable=False,
         comment="证据级别",
     )
@@ -327,11 +327,11 @@ class FineGrainedInfoPiece(Base, SerializableMixin):
     )
 
     def __repr__(self):
-        return f"<FineGrainedInfoPiece {self.id}>"
+        return f"<FineGrainedFeed {self.id}>"
 
 
 class OriginalSource(Base, SerializableMixin):
-    """原始输入材料"""
+    """原始信息来源（经预处理后）"""
 
     __tablename__ = "original_source"
 
@@ -353,12 +353,12 @@ class OriginalSource(Base, SerializableMixin):
         String(32), nullable=True, comment="大致日期：2025-Q3 / 2026-01-15"
     )
     confidence = Column(
-        Enum(FineGrainedInfoConfidence),
+        Enum(FineGrainedFeedConfidence),
         nullable=False,
         comment="证据级别",
     )
     included_dimensions = Column(
-        ARRAY(Enum(FineGrainedInfoDimension)),
+        ARRAY(Enum(FineGrainedFeedDimension)),
         nullable=False,
         comment="涉及维度",
     )
@@ -386,10 +386,10 @@ class OriginalSource(Base, SerializableMixin):
         return f"<OriginalSource {self.id}>"
 
 
-class FineGrainedInfoConflict(Base, SerializableMixin):
+class FineGrainedFeedConflict(Base, SerializableMixin):
     """细粒度信息冲突记录"""
 
-    __tablename__ = "fine_grained_info_conflict"
+    __tablename__ = "fine_grained_feed_conflict"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     fr_id = Column(
@@ -400,19 +400,19 @@ class FineGrainedInfoConflict(Base, SerializableMixin):
     )
     figure_and_relation = relationship(
         "FigureAndRelation",
-        backref="fine_grained_info_conflicts",
+        backref="fine_grained_feed_conflicts",
         lazy="select",
     )
 
     dimension = Column(
-        Enum(FineGrainedInfoDimension),
+        Enum(FineGrainedFeedDimension),
         nullable=False,
         comment="冲突所在维度",
     )
-    piece_ids = Column(
+    feed_ids = Column(
         MutableList.as_mutable(ARRAY(Integer)),
         nullable=False,
-        comment="冲突的细粒度信息片段ID列表",
+        comment="冲突的细粒度信息ID列表",
     )
     description = Column(Text, nullable=False, comment="冲突内容描述")
     resolved = Column(Boolean, default=False, comment="是否已解决")
@@ -423,7 +423,7 @@ class FineGrainedInfoConflict(Base, SerializableMixin):
     )
 
     def __repr__(self):
-        return f"<FineGrainedInfoConflict {self.id}>"
+        return f"<FineGrainedFeedConflict {self.id}>"
 
 
 class Knowledge(Base, SerializableMixin):

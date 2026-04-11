@@ -2,7 +2,7 @@ from src.database.enums import FigureRole, Gender, MBTI
 from src.services.figure_and_relation import (
     addFigureAndRelation,
     deleteFigureAndRelation,
-    getAllFigureAndRelation,
+    getAllFigureAndRelations,
     getFigureAndRelation,
     updateFigureAndRelation,
 )
@@ -19,8 +19,8 @@ def testAddFigureAndRelation():
     return res
 
 
-def testGetAllFigureAndRelation():
-    res = getAllFigureAndRelation(
+def testgetAllFigureAndRelations():
+    res = getAllFigureAndRelations(
         user_id=1,
     )
     return res

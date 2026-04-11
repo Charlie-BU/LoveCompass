@@ -16,13 +16,14 @@ async def addKnowledgePiece(
     weight: float = 0.5,
 ) -> dict:
     """
-    添加知识
+    添加知识条目
     """
     if not content or content.strip() == "":
         return {"status": -1, "message": "Content is empty"}
     if weight <= 0 or weight > 1:
         return {"status": -2, "message": "Weight must be between 0 and 1"}
 
+    content = content.strip()
     knowledge = Knowledge(
         user_id=user_id,
         content=content,
@@ -130,7 +131,7 @@ def deleteKnowledgePiece(
     knowledge_id: int,
 ) -> dict:
     """
-    删除知识
+    通过 knowledge_id 软删除知识
     """
     with session() as db:
         try:
