@@ -1,12 +1,15 @@
 import json
 import logging
 import os
+import pprint
+from typing import Literal
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.graphs.FRBuildingGraph.state import FRBuildingGraphState
 from src.agents.llm import prepareLLM
 from src.agents.prompt import getPrompt
 from src.database.enums import (
+    ConflictStatus,
     FigureRole,
     FineGrainedFeedConfidence,
     FineGrainedFeedDimension,
@@ -29,6 +32,48 @@ from src.utils.index import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _compareFieldViaLLM(
+    field_name: str,
+    field_type: Literal["string", "list"],
+    old_value: str,
+    new_value: str,
+) -> dict:
+    """
+    通过 LLM 对照字段值，返回冲突状态和冲突详情
+    """
+    llm = prepareLLM(
+        "DOUBAO_2_0_MINI",
+        options={
+            "temperature": 0,
+            "reasoning_effort": "minimal",
+        },
+    )
+    FR_BUILDING_COMPARE_FIELD = await getPrompt(os.getenv("FR_BUILDING_COMPARE_FIELD"))
+    # 提示词兜底
+    if not FR_BUILDING_COMPARE_FIELD:
+        logger.error("FR compare field prompt is empty")
+        raise ValueError("FR compare field prompt is empty")
+
+    user_prompt = f"field_name: {field_name}\n\nfield_type: {field_type}\n\nold_value: {old_value}\n\nnew_value: {new_value}"
+    response = await llm.ainvoke(
+        [
+            SystemMessage(content=FR_BUILDING_COMPARE_FIELD),
+            HumanMessage(content=user_prompt),
+        ]
+    )
+    try:
+        parsed_res = json.loads(response.content)
+    except json.JSONDecodeError:
+        logger.error("LLM response is not valid JSON")
+        raise ValueError("LLM response is not valid JSON")
+
+    return {
+        "final_value": parsed_res.get("final_value"),
+        "conflict_status": parseEnum(ConflictStatus, parsed_res.get("conflict_status")),
+        "detail": parsed_res.get("detail"),
+    }
 
 
 # 步骤 1-3
@@ -337,7 +382,7 @@ async def nodeExtractFRIntrinsicCandidates(state: FRBuildingGraphState) -> dict:
         }
     ]
 
-    logger.info(json.dumps(fr_intrinsic_updates, ensure_ascii=False, indent=2))
+    pprint.pprint(fr_intrinsic_updates, indent=2)
     return {
         "fr_intrinsic_updates": fr_intrinsic_updates,
         "warnings": warnings,
@@ -381,8 +426,9 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
     planned_updates = {}
     plan_actions = []  # 用于日志记录
 
-    # 逐一处理每个字段
+    # 逐一处理每个抽取的字段
     for field, new_value in extracted_candidates.items():
+        # MBTI 字段，单独处理
         if field == "figure_mbti":
             # 无需模型对照
             existing_mbti = _normalizeMBTI(figure_and_relation.get(field))
@@ -391,10 +437,14 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
                 continue
             if existing_mbti is None:
                 planned_updates[field] = new_mbti
-                plan_actions.append({"field": field, "action": "fill_empty"})
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_ACCEPT_NEW.value}
+                )
                 continue
             if existing_mbti == new_mbti:
-                plan_actions.append({"field": field, "action": "skip_same"})
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_KEEP_OLD.value}
+                )
                 continue
             # MBTI 变化：记录后直接替换
             planned_updates[field] = new_mbti
@@ -404,55 +454,87 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
             )
             logger.warning(warning)
             warnings = warnings + [warning]
-            plan_actions.append({"field": field, "action": "conflict_replace"})
+            plan_actions.append(
+                {"field": field, "action": ConflictStatus.RESOLVED_ACCEPT_NEW.value}
+            )
             continue
 
+        # list 类型字段
         if field in fr_list_fields:
-            # todo: 模型判断
             existing_list = cleanList(figure_and_relation.get(field))
             new_list = cleanList(new_value)
             if len(new_list) == 0:
+                # 新值为空，直接跳过
                 continue
             if len(existing_list) == 0:
+                # 旧值为空，直接填充新值
                 planned_updates[field] = new_list
-                plan_actions.append({"field": field, "action": "fill_empty"})
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_ACCEPT_NEW.value}
+                )
                 continue
-            existing_set = set(existing_list)
-            if all(item in existing_set for item in new_list):
-                plan_actions.append({"field": field, "action": "skip_subset"})
+            elif new_list == existing_list:
+                # 新旧值完全相等，直接跳过
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_KEEP_OLD.value}
+                )
                 continue
-            merged = existing_list + [
-                item for item in new_list if item not in existing_set
-            ]
-            planned_updates[field] = merged
-            plan_actions.append({"field": field, "action": "merge_append"})
+            # 递交模型判断
+            LLM_compare_res = await _compareFieldViaLLM(
+                field_name=field,
+                field_type="list",
+                old_value=json.dumps(existing_list),
+                new_value=json.dumps(new_list),
+            )
+            # 对于 FR 内在字段判断，直接更新，无需考虑冲突落库
+            final_value = list(LLM_compare_res.get("final_value"))
+            planned_updates[field] = final_value
+            plan_actions.append(
+                {
+                    "field": field,
+                    "action": LLM_compare_res.get("conflict_status").value,
+                    "detail": LLM_compare_res.get("detail"),
+                }
+            )
             continue
 
+        # string 类型字段
         if field in fr_string_fields(detailed=False):
             existing_text = normalizeText(figure_and_relation.get(field))
             new_text = normalizeText(new_value)
             if new_text == "":
+                # 新值为空，直接跳过
                 continue
             if existing_text == "":
+                # 旧值为空，直接填充新值
                 planned_updates[field] = new_text
-                plan_actions.append({"field": field, "action": "fill_empty"})
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_ACCEPT_NEW.value}
+                )
                 continue
-            # todo: 模型判断
-            if new_text == existing_text:
-                plan_actions.append({"field": field, "action": "skip_same"})
+            elif new_text == existing_text:
+                # 新旧值完全相等，直接跳过
+                plan_actions.append(
+                    {"field": field, "action": ConflictStatus.RESOLVED_KEEP_OLD.value}
+                )
                 continue
-            if existing_text in new_text:
-                planned_updates[field] = new_text
-                plan_actions.append({"field": field, "action": "merge_expand"})
-                continue
-            if new_text in existing_text:
-                plan_actions.append({"field": field, "action": "skip_substring"})
-                continue
-            planned_updates[field] = new_text
-            warning = f"FR intrinsic conflict on {field}, replace existing value"
-            logger.warning(warning)
-            warnings = warnings + [warning]
-            plan_actions.append({"field": field, "action": "conflict_replace"})
+
+            # 递交模型判断
+            LLM_compare_res = await _compareFieldViaLLM(
+                field_name=field,
+                field_type="string",
+                old_value=existing_text,
+                new_value=new_text,
+            )
+            # 对于 FR 内在字段判断，直接更新，无需考虑冲突落库
+            planned_updates[field] = LLM_compare_res.get("final_value")
+            plan_actions.append(
+                {
+                    "field": field,
+                    "action": LLM_compare_res.get("conflict_status").value,
+                    "detail": LLM_compare_res.get("detail"),
+                }
+            )
 
     logs += [
         {
