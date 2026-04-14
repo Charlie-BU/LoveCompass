@@ -150,6 +150,7 @@ class FigureAndRelation(Base, SerializableMixin):
     figure_education = Column(String(128), nullable=True, comment="Figure 教育背景")
     figure_residence = Column(String(128), nullable=True, comment="Figure 常住地")
     figure_hometown = Column(String(128), nullable=True, comment="Figure 家乡地")
+    figure_appearance = Column(String(128), nullable=True, comment="Figure 外在特征")
     figure_likes = Column(
         MutableList.as_mutable(ARRAY(Text)),
         nullable=False,
@@ -161,12 +162,6 @@ class FigureAndRelation(Base, SerializableMixin):
         nullable=False,
         default=[],
         comment="Figure 不喜欢",
-    )
-    figure_appearance = Column(
-        MutableList.as_mutable(ARRAY(Text)),
-        nullable=False,
-        default=[],
-        comment="Figure 外在特征",
     )
 
     # 重要：双方对彼此的语言风格，决定虚拟形象准确与否的关键
@@ -422,7 +417,12 @@ class FineGrainedFeedConflict(Base, SerializableMixin):
         comment="冲突的细粒度信息ID列表",
     )
     conflict_detail = Column(Text, nullable=False, comment="冲突详情")
-    status = Column(Enum(ConflictStatus), nullable=False, default=ConflictStatus.PENDING, comment="冲突状态")
+    status = Column(
+        Enum(ConflictStatus),
+        nullable=False,
+        default=ConflictStatus.PENDING,
+        comment="冲突状态",
+    )
 
     created_at = Column(
         DateTime, default=datetime.now(timezone.utc), comment="创建时间"

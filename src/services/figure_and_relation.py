@@ -37,7 +37,6 @@ fr_non_nullable_fields = {
     "figure_role",
     "figure_likes",
     "figure_dislikes",
-    "figure_appearance",
     "words_figure2user",
     "words_user2figure",
     "exact_relation",
@@ -49,7 +48,6 @@ fr_non_nullable_fields = {
 fr_list_fields = {
     "figure_likes",
     "figure_dislikes",
-    "figure_appearance",
     "words_figure2user",
     "words_user2figure",
 }
@@ -62,6 +60,7 @@ def fr_string_fields(detailed: bool = False):
         "figure_education",
         "figure_residence",
         "figure_hometown",
+        "figure_appearance",
         "exact_relation",
     }
     if not detailed:

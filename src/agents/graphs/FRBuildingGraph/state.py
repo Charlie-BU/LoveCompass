@@ -31,9 +31,9 @@ class FRIntrinsicUpdates(TypedDict, total=False):
     figure_education: str
     figure_residence: str
     figure_hometown: str
+    figure_appearance: str
     figure_likes: list[str]
     figure_dislikes: list[str]
-    figure_appearance: list[str]
     words_figure2user: list[str]
     words_user2figure: list[str]
     exact_relation: str

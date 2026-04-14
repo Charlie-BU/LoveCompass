@@ -41,6 +41,7 @@ def testUpdateFigureAndRelation(fr_id: int):
         user_id=1,
         fr_id=fr_id,
         fr_body={
+            "figure_appearance": "short hair, with glasses",
             "exact_relation": "Best friend from university",
             "figure_likes": ["music", "travel"],
             "core_personality": "Warm and creative",
@@ -50,7 +51,6 @@ def testUpdateFigureAndRelation(fr_id: int):
             "words_figure2user": ["You can do this"],
             "words_user2figure": ["Thanks for always supporting me"],
             "figure_dislikes": ["dishonesty"],
-            "figure_appearance": ["short hair", "glasses"],
         },
     )
     return res

@@ -50,12 +50,12 @@ The following do NOT count as obvious inference:
 - `figure_education`: educational background
 - `figure_residence`: permanent residence
 - `figure_hometown`: hometown
+- `figure_appearance`: external characteristics of the figure
 - `exact_relation`: precise description of the relationship between the user and the target figure (only output when explicitly stated in the text; do not force-generate from figure_role)
 
 3. List fields (output as `list[string]` type):
 - `figure_likes`: things the figure likes
 - `figure_dislikes`: things the figure dislikes
-- `figure_appearance`: external characteristics of the figure
 - `words_figure2user`: original verbatim words the figure said to the user (only extract if it is exact original words, do not modify)
 - `words_user2figure`: original verbatim words the user said to the figure (only extract if it is exact original words, do not modify)
 
