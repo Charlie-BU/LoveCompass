@@ -1,4 +1,4 @@
-from typing import Any, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from src.database.enums import (
     FigureRole,
@@ -71,6 +71,18 @@ class NodeLog(TypedDict, total=False):
     data: dict[str, Any]
 
 
+def _mergeUniqueList(left: list[Any], right: list[Any]) -> list[Any]:
+    """
+    合并并去重列表，兼容并行分支同时写同一 channel 的场景
+    """
+    merged = []
+    for item in (left or []) + (right or []):
+        if item in merged:
+            continue
+        merged.append(item)
+    return merged
+
+
 class FRBuildingGraphState(TypedDict, total=False):
     request: Request
     figure_and_relation: dict[str, Any]
@@ -84,10 +96,11 @@ class FRBuildingGraphState(TypedDict, total=False):
     extracted_feeds: list[ExtractedFineGrainedFeed]
     feed_upsert_plan: list[FeedUpsertPlanItem]
     feed_upsert_results: list[dict[str, Any]]
-    logs: list[NodeLog]
-    warnings: list[str]
-    errors: list[str]
+    logs: Annotated[list[NodeLog], _mergeUniqueList]
+    warnings: Annotated[list[str], _mergeUniqueList]
+    errors: Annotated[list[str], _mergeUniqueList]
     status: Literal["running", "failed", "completed"]
+    fr_building_report: str | None
 
 
 class FRBuildingGraphInput(TypedDict, total=False):
@@ -103,3 +116,4 @@ class FRBuildingGraphOutput(TypedDict, total=False):
     logs: list[NodeLog]
     warnings: list[str]
     errors: list[str]
+    fr_building_report: str | None

@@ -3,10 +3,15 @@ from langgraph.graph.state import CompiledStateGraph
 import logging
 
 from src.agents.graphs.FRBuildingGraph.nodes import (
+    nodeBuildFRBuildingGraphOutput,
+    nodeExtractFineGrainedFeeds,
     nodeExtractFRIntrinsicCandidates,
+    nodeGenerateFRBuildingReport,
     nodeLoadFR,
+    nodePersistFineGrainedFeedUpsert,
     nodePersistFRIntrinsicUpdate,
     nodePersistOriginalSource,
+    nodePlanFineGrainedFeedUpsert,
     nodePlanFRIntrinsicUpdate,
     nodePreprocessInput,
 )
@@ -32,15 +37,31 @@ def buildFRBuildingGraph() -> CompiledStateGraph:
     graph.add_node("nodeExtractFRIntrinsicCandidates", nodeExtractFRIntrinsicCandidates)
     graph.add_node("nodePlanFRIntrinsicUpdate", nodePlanFRIntrinsicUpdate)
     graph.add_node("nodePersistFRIntrinsicUpdate", nodePersistFRIntrinsicUpdate)
+    graph.add_node("nodeExtractFineGrainedFeeds", nodeExtractFineGrainedFeeds)
+    graph.add_node("nodePlanFineGrainedFeedUpsert", nodePlanFineGrainedFeedUpsert)
+    graph.add_node("nodePersistFineGrainedFeedUpsert", nodePersistFineGrainedFeedUpsert)
+    graph.add_node("nodeBuildFRBuildingGraphOutput", nodeBuildFRBuildingGraphOutput)
+    graph.add_node("nodeGenerateFRBuildingReport", nodeGenerateFRBuildingReport)
 
     graph.add_edge(START, "nodeLoadFR")
     graph.add_edge("nodeLoadFR", "nodePreprocessInput")
     graph.add_edge("nodePreprocessInput", "nodePersistOriginalSource")
-    # todo：链路并行
+    # 步骤 5 与步骤 6 并行执行
     graph.add_edge("nodePersistOriginalSource", "nodeExtractFRIntrinsicCandidates")
+    graph.add_edge("nodePersistOriginalSource", "nodeExtractFineGrainedFeeds")
+
+    # 步骤 5
     graph.add_edge("nodeExtractFRIntrinsicCandidates", "nodePlanFRIntrinsicUpdate")
     graph.add_edge("nodePlanFRIntrinsicUpdate", "nodePersistFRIntrinsicUpdate")
-    graph.add_edge("nodePersistFRIntrinsicUpdate", END)
+    graph.add_edge("nodePersistFRIntrinsicUpdate", "nodeBuildFRBuildingGraphOutput")
+
+    # 步骤 6
+    graph.add_edge("nodeExtractFineGrainedFeeds", "nodePlanFineGrainedFeedUpsert")
+    graph.add_edge("nodePlanFineGrainedFeedUpsert", "nodePersistFineGrainedFeedUpsert")
+    graph.add_edge("nodePersistFineGrainedFeedUpsert", "nodeBuildFRBuildingGraphOutput")
+
+    graph.add_edge("nodeBuildFRBuildingGraphOutput", "nodeGenerateFRBuildingReport")
+    graph.add_edge("nodeGenerateFRBuildingReport", END)
 
     return graph.compile()
 

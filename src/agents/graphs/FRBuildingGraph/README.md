@@ -56,9 +56,10 @@
             - 若二者无关（tag = "irrelevant"），continue 跳过
             - 若新 content 与召回 fine_grained_feed.content 相同（tag = "equivalent"），设置 handled_flag 为 True，break 跳出循环
             - 若新 content 是召回 fine_grained_feed.content 的补充（tag = "supplementary"），或判定使用新内容（tag = "new_adopted"），则将合并后的内容 final_value 更新到召回 fine_grained_feed.content 中，使用方法：src/services/fine_grained_feed.py updateFineGrainedFeed；设置 handled_flag 为 True，之后 break 跳出循环
-            - 若新 content 与召回 fine_grained_feed.content 存在矛盾（tag = "conflictive"），**触发一次 interrupt**，待用户决定采用新内容还是召回内容。之后根据用户的选择确定是否更新。若更新，使用方法：src/services/fine_grained_feed.py updateFineGrainedFeed；设置 handled_flag 为 True，之后 break 跳出循环
+            <!-- - **重要**若新 content 与召回 fine_grained_feed.content 存在矛盾（tag = "conflictive"），**触发一次 interrupt**，待用户决定采用新内容还是召回内容。之后根据用户的选择确定是否更新。若更新，使用方法：src/services/fine_grained_feed.py updateFineGrainedFeed；设置 handled_flag 为 True，之后 break 跳出循环 -->
+            - **降级方案**若新 content 与召回 fine_grained_feed.content 存在矛盾（tag = "conflictive"），加入 Conflict 表中，status 设为 pending，之后 fine_grained_feed.content 更新为 final_value（是 new_value，但未经用户确认），具体待后续处理；设置 handled_flag 为 True，之后 break 跳出循环
         6.4.3 若 handled_flag 仍为 False，说明当前抽取的信息 content 与召回 fine_grained_feed.content 无关，直接添加到 FineGrainedFeed 表中
             方法：src/services/fine_grained_feed.py addFineGrainedFeed
-7. 记录日志
-8. graph 完成，返回日志
+7. graph 完成，返回日志
 
+【过程中实时记录日志】

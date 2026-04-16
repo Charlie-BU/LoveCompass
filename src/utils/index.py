@@ -114,3 +114,14 @@ def serialize2String(value: Any) -> str | None:
             default=lambda x: x.value if isinstance(x, Enum) else str(x),
         )
     return str(value)
+
+
+def jsonDefault(obj):
+    """
+    自定义 JSON 序列化函数，处理 Enum 和 datetime 类型
+    """
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    return str(obj)

@@ -3,7 +3,11 @@ from typing import Any
 
 from src.database.enums import FigureRole, FineGrainedFeedDimension, Gender, MBTI
 from src.database.index import session
-from src.database.models import FROverallUpdateLog, FigureAndRelation
+from src.database.models import (
+    FRBuildingGraphReport,
+    FROverallUpdateLog,
+    FigureAndRelation,
+)
 from src.services.fine_grained_feed import recallFineGrainedFeeds
 from src.utils.index import checkFigureAndRelationOwnership, serialize2String
 
@@ -336,6 +340,171 @@ def getAllFigureAndRelations(
                     ]
                 )
                 for fr in figure_and_relations
+            ],
+        }
+
+
+def addFRBuildingGraphReport(
+    user_id: int,
+    fr_id: int,
+    report: str,
+) -> dict:
+    """
+    添加 FR 构建报告
+    """
+    if not isinstance(user_id, int):
+        return {"status": -1, "message": "Invalid user_id"}
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id"}
+    if not isinstance(report, str) or report.strip() == "":
+        return {"status": -3, "message": "report cannot be empty"}
+
+    with session() as db:
+        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        if fr is None:
+            return {"status": -4, "message": "FigureAndRelation not found"}
+
+        report_item = FRBuildingGraphReport(
+            fr_id=fr_id,
+            report=report.strip(),
+        )
+        try:
+            db.add(report_item)
+            db.commit()
+            db.refresh(report_item)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Add FRBuildingGraphReport failed: {str(e)}")
+            return {"status": -5, "message": "Add FRBuildingGraphReport failed"}
+
+        return {
+            "status": 200,
+            "message": "Add FRBuildingGraphReport success",
+            "fr_building_graph_report_id": report_item.id,
+        }
+
+
+def deleteFRBuildingGraphReport(
+    user_id: int,
+    fr_id: int,
+    fr_building_graph_report_id: int,
+) -> dict:
+    """
+    通过 report_id 软删除 FR 构建报告
+    """
+    if not isinstance(user_id, int):
+        return {"status": -1, "message": "Invalid user_id"}
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id"}
+    if not isinstance(fr_building_graph_report_id, int):
+        return {"status": -3, "message": "Invalid fr_building_graph_report_id"}
+
+    with session() as db:
+        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        if fr is None:
+            return {"status": -4, "message": "FigureAndRelation not found"}
+
+        try:
+            report_item = (
+                db.query(FRBuildingGraphReport)
+                .filter(
+                    FRBuildingGraphReport.id == fr_building_graph_report_id,
+                    FRBuildingGraphReport.fr_id == fr_id,
+                    FRBuildingGraphReport.is_deleted == False,
+                )
+                .first()
+            )
+            if report_item is None:
+                return {"status": -5, "message": "FRBuildingGraphReport not found"}
+            report_item.is_deleted = True
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Delete FRBuildingGraphReport failed: {str(e)}")
+            return {"status": -6, "message": "Delete FRBuildingGraphReport failed"}
+
+        return {"status": 200, "message": "Delete FRBuildingGraphReport success"}
+
+
+def getFRBuildingGraphReport(
+    user_id: int,
+    fr_id: int,
+    fr_building_graph_report_id: int,
+) -> dict:
+    """
+    通过 report_id 获取 FR 构建报告详情
+    """
+    if not isinstance(user_id, int):
+        return {"status": -1, "message": "Invalid user_id"}
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id"}
+    if not isinstance(fr_building_graph_report_id, int):
+        return {"status": -3, "message": "Invalid fr_building_graph_report_id"}
+
+    with session() as db:
+        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        if fr is None:
+            return {"status": -4, "message": "FigureAndRelation not found"}
+
+        report_item = (
+            db.query(FRBuildingGraphReport)
+            .filter(
+                FRBuildingGraphReport.id == fr_building_graph_report_id,
+                FRBuildingGraphReport.fr_id == fr_id,
+                FRBuildingGraphReport.is_deleted == False,
+            )
+            .first()
+        )
+        if report_item is None:
+            return {"status": -5, "message": "FRBuildingGraphReport not found"}
+
+        return {
+            "status": 200,
+            "message": "Get FRBuildingGraphReport success",
+            "fr_building_graph_report": report_item.toJson(),
+        }
+
+
+def getAllFRBuildingGraphReport(
+    user_id: int,
+    fr_id: int,
+) -> dict:
+    """
+    获取当前 fr 的全部构建报告（不包含详情字段裁剪）
+    """
+    if not isinstance(user_id, int):
+        return {"status": -1, "message": "Invalid user_id"}
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id"}
+
+    with session() as db:
+        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        if fr is None:
+            return {"status": -3, "message": "FigureAndRelation not found"}
+
+        report_items = (
+            db.query(FRBuildingGraphReport)
+            .filter(
+                FRBuildingGraphReport.fr_id == fr_id,
+                FRBuildingGraphReport.is_deleted == False,
+            )
+            .order_by(FRBuildingGraphReport.created_at.desc())
+            .all()
+        )
+        return {
+            "status": 200,
+            "message": "Get all FRBuildingGraphReport success",
+            "fr_building_graph_reports": [
+                item.toJson(
+                    include=[
+                        "id",
+                        "fr_id",
+                        "report",
+                        "is_deleted",
+                        "created_at",
+                    ]
+                )
+                for item in report_items
             ],
         }
 

@@ -127,6 +127,9 @@ def parseEnum(enum_cls, value: str | None) -> enum.Enum | None:
     """
     if value is None:
         return None
-    if value in enum_cls.__members__:  # value为枚举键
-        return enum_cls[value]
-    return enum_cls(value)  # value为枚举值
+    try:
+        if value in enum_cls.__members__:  # value为枚举键
+            return enum_cls[value]
+        return enum_cls(value)  # value为枚举值
+    except Exception:
+        return None

@@ -483,6 +483,40 @@ class FROverallUpdateLog(Base, SerializableMixin):
         return f"<FROverallUpdateLog {self.id}>"
 
 
+class FRBuildingGraphReport(Base, SerializableMixin):
+    """FR 构建报告"""
+
+    __tablename__ = "fr_building_graph_report"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fr_id = Column(
+        Integer,
+        ForeignKey("figure_and_relation.id"),
+        nullable=False,
+        comment="关联的 FigureAndRelation ID",
+    )
+    figure_and_relation = relationship(
+        "FigureAndRelation",
+        backref="fr_building_graph_reports",
+        lazy="select",
+    )
+
+    report = Column(Text, nullable=False, comment="构建报告")
+    is_deleted = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="是否删除",
+    )
+    created_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        comment="构建报告创建时间",
+    )
+
+    def __repr__(self):
+        return f"<FRBuildingGraphReport {self.id}>"
+
+
 class Knowledge(Base, SerializableMixin):
     """私有知识库"""
 
