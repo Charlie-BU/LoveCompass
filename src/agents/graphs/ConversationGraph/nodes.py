@@ -1,6 +1,5 @@
-import json
-import pprint
 from langchain_core.messages import SystemMessage, HumanMessage
+import json
 import logging
 import os
 from datetime import datetime
@@ -21,7 +20,10 @@ from src.utils.index import checkFigureAndRelationOwnership
 logger = logging.getLogger(__name__)
 
 
-def _formatRecalledFeeds(items: list[dict]) -> str:
+def _recalledFeeds2Markdown(items: list[dict]) -> str:
+    """
+    格式化召回结果为 Markdown
+    """
     lines: list[str] = []
     for index, item in enumerate(items, start=1):
         feed = item.get("fine_grained_feed") or {}
@@ -41,108 +43,6 @@ def _formatRecalledFeeds(items: list[dict]) -> str:
         suffix = f" ({', '.join(meta)})" if meta else ""
         lines.append(f"{index}. {sub_dimension}\n{content}\n{suffix}")
     return "\n\n".join(lines)
-
-
-async def _recallByDimension(
-    state: ConversationGraphState,
-    node_name: str,
-    output_key: str,
-    dimension: FineGrainedFeedDimension,
-    top_k_env_key: str,
-) -> dict:
-    warnings = state.get("warnings") or []
-    errors = state.get("errors") or []
-    logs = state.get("logs") or []
-
-    request = state["request"]
-    user_id = request["user_id"]
-    fr_id = request["fr_id"]
-    messages_received = request["messages_received"]
-    query = ". ".join(messages_received)
-
-    if not isinstance(query, str) or query.strip() == "":
-        warning_message = f"{node_name}: messages_received is empty"
-        logger.warning(warning_message)
-        warnings += [warning_message]
-        logs += [
-            {
-                "step": node_name,
-                "status": "skip",
-                "detail": "Skip recall because messages_received is empty",
-                "data": {
-                    "fr_id": fr_id,
-                    "dimension": dimension.value,
-                },
-            }
-        ]
-        logger.info(f"{node_name} executed finished\n")
-        return {
-            output_key: "",
-            "warnings": warnings,
-            "errors": errors,
-            "logs": logs,
-        }
-
-    top_k = int(os.getenv(top_k_env_key, "20"))
-    if top_k <= 0:
-        top_k = 20
-    recalled = await recallFineGrainedFeeds(
-        user_id=user_id,
-        fr_id=fr_id,
-        query=query,
-        top_k=top_k,
-        scope=[dimension],
-    )
-    if recalled.get("status") != 200:
-        error_message = (
-            f"{node_name} recall failed: {recalled.get('message', 'Unknown error')}"
-        )
-        logger.warning(f"{node_name} recall failed: {recalled}")
-        errors += [error_message]
-        logs += [
-            {
-                "step": node_name,
-                "status": "error",
-                "detail": "Recall fine-grained feeds failed",
-                "data": {
-                    "fr_id": fr_id,
-                    "dimension": dimension.value,
-                    "top_k": top_k,
-                    "status": recalled.get("status"),
-                    "message": recalled.get("message"),
-                },
-            }
-        ]
-        logger.info(f"{node_name} executed finished\n")
-        return {
-            output_key: "",
-            "warnings": warnings,
-            "errors": errors,
-            "logs": logs,
-        }
-
-    recalled_items = recalled.get("items") or []
-    recalled_text = _formatRecalledFeeds(recalled_items)
-    logs += [
-        {
-            "step": node_name,
-            "status": "ok",
-            "detail": "Recall fine-grained feeds success",
-            "data": {
-                "fr_id": fr_id,
-                "dimension": dimension.value,
-                "top_k": top_k,
-                "recalled_count": len(recalled_items),
-            },
-        }
-    ]
-    logger.info(f"{node_name} executed finished\n")
-    return {
-        output_key: recalled_text,
-        "warnings": warnings,
-        "errors": errors,
-        "logs": logs,
-    }
 
 
 def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
@@ -184,60 +84,134 @@ def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
         }
 
 
-async def nodeRecallPersonalitiesFromDB(state: ConversationGraphState) -> dict:
+async def nodeRecallFeedsFromDB(state: ConversationGraphState) -> dict:
     """
-    从数据库召回 personality
+    从数据库分组召回 personality, interaction style, procedural info, memory feeds
     """
-    logger.info("nodeRecallPersonalitiesFromDB is called")
-    return await _recallByDimension(
-        state=state,
-        node_name="nodeRecallPersonalitiesFromDB",
-        output_key="recalled_personalities_from_db",
-        dimension=FineGrainedFeedDimension.PERSONALITY,
-        top_k_env_key="TOP_K_FEEDS_FOR_PERSONALITY_RECALL",
+    logger.info("nodeRecallFeedsFromDB is called")
+    warnings = state.get("warnings") or []
+    errors = state.get("errors") or []
+    logs = state.get("logs") or []
+
+    request = state["request"]
+    user_id = request["user_id"]
+    fr_id = request["fr_id"]
+    messages_received = request["messages_received"]
+    if not isinstance(messages_received, list):
+        messages_received = []
+    query = ". ".join([item for item in messages_received if isinstance(item, str)])
+
+    if not isinstance(query, str) or query.strip() == "":
+        warning_message = f"Messages_received is empty"
+        logger.warning(warning_message)
+        warnings += [warning_message]
+        logs += [
+            {
+                "step": "nodeRecallFeedsFromDB",
+                "status": "skip",
+                "detail": "Skip recall because messages_received is empty",
+                "data": {
+                    "fr_id": fr_id,
+                },
+            }
+        ]
+        logger.info("nodeRecallFeedsFromDB executed finished\n")
+        return {
+            "warnings": warnings,
+            "errors": errors,
+            "logs": logs,
+        }
+
+    recalled = await recallFineGrainedFeeds(
+        user_id=user_id,
+        fr_id=fr_id,
+        query=query,
+        scope=[
+            {
+                "scope": FineGrainedFeedDimension.PERSONALITY,
+                "top_k": int(os.getenv("TOP_K_FEEDS_FOR_PERSONALITY_RECALL", "20")),
+            },
+            {
+                "scope": FineGrainedFeedDimension.INTERACTION_STYLE,
+                "top_k": int(
+                    os.getenv("TOP_K_FEEDS_FOR_INTERACTION_STYLE_RECALL", "20")
+                ),
+            },
+            {
+                "scope": FineGrainedFeedDimension.PROCEDURAL_INFO,
+                "top_k": int(os.getenv("TOP_K_FEEDS_FOR_PROCEDURAL_INFO_RECALL", "20")),
+            },
+            {
+                "scope": FineGrainedFeedDimension.MEMORY,
+                "top_k": int(os.getenv("TOP_K_FEEDS_FOR_MEMORY_RECALL", "20")),
+            },
+        ],
+    )
+    if recalled.get("status") != 200:
+        error_message = f"Recall failed: {recalled.get('message', 'Unknown error')}"
+        logger.warning(f"Recall failed: {recalled}")
+        errors += [error_message]
+        logs += [
+            {
+                "step": "nodeRecallFeedsFromDB",
+                "status": "error",
+                "detail": "Recall fine-grained feeds failed",
+                "data": {
+                    "fr_id": fr_id,
+                    "status": recalled.get("status"),
+                    "message": recalled.get("message"),
+                },
+            }
+        ]
+        logger.info("nodeRecallFeedsFromDB executed finished\n")
+        return {
+            "warnings": warnings,
+            "errors": errors,
+            "logs": logs,
+        }
+
+    raw_items = recalled.get("items") or {}
+    if not isinstance(raw_items, dict):
+        raw_items = {}
+    recalled_personalities_from_db = _recalledFeeds2Markdown(
+        raw_items.get("personality", [])
+    )
+    recalled_interaction_styles_from_db = _recalledFeeds2Markdown(
+        raw_items.get("interaction_style", [])
+    )
+    recalled_procedural_infos_from_db = _recalledFeeds2Markdown(
+        raw_items.get("procedural_info", [])
+    )
+    recalled_memories_from_db = _recalledFeeds2Markdown(raw_items.get("memory", []))
+
+    recalled_count = (
+        len(raw_items.get("personality", []))
+        + len(raw_items.get("interaction_style", []))
+        + len(raw_items.get("procedural_info", []))
+        + len(raw_items.get("memory", []))
     )
 
-
-async def nodeRecallInteractionStylesFromDB(state: ConversationGraphState) -> dict:
-    """
-    从数据库召回 interaction style
-    """
-    logger.info("nodeRecallInteractionStylesFromDB is called")
-    return await _recallByDimension(
-        state=state,
-        node_name="nodeRecallInteractionStylesFromDB",
-        output_key="recalled_interaction_styles_from_db",
-        dimension=FineGrainedFeedDimension.INTERACTION_STYLE,
-        top_k_env_key="TOP_K_FEEDS_FOR_INTERACTION_STYLE_RECALL",
-    )
-
-
-async def nodeRecallProceduralInfosFromDB(state: ConversationGraphState) -> dict:
-    """
-    从数据库召回 procedural info
-    """
-    logger.info("nodeRecallProceduralInfosFromDB is called")
-    return await _recallByDimension(
-        state=state,
-        node_name="nodeRecallProceduralInfosFromDB",
-        output_key="recalled_procedural_infos_from_db",
-        dimension=FineGrainedFeedDimension.PROCEDURAL_INFO,
-        top_k_env_key="TOP_K_FEEDS_FOR_PROCEDURAL_INFO_RECALL",
-    )
-
-
-async def nodeRecallMemoriesFromDB(state: ConversationGraphState) -> dict:
-    """
-    从数据库召回 memory
-    """
-    logger.info("nodeRecallMemoriesFromDB is called")
-    return await _recallByDimension(
-        state=state,
-        node_name="nodeRecallMemoriesFromDB",
-        output_key="recalled_memories_from_db",
-        dimension=FineGrainedFeedDimension.MEMORY,
-        top_k_env_key="TOP_K_FEEDS_FOR_MEMORY_RECALL",
-    )
+    logs += [
+        {
+            "step": "nodeRecallFeedsFromDB",
+            "status": "ok",
+            "detail": "Recall fine-grained feeds success",
+            "data": {
+                "fr_id": fr_id,
+                "recalled_count": recalled_count,
+            },
+        }
+    ]
+    logger.info("nodeRecallFeedsFromDB executed finished\n")
+    return {
+        "recalled_personalities_from_db": recalled_personalities_from_db,
+        "recalled_interaction_styles_from_db": recalled_interaction_styles_from_db,
+        "recalled_procedural_infos_from_db": recalled_procedural_infos_from_db,
+        "recalled_memories_from_db": recalled_memories_from_db,
+        "warnings": warnings,
+        "errors": errors,
+        "logs": logs,
+    }
 
 
 # todo：接入火山 Viking 记忆库
@@ -337,6 +311,7 @@ async def nodeCallLLM(state: ConversationGraphState) -> ConversationGraphOutput:
             "temperature": 0.3,
             "reasoning_effort": "low",
         },
+        reasoning_content_in_ai_message=False,  # 不把 reasoning_content 放到 AIMessage 中，压缩 AIMessage 体积
     )
     output = resp["output"]
     reasoning_content = resp["reasoning_content"]

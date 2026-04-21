@@ -11,7 +11,9 @@ from src.agents.graphs.ConversationGraph.graph import getConversationGraph
 messages_samples = [
     # "最近去哪啦？怎么没见到你",
     # "你不是刚从美国回来？怎么到处跑？",
-    "我记得你上周不是才去玩？",
+    # "我意思上周不是才去美国玩？",
+    # "看你发朋友圈来着",
+    "今天天气不错"
 ]
 
 

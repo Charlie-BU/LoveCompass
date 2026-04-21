@@ -77,6 +77,7 @@ async def arkAinvoke(
     model: Literal["DOUBAO_2_0_LITE", "DOUBAO_2_0_MINI"],
     messages: List[BaseMessage],
     model_options: LLMOptions = {},
+    reasoning_content_in_ai_message: bool = True,  # 是否把 reasoning_content 放到 ai_message 中
 ) -> ArkLLMResponse:
     """
     通过 Ark SDK ainvoke LLM
@@ -132,7 +133,11 @@ async def arkAinvoke(
             response_metadata={
                 "model": getattr(resp, "model", None),
                 "status": getattr(resp, "status", None),
-                "reasoning_content": reasoning_content or None,
+                "reasoning_content": (
+                    (reasoning_content or None)
+                    if reasoning_content_in_ai_message
+                    else None
+                ),
             },
         ),
     }

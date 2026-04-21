@@ -660,15 +660,23 @@ async def getFRAllContext(
                 user_id=user_id,
                 fr_id=fr_id,
                 query=normalized_query,
-                top_k=conf["top_k"],
-                scope=[conf["dimension"]],
+                scope=[
+                    {
+                        "scope": conf["dimension"],
+                        "top_k": conf["top_k"],
+                    }
+                ],
             )
             if recall_res.get("status") != 200:
                 return {
                     "status": -5,
                     "message": f"Recall FineGrainedFeed failed: {recall_res.get('message', '')}",
                 }
-            items = recall_res.get("items", [])
+            items = []
+            raw_items = recall_res.get("items", {})
+            if isinstance(raw_items, dict):
+                items = raw_items.get(conf["dimension"].value, [])
+
             recalled_map[conf["result_key"]] = (
                 buildRecalledMarkdown(title=conf["title"], items=items)
                 if items

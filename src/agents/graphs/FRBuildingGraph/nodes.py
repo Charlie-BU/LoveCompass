@@ -874,13 +874,17 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
             user_id=user_id,
             fr_id=fr_id,
             query=content,
-            top_k=top_k,
-            scope=[dimension],
+            scope=[{"scope": dimension, "top_k": top_k}],
         )
 
         recalled_candidates = []
         if recall_res.get("status") == 200:
-            for item in recall_res.get("items", []):
+            recalled_items = []
+            raw_items = recall_res.get("items", {})
+            if isinstance(raw_items, dict):
+                recalled_items = raw_items.get(dimension.value, [])
+
+            for item in recalled_items:
                 if not isinstance(item, dict):
                     continue
                 raw_feed = item.get("fine_grained_feed")

@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Literal
+from typing import List, Literal, TypedDict
 
 from src.agents.embedding import vectorizeText
 from src.database.enums import (
@@ -341,12 +341,16 @@ def getAllFineGrainedFeed(
         }
 
 
+class _recallScopeAndTopK(TypedDict):
+    scope: FineGrainedFeedDimension | Literal["all"]
+    top_k: int
+
+
 async def recallFineGrainedFeeds(
     user_id: int,
     fr_id: int,
     query: str,
-    top_k: int,
-    scope: List[FineGrainedFeedDimension] | Literal["all"] = "all",
+    scope: List[_recallScopeAndTopK],
 ) -> dict:
     """
     召回细粒度信息
@@ -357,14 +361,27 @@ async def recallFineGrainedFeeds(
         return {"status": -2, "message": "Invalid fr_id"}
     if not query or query.strip() == "":
         return {"status": -3, "message": "Query is empty"}
-    if not isinstance(top_k, int) or top_k <= 0:
-        return {"status": -4, "message": "Top_k must be greater than 0"}
-    if scope != "all" and (
-        not isinstance(scope, list)
-        or not scope
-        or not all(isinstance(item, FineGrainedFeedDimension) for item in scope)
-    ):
-        return {"status": -9, "message": "Invalid scope"}
+    if not isinstance(scope, list) or not scope:
+        return {"status": -4, "message": "Scope config is invalid"}
+
+    # scope 配置归一为 (FineGrainedFeedDimension | Literal["all"], int)
+    normalized_scope_cfg: list[
+        tuple[FineGrainedFeedDimension | Literal["all"], int]
+    ] = []
+    seen_scope_items: set[FineGrainedFeedDimension | Literal["all"]] = set()
+    for item in scope:
+        if not isinstance(item, dict):
+            return {"status": -9, "message": "Invalid scope item"}
+        item_scope = item.get("scope")
+        item_top_k = item.get("top_k")
+        if item_scope != "all" and not isinstance(item_scope, FineGrainedFeedDimension):
+            return {"status": -9, "message": "Invalid scope item"}
+        if not isinstance(item_top_k, int) or item_top_k <= 0:
+            return {"status": -4, "message": "Top_k must be greater than 0"}
+        if item_scope in seen_scope_items:
+            return {"status": -10, "message": "Duplicate scope is not allowed"}
+        seen_scope_items.add(item_scope)
+        normalized_scope_cfg.append((item_scope, item_top_k))
 
     try:
         vector = await vectorizeText(query.strip())
@@ -386,48 +403,68 @@ async def recallFineGrainedFeeds(
         if fr is None:
             return {"status": -7, "message": "FigureAndRelation not found"}
         try:
-            db_query = db.query(FineGrainedFeed, distance.label("distance")).filter(
-                FineGrainedFeed.fr_id == fr_id,
-                FineGrainedFeed.is_deleted == False,
-            )
-            if scope != "all":
-                db_query = db_query.filter(FineGrainedFeed.dimension.in_(scope))
-            candidates: list[tuple[FineGrainedFeed, float]] = (
-                db_query.order_by(distance.asc())
-                .limit(int(os.getenv("VECTOR_CANDIDATES")) or 100)
-                .all()
-            )
+            vector_candidates_limit = int(os.getenv("VECTOR_CANDIDATES") or 100)
         except Exception as e:
             logger.error(f"Recall FineGrainedFeed failed: {str(e)}")
             return {"status": -8, "message": "Recall FineGrainedFeed failed"}
 
-        results = []
-        for fine_grained_feed, dist in candidates:
-            semantic_score = max(0.0, min(1.0, 1 - float(dist) / 2))
-            confidence_weight = confidence_weight_map.get(
-                fine_grained_feed.confidence, 0.7
+        results = {}
+        # 分别按 scope 召回
+        for scope_item, scope_top_k in normalized_scope_cfg:
+            db_query = db.query(FineGrainedFeed, distance.label("distance")).filter(
+                FineGrainedFeed.fr_id == fr_id,
+                FineGrainedFeed.is_deleted == False,
             )
-            created_at = fine_grained_feed.created_at
+            if scope_item != "all":
+                db_query = db_query.filter(FineGrainedFeed.dimension == scope_item)
 
-            decay = timeDecay(created_at) if created_at else 1.0
-            raw_score = semantic_score * 0.8 + confidence_weight * 0.2
-            score = raw_score * decay
-
-            results.append(
-                {
-                    "distance": float(dist),
-                    "score": score,
-                    "semantic_score": semantic_score,
-                    "confidence_weight": confidence_weight,
-                    "time_decay": decay,
-                    "fine_grained_feed": fine_grained_feed.toJson(
-                        exclude=["embedding", "embedding_model_name"]
-                    ),
-                }
+            candidates: list[tuple[FineGrainedFeed, float]] = (
+                db_query.order_by(distance.asc())
+                .limit(max(vector_candidates_limit, scope_top_k))
+                .all()
             )
 
-        results.sort(key=lambda x: x["score"], reverse=True)
-        results = results[:top_k]
+            per_scope_results = []
+            # 对每个召回项计算 score，重排
+            for fine_grained_feed, dist in candidates:
+                semantic_score = max(0.0, min(1.0, 1 - float(dist) / 2))
+                confidence_weight = confidence_weight_map.get(
+                    fine_grained_feed.confidence, 0.7
+                )
+                created_at = fine_grained_feed.created_at
+
+                decay = timeDecay(created_at) if created_at else 1.0
+                raw_score = semantic_score * 0.8 + confidence_weight * 0.2
+                score = raw_score * decay
+
+                per_scope_results.append(
+                    {
+                        "distance": float(dist),
+                        "score": score,
+                        "semantic_score": semantic_score,
+                        "confidence_weight": confidence_weight,
+                        "time_decay": decay,
+                        "fine_grained_feed": fine_grained_feed.toJson(
+                            exclude=["embedding", "embedding_model_name"]
+                        ),
+                    }
+                )
+
+            per_scope_results.sort(key=lambda x: x["score"], reverse=True)
+            if scope_item != "all":
+                results[scope_item.value] = per_scope_results[:scope_top_k]
+            else:
+                # scope 为 all，按维度分组
+                grouped_by_dimension: dict[str, list[dict]] = {}
+                for item in per_scope_results[:scope_top_k]:
+                    fine_grained_feed = item.get("fine_grained_feed") or {}
+                    dimension = fine_grained_feed.get("dimension")
+                    if not isinstance(dimension, str) or dimension == "":
+                        continue
+                    grouped_by_dimension.setdefault(dimension, []).append(item)
+                for dimension, items in grouped_by_dimension.items():
+                    results.setdefault(dimension, []).extend(items)
+
         return {
             "status": 200,
             "message": "Recall success",
@@ -839,9 +876,13 @@ def getAllFineGrainedFeedConflict(
             case "all":
                 pass
             case "unresolved":
-                query = query.filter(FineGrainedFeedConflict.status == ConflictStatus.PENDING)
+                query = query.filter(
+                    FineGrainedFeedConflict.status == ConflictStatus.PENDING
+                )
             case "resolved":
-                query = query.filter(FineGrainedFeedConflict.status != ConflictStatus.PENDING)
+                query = query.filter(
+                    FineGrainedFeedConflict.status != ConflictStatus.PENDING
+                )
             case _:
                 return {"status": -4, "message": "Invalid scope"}
 

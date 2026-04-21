@@ -177,7 +177,12 @@ async def testRecallFineGrainedFeeds(fr_id: int, query: str, top_k: int):
         user_id=1,
         fr_id=fr_id,
         query=query,
-        top_k=top_k,
+        scope=[
+            {
+                "scope": "all",
+                "top_k": top_k,
+            }
+        ],
     )
     return res
 

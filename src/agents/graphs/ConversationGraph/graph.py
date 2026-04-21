@@ -12,10 +12,7 @@ from src.agents.graphs.ConversationGraph.nodes import (
     nodeBuildMessage,
     nodeCallLLM,
     nodeLoadFRAndPersona,
-    nodeRecallInteractionStylesFromDB,
-    nodeRecallMemoriesFromDB,
-    nodeRecallPersonalitiesFromDB,
-    nodeRecallProceduralInfosFromDB,
+    nodeRecallFeedsFromDB,
 )
 from src.agents.graphs.checkpointer import agetCheckpointer
 
@@ -32,29 +29,14 @@ def buildBaseConversationGraph() -> StateGraph:
     )
 
     graph.add_node("nodeLoadFRAndPersona", nodeLoadFRAndPersona)
-    graph.add_node("nodeRecallPersonalitiesFromDB", nodeRecallPersonalitiesFromDB)
-    graph.add_node(
-        "nodeRecallInteractionStylesFromDB", nodeRecallInteractionStylesFromDB
-    )
-    graph.add_node("nodeRecallProceduralInfosFromDB", nodeRecallProceduralInfosFromDB)
-    graph.add_node("nodeRecallMemoriesFromDB", nodeRecallMemoriesFromDB)
+    graph.add_node("nodeRecallFeedsFromDB", nodeRecallFeedsFromDB)
     graph.add_node("nodeBuildMessage", nodeBuildMessage)
     graph.add_node("nodeCallLLM", nodeCallLLM)
 
     graph.add_edge(START, "nodeLoadFRAndPersona")
 
-    # 四个维度召回并行执行
-    graph.add_edge("nodeLoadFRAndPersona", "nodeRecallPersonalitiesFromDB")
-    graph.add_edge("nodeLoadFRAndPersona", "nodeRecallInteractionStylesFromDB")
-    graph.add_edge("nodeLoadFRAndPersona", "nodeRecallProceduralInfosFromDB")
-    graph.add_edge("nodeLoadFRAndPersona", "nodeRecallMemoriesFromDB")
-
-    # 汇合到下游，确保四个召回都完成后再继续
-    graph.add_edge("nodeRecallPersonalitiesFromDB", "nodeBuildMessage")
-    graph.add_edge("nodeRecallInteractionStylesFromDB", "nodeBuildMessage")
-    graph.add_edge("nodeRecallProceduralInfosFromDB", "nodeBuildMessage")
-    graph.add_edge("nodeRecallMemoriesFromDB", "nodeBuildMessage")
-
+    graph.add_edge("nodeLoadFRAndPersona", "nodeRecallFeedsFromDB")
+    graph.add_edge("nodeRecallFeedsFromDB", "nodeBuildMessage")
     graph.add_edge("nodeBuildMessage", "nodeCallLLM")
     graph.add_edge("nodeCallLLM", END)
 
