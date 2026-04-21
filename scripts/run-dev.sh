@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-ROLE="${1:-http}"
+ROLE="${1:-lark}"
 
 if [ "$ROLE" = "http" ]; then
     # uv run robyn -m main --dev    # robyn热重载异常，不断重启

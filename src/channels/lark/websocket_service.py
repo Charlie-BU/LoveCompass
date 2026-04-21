@@ -4,7 +4,6 @@ import os
 from typing import Callable
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import (
-    GetMessageResourceRequest,
     P2ImMessageReceiveV1,
 )
 
@@ -169,6 +168,9 @@ def messageAdapter(
 
 
 def startLarkWebSocketServer(message_handler: Callable[[str, str], None]) -> None:
+    """
+    启动 Lark WebSocket 服务器
+    """
     app_id = os.getenv("LARK_APP_ID", "")
     app_secret = os.getenv("LARK_APP_SECRET", "")
     assert (
