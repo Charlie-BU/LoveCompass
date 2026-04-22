@@ -40,7 +40,7 @@ from src.utils.index import (
     checkFigureAndRelationOwnership,
     cleanList,
     jsonDefault,
-    normalizeText,
+    stringifyValue,
 )
 
 logger = logging.getLogger(__name__)
@@ -505,29 +505,51 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
                     {"field": field, "action": ConflictStatus.RESOLVED_KEEP_OLD.value}
                 )
                 continue
-            # 递交模型判断
-            LLM_compare_res = await _compareFieldViaLLM(
-                field_name=field,
-                field_type="list",
-                old_value=json.dumps(existing_list),
-                new_value=json.dumps(new_list),
-            )
-            # 对于 FR 内在字段判断，直接更新，无需考虑冲突落库
-            final_value = list(LLM_compare_res.get("final_value"))
+
+            final_value = []
+            # 这两个字段不走模型判断，另外有最大长度限制
+            if field in ("words_figure2user", "words_user2figure"):
+                combined_list = cleanList(existing_list + new_list)
+                final_value = combined_list[
+                    : int(os.getenv("MAX_WORDS_TO_AND_FROM_FIGURE", "100"))
+                ]
+                plan_actions.append(
+                    {
+                        "field": field,
+                        "action": ConflictStatus.RESOLVED_MERGE.value,
+                        "detail": "",
+                    }
+                )
+            else:
+                # 递交模型判断
+                LLM_compare_res = await _compareFieldViaLLM(
+                    field_name=field,
+                    field_type="list",
+                    old_value=json.dumps(existing_list),
+                    new_value=json.dumps(new_list),
+                )
+                # 对于 FR 内在字段判断，直接更新，无需考虑冲突落库
+                llm_final_value = LLM_compare_res.get("final_value")
+                final_value = (
+                    list(llm_final_value)
+                    if isinstance(llm_final_value, list)
+                    else existing_list
+                )
+                plan_actions.append(
+                    {
+                        "field": field,
+                        "action": stringifyValue(LLM_compare_res.get("conflict_status")),
+                        "detail": LLM_compare_res.get("detail"),
+                    }
+                )
+
             planned_updates[field] = final_value
-            plan_actions.append(
-                {
-                    "field": field,
-                    "action": LLM_compare_res.get("conflict_status").value,
-                    "detail": LLM_compare_res.get("detail"),
-                }
-            )
             continue
 
         # string 类型字段
         if field in fr_string_fields(detailed=False):
-            existing_text = normalizeText(figure_and_relation.get(field))
-            new_text = normalizeText(new_value)
+            existing_text = stringifyValue(figure_and_relation.get(field))
+            new_text = stringifyValue(new_value)
             if new_text == "":
                 # 新值为空，直接跳过
                 continue
@@ -552,12 +574,16 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
                 old_value=existing_text,
                 new_value=new_text,
             )
+            llm_final_value = LLM_compare_res.get("final_value")
+            if not llm_final_value or llm_final_value == "":
+                # 模型判断为空，不更新直接跳过
+                continue
             # 对于 FR 内在字段判断，直接更新，无需考虑冲突落库
-            planned_updates[field] = LLM_compare_res.get("final_value")
+            planned_updates[field] = stringifyValue(llm_final_value)
             plan_actions.append(
                 {
                     "field": field,
-                    "action": LLM_compare_res.get("conflict_status").value,
+                    "action": stringifyValue(LLM_compare_res.get("conflict_status")),
                     "detail": LLM_compare_res.get("detail"),
                 }
             )
@@ -858,7 +884,7 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
             continue
 
         dimension = feed.get("dimension")
-        content = normalizeText(feed.get("content"))
+        content = stringifyValue(feed.get("content"))
         if not isinstance(dimension, FineGrainedFeedDimension):
             warning = f"Invalid extracted feed dimension: {feed.get('dimension')}"
             logger.warning(warning)
@@ -903,7 +929,7 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                         "dimension": recalled_dimension or dimension,
                         "sub_dimension": raw_feed.get("sub_dimension"),
                         "confidence": recalled_confidence or feed.get("confidence"),
-                        "content": normalizeText(raw_feed.get("content")),
+                        "content": stringifyValue(raw_feed.get("content")),
                         "score": float(item.get("score") or 0),
                     }
                 )
@@ -926,7 +952,7 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
         }
 
         for recalled_feed in recalled_candidates:
-            old_content = normalizeText(recalled_feed.get("content"))
+            old_content = stringifyValue(recalled_feed.get("content"))
             if old_content == "":
                 continue
             LLM_compare_res = await _compareFieldViaLLM(
@@ -935,9 +961,9 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                 old_value=old_content,
                 new_value=content,
             )
-            tag = normalizeText(LLM_compare_res.get("tag"))
-            final_value = normalizeText(LLM_compare_res.get("final_value"))
-            detail = normalizeText(LLM_compare_res.get("detail"))
+            tag = stringifyValue(LLM_compare_res.get("tag"))
+            final_value = stringifyValue(LLM_compare_res.get("final_value"))
+            detail = stringifyValue(LLM_compare_res.get("detail"))
 
             if tag == "irrelevant":
                 continue
@@ -1063,18 +1089,18 @@ async def nodePersistFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
             continue
 
         extracted_feed = plan_item.get("extracted_feed") or {}
-        action = normalizeText(plan_item.get("action"))
+        action = stringifyValue(plan_item.get("action"))
         target_feed_id = plan_item.get("target_feed_id")
-        merged_content = normalizeText(plan_item.get("merged_content"))
-        reason = normalizeText(plan_item.get("reason"))
+        merged_content = stringifyValue(plan_item.get("merged_content"))
+        reason = stringifyValue(plan_item.get("reason"))
 
         dimension = extracted_feed.get("dimension")
         sub_dimension = (
-            normalizeText(extracted_feed.get("sub_dimension"))
+            stringifyValue(extracted_feed.get("sub_dimension"))
             if extracted_feed.get("sub_dimension")
             else None
         )
-        content = normalizeText(extracted_feed.get("content"))
+        content = stringifyValue(extracted_feed.get("content"))
         confidence = extracted_feed.get("confidence")
 
         if not isinstance(dimension, FineGrainedFeedDimension):
@@ -1158,7 +1184,7 @@ async def nodePersistFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                                 continue
                             if candidate.get("id") != target_feed_id:
                                 continue
-                            old_value = normalizeText(candidate.get("content"))
+                            old_value = stringifyValue(candidate.get("content"))
                             break
                     if old_value == "":
                         old_value = merged_content
@@ -1351,7 +1377,7 @@ def nodeBuildFRBuildingGraphOutput(
 #                 HumanMessage(content=user_prompt),
 #             ]
 #         )
-#         report_markdown = normalizeText(response.content)
+#         report_markdown = stringifyValue(response.content)
 #     except Exception as e:
 #         warning = f"Generate FR report via LLM failed: {str(e)}"
 #         logger.warning(warning)

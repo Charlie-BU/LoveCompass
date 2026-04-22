@@ -17,7 +17,7 @@ from src.services.fine_grained_feed import recallFineGrainedFeeds
 from src.utils.index import (
     checkFigureAndRelationOwnership,
     cleanList,
-    normalizeText,
+    stringifyValue,
     serialize2String,
 )
 
@@ -53,7 +53,6 @@ fr_non_nullable_fields = {
     "figure_dislikes",
     "words_figure2user",
     "words_user2figure",
-    "exact_relation",
     "core_personality",
     "core_interaction_style",
     "core_procedural_info",
@@ -519,10 +518,14 @@ def getAllFRBuildingGraphReport(
         }
 
 
-def buildFigurePersonaMarkdown(fr: FigureAndRelation) -> str:
+def buildFigurePersonaMarkdown(
+    fr: FigureAndRelation,
+    exclude_fields: list[str] | None = None,
+) -> str:
     """
     构建 Markdown 格式人物画像
     """
+    excluded_fields = set(exclude_fields or [])
     field_map: list[tuple[str, str]] = [
         ("figure_name", "姓名"),
         ("figure_gender", "性别"),
@@ -549,6 +552,8 @@ def buildFigurePersonaMarkdown(fr: FigureAndRelation) -> str:
         value = getattr(fr, field_name, None)
         if value is None:
             continue
+        if field_name in excluded_fields:
+            continue
         if isinstance(value, str):
             text = value.strip()
             if text == "":
@@ -561,7 +566,7 @@ def buildFigurePersonaMarkdown(fr: FigureAndRelation) -> str:
                 continue
             lines.append(f"- {title}: {'；'.join(text_list)}")
             continue
-        lines.append(f"- {title}: {normalizeText(value)}")
+        lines.append(f"- {title}: {stringifyValue(value)}")
     if len(lines) == 1:
         lines.append("- 暂无有效画像信息")
     return "\n".join(lines)
@@ -583,7 +588,7 @@ def buildRecalledMarkdown(title: str, items: list[dict[str, Any]]) -> str:
         sub_dimension = str(feed.get("sub_dimension", "")).strip()
         confidence = feed.get("confidence")
         confidence_text = (
-            normalizeText(confidence) if confidence is not None else "unknown"
+            stringifyValue(confidence) if confidence is not None else "unknown"
         )
         score = item.get("score", 0.0)
         try:
@@ -618,7 +623,7 @@ async def getFRAllContext(
         fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
-    persona = buildFigurePersonaMarkdown(fr)
+    persona = buildFigurePersonaMarkdown(fr=fr)
 
     recalled_map = {
         "recalled_personality": None,
