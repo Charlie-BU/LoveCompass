@@ -3,5 +3,6 @@
 - System Message 飞书卡片渲染
 - CLI 支持
 - checkpoint 短期记忆 trim
+- Viking 接入
 - words_figure2user, words_user2figure 字段需要更严格的限制
 - 给用户可视化 FR 信息和 FRBuilding 具体结果

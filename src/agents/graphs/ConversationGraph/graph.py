@@ -9,7 +9,7 @@ from src.agents.graphs.ConversationGraph.state import (
     ConversationGraphState,
 )
 from src.agents.graphs.ConversationGraph.nodes import (
-    nodeBuildMessage,
+    nodeBuildAndTrimMessage,
     nodeCallLLM,
     nodeLoadFRAndPersona,
     nodeRecallFeedsFromDB,
@@ -30,14 +30,16 @@ def buildBaseConversationGraph() -> StateGraph:
 
     graph.add_node("nodeLoadFRAndPersona", nodeLoadFRAndPersona)
     graph.add_node("nodeRecallFeedsFromDB", nodeRecallFeedsFromDB)
-    graph.add_node("nodeBuildMessage", nodeBuildMessage)
+    graph.add_node("nodeBuildAndTrimMessage", nodeBuildAndTrimMessage)
     graph.add_node("nodeCallLLM", nodeCallLLM)
 
     graph.add_edge(START, "nodeLoadFRAndPersona")
 
+    # nodeRecallFeedsFromDB 和 nodeBuildAndTrimMessage 并行执行
     graph.add_edge("nodeLoadFRAndPersona", "nodeRecallFeedsFromDB")
-    graph.add_edge("nodeRecallFeedsFromDB", "nodeBuildMessage")
-    graph.add_edge("nodeBuildMessage", "nodeCallLLM")
+    graph.add_edge("nodeLoadFRAndPersona", "nodeBuildAndTrimMessage")
+    graph.add_edge("nodeRecallFeedsFromDB", "nodeCallLLM")
+    graph.add_edge("nodeBuildAndTrimMessage", "nodeCallLLM")
     graph.add_edge("nodeCallLLM", END)
 
     return graph

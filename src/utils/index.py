@@ -90,19 +90,36 @@ def cleanList(items: list):
     return result
 
 
-def normalizeText(value: Any) -> str:
+def stringifyValue(value: Any, strip: bool = True) -> str:
     """
-    归一化文本和枚举值，移除首尾空格，转换为字符串。
+    文本化，支持 enum、List[str|dict]、None 等类型。
     """
+
+    def _normalizeString(text: str) -> str:
+        return text.strip() if strip else text
+
+    if value is None:
+        return ""
     if hasattr(value, "value"):
-        return str(value.value)
+        return _normalizeString(str(value.value))
     if isinstance(value, str):
-        return value.strip()
-    else:
-        try:
-            return str(value).strip()
-        except:
-            return ""
+        return _normalizeString(value)
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                text = stringifyValue(item.get("text"), strip=strip)
+                if text != "":
+                    parts.append(text)
+            elif isinstance(item, str):
+                text = stringifyValue(item, strip=strip)
+                if text != "":
+                    parts.append(text)
+        return "\n".join(parts)
+    try:
+        return _normalizeString(str(value))
+    except Exception:
+        return ""
 
 
 def serialize2String(value: Any) -> str | None:

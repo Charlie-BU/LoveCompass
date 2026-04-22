@@ -181,7 +181,7 @@ class FigureAndRelation(Base, SerializableMixin):
     # 详细信息（markdown 动态填充）
     exact_relation = Column(
         Text,
-        nullable=False,
+        nullable=True,
         default="",
         comment="精确关系描述",
     )
