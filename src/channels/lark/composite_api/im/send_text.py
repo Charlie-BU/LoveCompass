@@ -1,6 +1,11 @@
+"""
+发送文本消息，使用到 OpenAPI：
+1. [发送消息](https://open.feishu.cn/document/server-docs/im-v1/message/create)
+"""
+
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import *
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 
 class SendTextRequest(TypedDict):
@@ -16,7 +21,7 @@ class SendTextResponse(BaseResponse):
         self.create_message_response: Optional[CreateMessageResponseBody] = None
 
 
-def sendText(client: lark.Client, request: SendTextRequest) -> BaseResponse:
+def sendText(client: lark.Client, request: SendTextRequest) -> SendTextResponse:
     create_message_req = (
         CreateMessageRequest.builder()
         .receive_id_type(request.get("receive_id_type"))
@@ -42,7 +47,11 @@ def sendText(client: lark.Client, request: SendTextRequest) -> BaseResponse:
             f"msg: {create_message_resp.msg}, "
             f"log_id: {create_message_resp.get_log_id()}"
         )
-        return create_message_resp
+        response = SendTextResponse()
+        response.code = create_message_resp.code
+        response.msg = create_message_resp.msg
+        response.create_message_response = create_message_resp.data
+        return response
 
     response = SendTextResponse()
     response.code = 0

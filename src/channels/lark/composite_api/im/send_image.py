@@ -6,7 +6,7 @@
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import *
-from typing import TypedDict
+from typing import Any, IO, Optional, TypedDict
 
 
 class SendImageRequest(TypedDict):
@@ -24,7 +24,7 @@ class SendImageResponse(BaseResponse):
 
 
 # 发送图片消息
-def sendImage(client: lark.Client, request: SendImageRequest) -> BaseResponse:
+def sendImage(client: lark.Client, request: SendImageRequest) -> SendImageResponse:
     # 上传图片
     create_image_req = (
         CreateImageRequest.builder()
@@ -46,7 +46,11 @@ def sendImage(client: lark.Client, request: SendImageRequest) -> BaseResponse:
             f"msg: {create_image_resp.msg}, "
             f"log_id: {create_image_resp.get_log_id()}"
         )
-        return create_image_resp
+        response = SendImageResponse()
+        response.code = create_image_resp.code
+        response.msg = create_image_resp.msg
+        response.create_image_response = create_image_resp.data
+        return response
 
     # 发送消息
     option = (
@@ -79,7 +83,12 @@ def sendImage(client: lark.Client, request: SendImageRequest) -> BaseResponse:
             f"msg: {create_message_resp.msg}, "
             f"log_id: {create_message_resp.get_log_id()}"
         )
-        return create_message_resp
+        response = SendImageResponse()
+        response.code = create_message_resp.code
+        response.msg = create_message_resp.msg
+        response.create_image_response = create_image_resp.data
+        response.create_message_response = create_message_resp.data
+        return response
 
     # 返回结果
     response = SendImageResponse()

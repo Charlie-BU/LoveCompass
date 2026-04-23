@@ -2,34 +2,28 @@ import asyncio
 import logging
 import re
 import time
+from typing import Literal
 
 from src.agents.graphs.FRBuildingGraph.graph import getFRBuildingGraph
 from src.database.index import session
 from src.database.models import FigureAndRelation, User
+from src.channels.lark.integration.utils import sendCard2OpenId
 
 
 logger = logging.getLogger(__name__)
 
 
-def _sendText2OpenId(open_id: str, text: str) -> None:
+def _getCommonInfo(
+    open_id: str, fr_id: int
+) -> tuple[dict | None, Literal["unauthorized", "fr_not_found"] | None]:
     """
-    发送飞书消息给指定 open_id 的用户
-    """
-    # 函数内导入，避免循环导入
-    from src.channels.lark.integration.index import sendText2OpenId
-
-    sendText2OpenId(open_id, text)
-
-
-def _getCommonInfo(open_id: str, fr_id: int) -> dict | None:
-    """
-    获取通用信息，包括用户 ID 和 figure 姓名
+    获取通用信息，包括用户 ID 和 figure 姓名，同时返回错误类型
     """
     with session() as db:
         user = db.query(User).filter(User.lark_open_id == open_id).first()
         if user is None:
             logger.warning(f"open_id：{open_id} is invalid")
-            return None
+            return None, "unauthorized"
         user_id = user.id
         figure_and_relation = (
             db.query(FigureAndRelation)
@@ -38,11 +32,14 @@ def _getCommonInfo(open_id: str, fr_id: int) -> dict | None:
         )
         if figure_and_relation is None:
             logger.warning(f"FR not found")
-            return None
-        return {
-            "user_id": user_id,
-            "figure_name": figure_and_relation.figure_name,
-        }
+            return None, "fr_not_found"
+        return (
+            {
+                "user_id": user_id,
+                "figure_name": figure_and_relation.figure_name,
+            },
+            None,
+        )
 
 
 def _submitBackgroundCoroutine(coro: asyncio.coroutines) -> None:
@@ -69,14 +66,19 @@ def showMenu(open_id: str) -> None:
     """
     menu_text = "\n\n".join(
         [
-            "【System】可用指令：",
             *[
-                f"{index}. {item['content']}\n{item['hint']}"
+                f"{index}. **{item['content']}**\n```text\n{item['hint']}\n```"
                 for index, item in enumerate(menu, start=1)
             ],
+            "发送以上命令即可执行对应操作",
         ]
     )
-    _sendText2OpenId(open_id, menu_text)
+    sendCard2OpenId(
+        open_id=open_id,
+        title="Immortality 可用指令",
+        content=menu_text,
+        theme="turquoise",
+    )
 
 
 def listAvailableFRs(open_id: str) -> None:
@@ -87,6 +89,12 @@ def listAvailableFRs(open_id: str) -> None:
         user = db.query(User).filter(User.lark_open_id == open_id).first()
         if user is None:
             logger.warning(f"open_id：{open_id} is invalid")
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="当前飞书账号未授权，请先绑定账号",
+                theme="red",
+            )
             return
         user_id = user.id
         figure_and_relations = (
@@ -96,15 +104,25 @@ def listAvailableFRs(open_id: str) -> None:
         )
         if not figure_and_relations or len(figure_and_relations) == 0:
             logger.warning(f"No FR found for this user")
-            _sendText2OpenId(open_id, "【System】当前用户未绑定任何 FR")
+            sendCard2OpenId(
+                open_id=open_id,
+                title="Immortality 提示",
+                content="当前账号未绑定任何对话对象（FR）",
+                theme="yellow",
+            )
             return
         fr_list = "\n".join(
             [
-                f"{index}. {fr.figure_name} - fr_id: {fr.id}"
+                f"{index}. **{fr.figure_name}**  \n   `fr_id: {fr.id}`"
                 for index, fr in enumerate(figure_and_relations, start=1)
             ]
         )
-        _sendText2OpenId(open_id, f"【System】可选交流对象：\n{fr_list}")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="可选对话对象",
+            content=f"请选择要切换的对象：\n\n{fr_list}\n\n发送 `/<fr_id>` 即可切换",
+            theme="turquoise",
+        )
 
 
 def switchFR(open_id: str, fr_id: int) -> None:
@@ -113,9 +131,22 @@ def switchFR(open_id: str, fr_id: int) -> None:
     """
     from src.channels.lark.integration import index as lark_integration
 
-    common_info = _getCommonInfo(open_id, fr_id)
+    common_info, error_type = _getCommonInfo(open_id, fr_id)
     if common_info is None:
-        _sendText2OpenId(open_id, f"【System】切换失败，未找到 fr_id={fr_id} 对应 FR")
+        if error_type == "unauthorized":
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="当前飞书账号未授权，请先绑定账号",
+                theme="red",
+            )
+            return
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content=f"切换失败：未找到 `fr_id={fr_id}` 对应的对话对象",
+            theme="red",
+        )
         return
 
     figure_name = common_info.get("figure_name")
@@ -128,7 +159,12 @@ def switchFR(open_id: str, fr_id: int) -> None:
         # 取消计时器
         lark_integration._cancelFlushTimerLocked(open_id)
     logger.info(f"Successfully switch FR to {figure_name}")
-    _sendText2OpenId(open_id, f"【System】已切换，我是 {figure_name}")
+    sendCard2OpenId(
+        open_id=open_id,
+        title="对话人切换成功",
+        content=f"我是 **{figure_name}**",
+        theme="green",
+    )
 
 
 def clearCurrentRelationChain(open_id: str) -> None:
@@ -142,24 +178,43 @@ def clearCurrentRelationChain(open_id: str) -> None:
         lark_integration._pending_messages_by_open_id.pop(open_id, None)
         lark_integration._cancelFlushTimerLocked(open_id)
     logger.info(f"Successfully clear FR for {open_id}")
-    _sendText2OpenId(open_id, "【System】已清楚当前对话对象")
+    sendCard2OpenId(
+        open_id=open_id,
+        title="清除成功",
+        content="已清除当前对话对象",
+        theme="green",
+    )
 
 
 def buildPersona(open_id: str, fr_id: int, text: str) -> None:
     """
     完善 / 补充人物画像
     """
-    common_info = _getCommonInfo(open_id, fr_id)
+    common_info, error_type = _getCommonInfo(open_id, fr_id)
     if common_info is None:
-        _sendText2OpenId(
-            open_id, f"【System】完善人物画像失败，未找到 fr_id={fr_id} 对应 FR"
+        if error_type == "unauthorized":
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="当前飞书账号未授权，请先绑定账号",
+                theme="red",
+            )
+            return
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content=f"完善人物画像失败：未找到 `fr_id={fr_id}` 对应的对话对象",
+            theme="red",
         )
         return
 
     user_id = common_info.get("user_id")
     figure_name = common_info.get("figure_name")
-    _sendText2OpenId(
-        open_id, f"【System】已开始完善人物画像（{figure_name}），完成后会通知结果"
+    sendCard2OpenId(
+        open_id=open_id,
+        title="任务开始",
+        content=f"开始完善 **{figure_name}** 的人物画像，完成后会通知结果",
+        theme="green",
     )
 
     async def _task() -> None:
@@ -180,16 +235,23 @@ def buildPersona(open_id: str, fr_id: int, text: str) -> None:
             await graph.ainvoke(init_state)
             end_time = time.perf_counter()
             logger.info(f"Successfully build persona for {figure_name}")
-            _sendText2OpenId(
-                open_id,
-                f"【System】已完善人物画像（{figure_name}），耗时 {end_time - start_time:.2f}s",
+            sendCard2OpenId(
+                open_id=open_id,
+                title="人物画像完善成功",
+                content=f"已完成 **{figure_name}** 人物画像完善，耗时 `{end_time - start_time:.2f}s`",
+                theme="green",
             )
         except Exception as e:
             logger.warning(
                 f"Fail to build persona, open_id={open_id}, fr_id={fr_id}, err={e}",
                 exc_info=True,
             )
-            _sendText2OpenId(open_id, "【System】完善人物画像失败，请稍后重试")
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="完善人物画像失败，请稍后重试",
+                theme="red",
+            )
 
     # 提交到后台异步 loop 执行，不阻塞当前消息处理链路
     _submitBackgroundCoroutine(_task())
