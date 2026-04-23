@@ -35,6 +35,8 @@ def _mergeUniqueList(left: list[Any], right: list[Any]) -> list[Any]:
 class ConversationGraphState(
     MessagesState
 ):  # 继承自MessagesState，自动包含messages: Annotated[list[AnyMessage], add_messages]字段
+    round_uuid: str  # 本轮次唯一标识 uuid
+    
     request: Request
     user_name: str  # 用户姓名
     figure_and_relation: dict[str, Any]
