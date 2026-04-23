@@ -7,15 +7,16 @@ from typing import Any, List
 
 from src.agents.graphs.ConversationGraph.graph import getConversationGraph
 from src.agents.graphs.ConversationGraph.state import ConversationGraphOutput
-from src.channels.lark.client import larkClient
-from src.channels.lark.composite_api.im.send_text import SendTextRequest, sendText
-from src.database.index import session
-from src.database.models import FigureAndRelation, User
+from src.channels.lark.integration.utils import (
+    frBelongsToUser,
+    getUserIdByOpenId,
+    sendCard2OpenId,
+    sendText2OpenId,
+)
 from src.channels.lark.integration.menu import handleMenuCommand
 
 
 logger = logging.getLogger(__name__)
-_lark_client = larkClient()
 
 # 以下 by_open_id 的原因是系统里可能有多个用户并发，每个用户各自一个激活 FR（暂未实现，留扩展性）
 # 每个用户当前激活的 openid-fr_id 映射
@@ -30,9 +31,9 @@ _state_lock = threading.Lock()
 _temp_received_messages_by_open_id: dict[str, list[tuple[str, int]]] = {}
 
 # 说明：
-# - ConversationGraph 使用了异步 checkpointer，连接生命周期依赖事件循环。
-# - 若每次批处理都用 asyncio.run(...)，会反复创建并关闭 loop，导致第二次调用可能出现 "the connection is closed"（复用到已失效连接）。
-# - 这里改为进程级单一后台 loop，配合 run_coroutine_threadsafe 执行异步任务，确保连接稳定复用。
+# - ConversationGraph 使用了异步 checkpointer，连接生命周期依赖事件循环
+# - 若每次批处理都用 asyncio.run(...)，会反复创建并关闭 loop，导致第二次调用可能出现 "the connection is closed"（复用到已失效连接）
+# - 这里改为进程级单一后台 loop，配合 run_coroutine_threadsafe 执行异步任务，确保连接稳定复用
 
 # 异步事件循环
 _async_loop: asyncio.AbstractEventLoop | None = None
@@ -80,47 +81,6 @@ def _runAsync(coro: Any, timeout_seconds: int = 120) -> Any:
     loop = _getOrCreateAsyncLoop()
     future = asyncio.run_coroutine_threadsafe(coro, loop)
     return future.result(timeout=timeout_seconds)
-
-
-def getUserIdByOpenId(open_id: str) -> int | None:
-    """
-    根据飞书 openid 获取用户 id
-    """
-    with session() as db:
-        user = db.query(User).filter(User.lark_open_id == open_id).first()
-        if user is None:
-            logger.warning(f"open_id：{open_id} 未授权")
-            return None
-        return user.id
-
-
-def frBelongsToUser(user_id: int, fr_id: int) -> bool:
-    """
-    判断 fr 是否属于用户
-    """
-    with session() as db:
-        fr = db.get(FigureAndRelation, fr_id)
-        if fr is None:
-            return False
-        return fr.user_id == user_id
-
-
-def sendText2OpenId(open_id: str, text: str) -> None:
-    """
-    发送文本消息到飞书 openid
-    """
-    response = sendText(
-        _lark_client,
-        SendTextRequest(
-            text=text,
-            receive_id_type="open_id",
-            receive_id=open_id,
-        ),
-    )
-    if getattr(response, "code", None) != 0:
-        logger.warning(
-            f"Fail to send text to open_id: {open_id}, code: {response.code}, msg: {response.msg}"
-        )
 
 
 async def processMessages(
@@ -176,22 +136,33 @@ def _sendBatchMessages(open_id: str) -> None:
 
     user_id = getUserIdByOpenId(open_id)
     if user_id is None:
-        sendText2OpenId(open_id, "【System】当前账号未授权，请先绑定账号")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="当前飞书账号未授权，请先绑定账号",
+            theme="red",
+        )
         return
 
     with _state_lock:
         fr_id = _active_fr_by_open_id.get(open_id)
     if fr_id is None:
-        sendText2OpenId(
-            open_id, "【System】请先通过 /<fr_id> 切换当前对话对象，例如 /1"
+        sendCard2OpenId(
+            open_id=open_id,
+            title="Immortality 提示",
+            content="请先发送 `/<fr_id>` 切换当前对话对象，例如 `/1`",
+            theme="yellow",
         )
         return
 
     if not frBelongsToUser(user_id, fr_id):
         with _state_lock:
             _active_fr_by_open_id.pop(open_id, None)
-        sendText2OpenId(
-            open_id, "【System】当前对话对象不可用，请重新发送 /<fr_id> 切换"
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="当前对话对象不可用，请重新发送 `/<fr_id>` 切换",
+            theme="red",
         )
         return
 
@@ -205,7 +176,12 @@ def _sendBatchMessages(open_id: str) -> None:
         )
     except Exception as e:
         logger.warning(f"Fail to process messages in batch: {e}", exc_info=True)
-        sendText2OpenId(open_id, "【System】消息处理失败，请稍后重试")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="消息处理失败，请稍后重试",
+            theme="red",
+        )
         return
 
     for msg in messages_to_send:
@@ -274,27 +250,43 @@ def messageHandler(message: str, open_id: str) -> None:
             return
     except Exception as e:
         logger.warning(f"Fail to handle menu command: {e}")
-        sendText2OpenId(open_id, "【System】菜单命令处理失败，请稍后重试")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="菜单命令处理失败，请稍后重试",
+            theme="red",
+        )
         return
 
     user_id = getUserIdByOpenId(open_id)
     if user_id is None:
-        sendText2OpenId(open_id, "【System】当前账号未授权，请先绑定账号")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="当前飞书账号未授权，请先绑定账号",
+            theme="red",
+        )
         return
 
     with _state_lock:
         fr_id = _active_fr_by_open_id.get(open_id)
     if fr_id is None:
-        sendText2OpenId(
-            open_id, "【System】请先通过 /<fr_id> 切换当前对话对象，例如 /1"
+        sendCard2OpenId(
+            open_id=open_id,
+            title="Immortality 提示",
+            content="请先发送 `/<fr_id>` 切换当前对话对象，例如 `/1`",
+            theme="yellow",
         )
         return
 
     if not frBelongsToUser(user_id, fr_id):
         with _state_lock:
             _active_fr_by_open_id.pop(open_id, None)
-        sendText2OpenId(
-            open_id, "【System】当前对话对象不可用，请重新发送 /<fr_id> 切换"
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content="当前对话对象不可用，请重新发送 `/<fr_id>` 切换",
+            theme="red",
         )
         return
 

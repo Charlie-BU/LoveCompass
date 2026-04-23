@@ -1,58 +1,64 @@
-# 第一版 ConversationGraph 性能分析
+# ConversationGraph 性能与短期记忆设计
 
-- 这条 `ConversationGraph` 的功能链路很短，但当前这一轮对话下的性能表现我会评为 `中等偏慢，且会随对话轮数明显恶化`。
-- 真正的瓶颈不在图结构本身，而在 `每轮重复注入的大体积上下文`、`无裁剪的短期记忆`、以及 `额外远程 I/O`。
-- 以你贴出的这一轮为例，输入已经是明显的 `万级 token` 量级候选，延迟和成本都会偏高，后续多轮对话会继续线性甚至接近超线性变差。
+- 本文档记录 `ConversationGraph` 当前版本的性能特征、已落地优化、短期记忆 trim 设计，以及后续建议。
+- 当前版本已经不再是“短期记忆无上限增长”的第一版实现，而是包含：
+    - `去重后的上下文注入`
+    - `带 conversation_summary 的短期记忆 trim`
+    - `按 round_uuid 整轮裁剪`
+    - `nodeRecallFeedsFromDB` 与 `nodeBuildAndTrimMessage` 的并行执行
+- 从真实样本看，当前系统的主瓶颈仍然是 `输入上下文过重`，尤其是较长的 system prompt、人物画像和 recall 补充；短期记忆 trim 的作用是把“最近对话”的成本控制在一个稳定区间，而不是单独解决全部性能问题。
 
-**主要问题**
+## 历史问题
 
-- `提示词重复严重`：`figure_persona` 已经包含 `core_personality/core_interaction_style/core_procedural_info/core_memory`，但在 `nodeCallLLM` 里又把四类 recalled feeds 再完整拼进去一次，见 [nodes.py:L289-L304](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L289-L304) 和 [figure_and_relation.py:L521-L566](file:///Users/bytedance/Desktop/work/Immortality/src/services/figure_and_relation.py#L521-L566)。你给的样例里，“黄色网站”“基金回本”“PPT 很 AI”“调侃风格”等内容明显重复出现，属于最伤性能的一类冗余。
-- `每轮都可能拉太多 recall`：四个维度默认都是 `top_k=20`，合计最多 80 条，见 [nodes.py:L123-L151](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L123-L151)。而 `_recalledFeeds2Markdown()` 基本是原样展开文本，见 [nodes.py:L23-L42](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L23-L42)。这会直接把召回结果膨胀成大段 system message。
-- `短期记忆不做 trim/summarize`：代码里已经有 `todo`，但当前没有真正裁剪，见 [nodes.py:L232-L237](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L232-L237)。同时 `nodeCallLLM` 会把新的 `ai_message` 继续写回 `messages`，见 [nodes.py:L378-L404](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L378-L404)。这意味着轮数越多，历史越长，LLM 输入持续变大。
-- `每轮远程取 prompt`：`getPrompt()` 每次都 `fetch` 远程 HTML，再解析 prompt，见 [prompt.py:L73-L80](file:///Users/bytedance/Desktop/work/Immortality/src/agents/prompt.py#L73-L80)。这是额外的网络 I/O，而且在高 QPS 或网络抖动时会直接放大尾延迟。
-- `关键路径完全串行`：图是 `Load FR -> Recall -> Build Message -> Call LLM`，见 [graph.py:L24-L41](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/graph.py#L24-L41)。其中 FR 查询、recall、prompt fetch、LLM 调用都堆在同一条关键路径上，没有做前置并发。
-- `日志本身也很重`：`logger.info(f"\nmessages_to_send:\n{messages_to_send}\n\n")` 会把整包 prompt 和历史消息直接打日志，见 [nodes.py:L314-L314](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L314-L314)。在你这种长上下文场景里，这会增加 CPU、I/O 和日志存储成本。
+- 第一版最突出的问题是：
+    - `提示词重复严重`
+    - `短期记忆无上限增长`
+    - `关键路径偏长`
+    - `日志和远程 prompt 获取带来额外开销`
+- 这些问题中，最伤长期稳定性的部分是 `messages` 会随着轮数持续增长，直接进入下一轮主模型上下文。
+- 当前版本已经对其中最重要的两项做了修复：
+    - `去除重复注入`
+    - `短期记忆 trim + 滚动摘要`
 
-**这轮样例的具体评价**
+## 这轮样例的判断
 
 - 这轮输入最贵的不是最后那句 `垃圾`，而是模型在处理它之前被塞进去的那一大坨背景：
     - 基础系统 prompt
-    - 整个人物画像
-    - 四类召回结果
-    - 累积的历史 Human/AI message
-- 从你贴出的实际内容看，`人物画像` 和 `召回记忆` 存在高重叠，信息增益很低，但 token 成本很高。
-- 对“闲聊回复”这个任务来说，模型真正需要的上下文其实很少：最近几轮语气、对方人设摘要、1 到 3 条相关记忆，通常就够了。现在是典型的 `为一个很短的输出，支付了过大的输入成本`。
-- 这类任务的输出只有一个 JSON，且通常 1 到 3 句短消息；所以当前系统的 `input/output token 比` 很不经济。
+    - 人物画像
+    - recall 补充信息
+    - conversation summary
+    - 最近几轮短期记忆
+- 对“拟人闲聊”任务来说，模型真正高价值的上下文通常只有三类：
+    - 稳定 persona
+    - 与当前输入最相关的少量记忆
+    - 最近几轮对话语气与节奏
+- 因此短期记忆 trim 的目标不是“尽可能多保留历史”，而是把最近几轮对话压在一个足够用、但不过载的预算内。
 
-**性能分解**
+## 性能分解
 
 - `图调度成本`：低。图只有 4 个节点，本身不是问题，见 [graph.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/graph.py)。
 - `数据库/召回成本`：中到高。尤其是 recall 的结果体积大时，后续拼 prompt 的成本更高。
 - `网络成本`：中。每轮 `getPrompt()` 都是一次额外远程请求。
 - `LLM 推理成本`：高，而且是主瓶颈。不是因为输出难，而是因为输入太长。
-- `长期可扩展性`：偏差。对话越长、FR 越丰富、feed 越多，延迟和成本都会继续上升。
+- `长期可扩展性`：相比第一版已明显改善，但在 recall 体积、prompt 拉取和日志方面仍有优化空间。
 
-**我会优先做的优化**
+## 已落地优化
 
-- `先砍重复`：`figure_persona` 只保留稳定摘要；四类 recall 改成“仅注入和当前 query 最相关的少量增量信息”。这是收益最大的优化点。
-- `降低 top_k`：对闲聊场景，`personality/interactions` 可以保留少量，`procedural/memory` 更应该压低，先从 `3/3/2/2` 这种量级试。
-- `做短期记忆裁剪`：保留最近 `N` 轮显式消息，再附一个 conversation summary；不要无上限累积 `messages`。
-- `缓存系统 prompt`：`getPrompt()` 结果至少做进程内缓存，按 prompt key + variables 模板控制。
-- `删大日志`：不要打印整包 `messages_to_send`，改成只打 token 估算、条数、字符数。
-- `并发非依赖项`：FR 加载完成后，prompt fetch 和 recall 理论上可以并行准备，减少关键路径时长。
+- `去除重复注入`：`figure_persona` 不再和 recall 的职责重叠过多，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py) 与 [figure_and_relation.py](file:///Users/bytedance/Desktop/work/Immortality/src/services/figure_and_relation.py)。
+- `短期记忆 trim`：更早消息会被总结到 `conversation_summary`，最近原始消息受字符预算和消息数兜底共同控制，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py)。
+- `并行化非依赖节点`：`nodeRecallFeedsFromDB` 与 `nodeBuildAndTrimMessage` 并行执行，见 [graph.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/graph.py)。
+- `按轮次写入短期记忆`：`HumanMessage` 和 `AIMessage` 都带上 `additional_kwargs.round_uuid`，为整轮 trim 提供分组依据，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py)。
 
-**综合评分**
+## 综合评分
 
-- `单轮性能`: 6/10
-- `多轮稳定性`: 4/10
-- `成本效率`: 3/10
-- `可优化空间`: 很大
+- `单轮性能`: 7/10
+- `多轮稳定性`: 7/10
+- `成本效率`: 5/10
+- `可优化空间`: 仍然较大
 
-**一句话判断**
+## 一句话判断
 
-- 现在这条图 `能跑、也能产出像样结果`，但对这种短回复闲聊任务来说，`上下文注入明显过重`，已经属于“效果可能不错，但性能和成本都不划算”的实现。
-
-如果你愿意，我下一步可以直接基于这三个文件给你做一版 `性能优化方案 + diff 预览`，优先只动最值钱的两处：`recall 压缩` 和 `short-term memory trim`。
+- 当前版本已经从“多轮必然膨胀”的实现，演进成“短期记忆受控、效果和成本更均衡”的实现；但对短回复闲聊任务来说，`system prompt / persona / recall` 仍然偏重，后续优化重点仍然是压缩固定注入成本。
 
 # 性能优化
 
@@ -121,11 +127,18 @@
 - `nodeBuildAndTrimMessage()` 会在把本轮 `HumanMessage` 加入 `messages` 后执行 trim，见 [nodeBuildAndTrimMessage](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L367-L409)。
 - trim 逻辑在 `_buildTrimmedShortTermMemory()` 中，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L82-L152)：
     - 若总字符数和消息条数都未超阈值，则不裁剪。
-    - 若超阈值，则从最早的消息开始裁掉。
+    - 若超阈值，则从最早的轮次开始裁掉。
     - 被裁掉的消息与旧摘要一起交给 `DOUBAO_2_0_MINI` 做滚动总结。
     - 生成新的 `conversation_summary`。
     - 通过 `RemoveMessage` 把旧消息从 `MessagesState` 中真正删除。
 - `nodeCallLLM()` 会在主模型调用前，把 `conversation_summary` 作为一条额外的 `SystemMessage` 注入，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L475-L481)。
+
+### 为什么按 `round_uuid` 整轮裁剪
+
+- 当前实现给每轮的 `HumanMessage` 和 `AIMessage` 都写入相同的 `additional_kwargs.round_uuid`。
+- trim 时会读取最早消息的 `round_uuid`，并一次性删除同一轮次的全部消息，避免把同一轮的 `HumanMessage` 和 `AIMessage` 分开摘要。
+- 如果遇到历史消息没有 `round_uuid`，会退化为单条 trim，避免把多个旧轮次错误合并。
+- 如果发现最早轮次和最新轮次是同一个 `round_uuid`，则停止 trim，避免把当前轮输入一并删掉。
 
 ### 为什么不用“把 summary 伪装成一条普通聊天消息”
 
@@ -146,19 +159,47 @@
 ### 当前参数
 
 - 短期记忆 trim 当前使用以下阈值：
-    - `SHORT_TERM_MEMORY_MAX_CHARS=4000`
-    - `SHORT_TERM_MEMORY_MAX_MESSAGES=12`
-    - `SHORT_TERM_MEMORY_TARGET_CHARS=2800`
+    - `SHORT_TERM_MEMORY_MAX_CHARS=1600`
+    - `SHORT_TERM_MEMORY_TARGET_CHARS=1000`
+    - `SHORT_TERM_MEMORY_MAX_MESSAGES=30`
       见 [.env](file:///Users/bytedance/Desktop/work/Immortality/.env#L96-L98)。
 - 这组参数的含义是：
-    - 超过 `MAX_CHARS` 或 `MAX_MESSAGES` 时才触发滚动摘要。
-    - 一旦触发，尽量把剩余原始消息压回到 `TARGET_CHARS` 附近。
-    - `MAX -> TARGET` 的回落区间用于避免在阈值边缘频繁反复 summarize。
+    - `MAX_CHARS` 是主触发条件，绝大多数场景下由消息字符数决定是否 trim。
+    - `TARGET_CHARS` 是 trim 完成后的目标预算，用于提供 `MAX -> TARGET` 的回落区间，避免在阈值边缘频繁 summarize。
+    - `MAX_MESSAGES` 只做兜底硬上限，用于拦截“消息很多但每条都很短”的异常碎片化对话。
+
+### 为什么消息数只做兜底
+
+- 真实对话里，当前系统最容易连续触发 trim 的原因，通常不是上下文真的过长，而是旧版本 `MAX_MESSAGES` 阈值过低。
+- 如果消息数和字符数同权触发，而消息数阈值又贴得很近，就会出现：
+    - 这一轮 trim 到阈值边缘
+    - 下一轮一追加新消息又立刻越界
+    - 连续多轮 summarize
+- 因此当前策略改为：
+    - `字符数主导 trim`
+    - `消息数只做兜底`
+- 这更符合闲聊场景的真实负载，也能显著减少无意义的频繁摘要。
+
+### 这组参数为什么是 `1600 / 1000 / 30`
+
+- 基于真实样本观察，一次传给 LLM 的上下文里，最大的 token 消耗来自：
+    - system prompt
+    - 人物画像
+    - recall 补充
+    - conversation summary
+- 相比之下，最近几轮短期记忆真正需要保留的，通常只是一小段“当前语气、话题与互动节奏”。
+- 因此短期记忆不宜继续占用过多预算，否则会和固定注入内容争抢上下文注意力。
+- `1600 / 1000` 这一组值的目标是：
+    - 保留足够多的最近轮次，保证语气连续性
+    - 避免让短期记忆重新膨胀成主要上下文成本
+    - 通过约 `62.5%` 的回落比例减少连续触发 trim 的概率
+- `30` 作为消息数硬上限，则主要用来处理极端短句、高频往返但字符数不高的场景。
 
 ### 当前收益
 
 - 多轮对话不会再无上限积累原始消息。
 - 更早历史被压缩为结构化摘要，保留连续性但显著降低体积。
+- trim 单位从“单条消息”提升为“同一轮次”，摘要语义更完整。
 - 当前轮输入始终保留，避免由于裁剪丢失用户最新消息。
 
 ### 当前代价
@@ -190,7 +231,7 @@
 
 ## 4. 其他顺手优化
 
-- 当前写回短期记忆的 AI 消息，不再保留主模型的原始 JSON 输出，而是只保存角色本轮实际要发送的文本内容，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py#L551-L570)。
+- 当前写回短期记忆的 AI 消息，不再保留主模型的原始 JSON 输出，而是只保存角色本轮实际要发送的文本内容，见 [nodes.py](file:///Users/bytedance/Desktop/work/Immortality/src/agents/graphs/ConversationGraph/nodes.py)。
 - 这会减少：
     - 短期记忆中的无用格式噪声
     - checkpoint 持久化体积
@@ -215,7 +256,7 @@
 
 - `优先级高`：给 `getPrompt()` 做进程内缓存，降低每轮远程 I/O。
 - `优先级高`：删除或缩减整包 `messages_to_send` 日志，只保留条数、字符数、是否触发 trim 等统计信息。
-- `优先级中`：继续观察 `SHORT_TERM_MEMORY_MAX_CHARS / TARGET_CHARS` 是否偏宽松，必要时收紧到更偏性能优先的区间。
+- `优先级中`：继续观察 `SHORT_TERM_MEMORY_MAX_CHARS / TARGET_CHARS=1600/1000` 是否适合真实线上分布，必要时再根据平均轮次长度微调。
 - `优先级中`：视线上效果继续下调 `TOP_K_MEMORY_FEEDS_FOR_CONVERSATION` 和 `TOP_K_PROCEDURAL_FEEDS_FOR_CONVERSATION`。
 - `优先级低`：如果后续需要更强的连续性，再考虑把 `conversation_summary` 的生成 prompt 做成更细化的模板，或者区分“关系事实摘要”和“短期话题摘要”两层结构。
 

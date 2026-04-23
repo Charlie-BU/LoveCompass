@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from typing import List
+import uuid
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, BaseMessage
 from langgraph.graph.message import RemoveMessage
 
@@ -27,6 +28,15 @@ def _getMessageCharCount(message: BaseMessage) -> int:
     计算消息内容的字符数
     """
     return len(stringifyValue(getattr(message, "content", ""), strip=False))
+
+
+def _getMessageRoundUUID(message: BaseMessage) -> str | None:
+    """
+    获取消息所属轮次的 round_uuid
+    """
+    additional_kwargs = getattr(message, "additional_kwargs", {}) or {}
+    round_uuid = additional_kwargs.get("round_uuid")
+    return round_uuid if isinstance(round_uuid, str) and round_uuid.strip() else None
 
 
 def _stringifyMessagesForSummary(messages: List[BaseMessage]) -> str:
@@ -86,7 +96,7 @@ async def _buildTrimmedShortTermMemory(
     """
     修剪短期记忆
 
-    当 messages 的总字符数或消息条数超过阈值时，从最早的消息开始裁剪，
+    当 messages 的总字符数或消息条数超过阈值时，从最早的轮次开始裁剪，
     将被裁掉的历史消息与旧摘要一起交给 mini 模型滚动总结为新的 conversation_summary，
     同时生成对应的 RemoveMessage 列表，供 MessagesState 删除旧消息。
     无论是否触发裁剪，都会保留最新的一条消息，避免丢失当前轮输入。
@@ -100,9 +110,9 @@ async def _buildTrimmedShortTermMemory(
     total_chars_before_trim = sum(_getMessageCharCount(message) for message in messages)
     messages_count_before_trim = len(messages)
     if total_chars_before_trim <= int(
-        os.getenv("SHORT_TERM_MEMORY_MAX_CHARS", "4000")
+        os.getenv("SHORT_TERM_MEMORY_MAX_CHARS", "1600")
     ) and messages_count_before_trim <= int(
-        os.getenv("SHORT_TERM_MEMORY_MAX_MESSAGES", "12")
+        os.getenv("SHORT_TERM_MEMORY_MAX_MESSAGES", "30")
     ):
         # 字符数和消息条数都在阈值内，无需裁剪
         return (
@@ -123,14 +133,34 @@ async def _buildTrimmedShortTermMemory(
     kept_chars = total_chars_before_trim  # 剩余的字符数
 
     while len(messages_after_trim) > 1 and (
-        kept_chars > int(os.getenv("SHORT_TERM_MEMORY_TARGET_CHARS", "2800"))
+        kept_chars > int(os.getenv("SHORT_TERM_MEMORY_TARGET_CHARS", "1000"))
         or len(messages_after_trim)
-        > int(os.getenv("SHORT_TERM_MEMORY_MAX_MESSAGES", "12"))
+        > int(os.getenv("SHORT_TERM_MEMORY_MAX_MESSAGES", "30"))  # SHORT_TERM_MEMORY_MAX_MESSAGES 只用做兜底
     ):
-        # 从最早的消息开始裁剪，直到剩余的字符数小于等于目标字符数或消息条数小于等于阈值
-        removed_message = messages_after_trim.pop(0)
-        messages_to_summarize.append(removed_message)
-        kept_chars -= _getMessageCharCount(removed_message)
+        # round_uuid 相同的消息视为同一轮次，trim 时整轮删除，避免 Human/AI 被拆开。
+        # 对于未打 round_uuid 的历史消息，退化成单条删除，避免误删多个轮次。
+        oldest_round_uuid = _getMessageRoundUUID(messages_after_trim[0])
+        latest_round_uuid = _getMessageRoundUUID(messages_after_trim[-1])
+
+        if oldest_round_uuid is not None and oldest_round_uuid == latest_round_uuid:
+            # 只剩当前轮消息时停止 trim，避免把本轮输入一并删掉。
+            break
+
+        if oldest_round_uuid is None:
+            trimmed_batch = [messages_after_trim.pop(0)]
+        else:
+            trimmed_batch: List[BaseMessage] = []
+            while (
+                messages_after_trim
+                and _getMessageRoundUUID(messages_after_trim[0]) == oldest_round_uuid
+            ):
+                trimmed_batch.append(messages_after_trim.pop(0))
+
+        if not trimmed_batch:
+            break
+
+        messages_to_summarize.extend(trimmed_batch)
+        kept_chars -= sum(_getMessageCharCount(message) for message in trimmed_batch)
 
     new_summary = await _summarizeTrimmedMessages(old_summary, messages_to_summarize)
     remove_messages = [
@@ -179,8 +209,10 @@ def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
     加载当前 figure_and_relation 及其人物画像
     """
     logger.info("nodeLoadFRAndPersona is called")
-    request = state["request"]
+    # 最开始先随机生成当前轮次 round_uuid
+    round_uuid = str(uuid.uuid4())
 
+    request = state["request"]
     with session() as db:
         figure_and_relation = checkFigureAndRelationOwnership(
             db=db, user_id=request["user_id"], fr_id=request["fr_id"]
@@ -214,6 +246,7 @@ def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
         ]
         logger.info("nodeLoadFRAndPersona executed finished\n")
         return {
+            "round_uuid": round_uuid,
             "user_name": figure_and_relation.user.username,
             "figure_and_relation": figure_and_relation.toJson(),
             "figure_persona": figure_persona,
@@ -375,7 +408,11 @@ async def nodeBuildAndTrimMessage(state: ConversationGraphState) -> dict:
     logs = state.get("logs") or []
     messages_received = state["request"]["messages_received"]
     messages_received = "\n".join(messages_received)
-    messages.append(HumanMessage(content=messages_received or ""))
+    # 添加本轮次 HumanMessage
+    messages.append(
+        HumanMessage(content=messages_received or ""),
+        additional_kwargs={"round_uuid": state.get("round_uuid")},
+    )
 
     (
         trimmed_messages,
@@ -562,11 +599,14 @@ async def nodeCallLLM(state: ConversationGraphState) -> ConversationGraphOutput:
     llm_output["messages_to_send"] = figure_messages_this_round
     llm_output["reasoning_content"] = reasoning_content or ""
 
-    # AI 回复写入 short-term memory
+    # 添加本轮次 AIMessage，写入 short-term memory
     next_messages = messages
     if figure_messages_this_round:
         next_messages = messages + [
-            AIMessage(content="\n".join(figure_messages_this_round))
+            AIMessage(
+                content="\n".join(figure_messages_this_round),
+                additional_kwargs={"round_uuid": state.get("round_uuid")},
+            )
         ]
     logs += [
         {

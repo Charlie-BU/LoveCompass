@@ -7,7 +7,7 @@
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import *
 
-from typing import TypedDict
+from typing import Any, IO, Optional, TypedDict
 
 
 class SendFileRequest(TypedDict):
@@ -28,7 +28,7 @@ class SendFileResponse(BaseResponse):
 
 
 # 发送文件消息
-def sendFile(client: lark.Client, request: SendFileRequest) -> BaseResponse:
+def sendFile(client: lark.Client, request: SendFileRequest) -> SendFileResponse:
     # 上传文件
     create_file_req = (
         CreateFileRequest.builder()
@@ -52,7 +52,11 @@ def sendFile(client: lark.Client, request: SendFileRequest) -> BaseResponse:
             f"msg: {create_file_resp.msg}, "
             f"log_id: {create_file_resp.get_log_id()}"
         )
-        return create_file_resp
+        response = SendFileResponse()
+        response.code = create_file_resp.code
+        response.msg = create_file_resp.msg
+        response.create_file_response = create_file_resp.data
+        return response
 
     # 发送消息
     option = (
@@ -85,7 +89,12 @@ def sendFile(client: lark.Client, request: SendFileRequest) -> BaseResponse:
             f"msg: {create_message_resp.msg}, "
             f"log_id: {create_message_resp.get_log_id()}"
         )
-        return create_message_resp
+        response = SendFileResponse()
+        response.code = create_message_resp.code
+        response.msg = create_message_resp.msg
+        response.create_file_response = create_file_resp.data
+        response.create_message_response = create_message_resp.data
+        return response
 
     # 返回结果
     response = SendFileResponse()
