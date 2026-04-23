@@ -1,89 +1,121 @@
-Process input material into a structured, storable JSON for FR building.
+Process input material into a structured, storable result by performing high-fidelity content cleaning, metadata judgment, and completeness self-check according to the specified rules.
 
 ## Hard Requirements
 
-1. Keep all real information. Do not summarize away facts.
-2. Only remove exact/near-duplicate wording and pure filler noise.
-3. Do not fabricate any information.
-4. If image URL cannot be parsed, ignore that image; do not guess.
-5. Output JSON object only, no extra text.
-6. Output language must match input language exactly.
-7. Always judge with `figure_role` + `raw_content` (+ `raw_images` if usable).
-8. `cleaned_content` MUST be a single string. NEVER output array/object for `cleaned_content`.
+1. All valuable content must be 100% completely retained; do not omit any important information. Do not use summary compression that causes information loss.
+2. Only allow deletion of repeated expressions, repeated sentences, and verbal nonsense. Do not delete any real information including facts, time, character relationships, original words, preferences, events, method steps, etc.
+3. Do not fabricate or supplement any information that does not appear in the input.
+4. If an image URL is inaccessible or unparseable, ignore it completely; do not guess the image content.
+5. Output must be a strict JSON object; do not output Markdown or any additional explanatory text.
+6. Output language must be exactly consistent with the input content, including `cleaned_content` and all field values.
+7. All judgments must be made in combination with the character role `figure_role` and the original input content `raw_content` (and images if any); do not deviate from the role context.
 
-## Input
+## Input Definition
 
-- `figure_role`: `SELF` | `FAMILY` | `FRIEND` | `MENTOR` | `COLLEAGUE` | `PARTNER` | `PUBLIC_FIGURE` | `STRANGER`
-- `raw_content`: original text
-- `raw_images`: image URLs (optional)
+Input contains four fields:
 
-## Required Output Goals
+- `figure_name`: The target figure being described or referenced in this task.
+- `figure_role`: Character role, selected from the following enumeration: `SELF` | `FAMILY` | `FRIEND` | `MENTOR` | `COLLEAGUE` | `PARTNER` | `PUBLIC_FIGURE` | `STRANGER`
+- `raw_content`: Original text content
+- `raw_images`: Original image URLs (if any)
 
-- Produce `cleaned_content` with high-fidelity cleaning.
-- Produce `metadata`: `original_source_type`, `confidence`, `included_dimensions`, `approx_date`.
-- Produce `coverage_check` to verify no key info is omitted.
+## Task Objectives
 
-## Decision Rules
+A. High-fidelity content cleaning: generate `cleaned_content` that is completely faithful, with duplicate and noise removed
+B. Metadata judgment: determine `original_source_type`, `confidence`, `included_dimensions`, `approx_date` according to rules
+C. Completeness self-check: output `coverage_check` to confirm no key information is omitted
 
-### 1) Content Cleaning
+## Judgment Rules
 
-- Keep facts, time, relation, events, preferences, methods, quoted wording.
-- Remove only repeated phrases/sentences and meaningless fillers.
+### 1. Content Cleaning Rules
 
-### 2) Confidence
+- `cleaned_content` must completely retain all valuable information; do not cause information loss through compression or rewriting.
+- Only remove redundant repeated expressions; do not remove real facts.
 
-- `verbatim`: direct quote / explicit original wording.
-- `artifact`: objective and verifiable content/material.
-- `impression`: subjective evaluation or speculation.
+### 2. Confidence Rule
 
-### 3) included_dimensions (multi-label, high recall)
+`confidence` can only be one of the following values:
 
-Allowed labels:
+- `verbatim`: Explicit original words / direct quotation
+- `artifact`: Objective material or verifiable statement
+- `impression`: Subjective impression, speculation, or evaluation
 
-- `personality`
-- `interaction_style`
-- `procedural_info`
-- `memory`
-- `other`
+### 3. Included Dimensions Rule
 
-Workflow (must follow):
+`included_dimensions` can select multiple values, limited to the following enumeration:
 
-1. Split `cleaned_content` into semantic segments (one coherent idea/event/method block each).
-2. For each segment, evaluate all four main dimensions independently: `personality`, `interaction_style`, `procedural_info`, `memory`.
-3. Union all matched dimensions across segments.
-4. Add `other` only when none of the four main dimensions can be assigned confidently.
-5. Segmentation is internal reasoning only; final `cleaned_content` must be one merged string, not a list of segments.
+- `personality`: values, stable tendencies, preferences, motivations, boundaries
+- `interaction_style`: speaking style, response style, conflict/feedback behavior
+- `procedural_info`: methods, steps, tools, execution patterns, decision criteria
+- `memory`: life events, stories, time markers, milestones, shared experiences
+- `other`: content that cannot be reliably mapped to any category above
 
-Dimension boundaries:
+#### Dimension Decision
 
-- `personality`: stable values/tendencies/preferences/boundaries (not one-off action unless text says it is stable).
-- `interaction_style`: how the person communicates/responds/handles disagreement or feedback.
-- `procedural_info`: repeatable methods/steps/tools/checklists/decision criteria tied to this figure.
-- `memory`: event/story with temporal context (time marker, phase, turning point, shared memory).
-- `other`: only for content that cannot be mapped to any of the four above.
+##### A. `personality`
 
-Co-occurrence rules:
+Tag when the segment describes relatively stable inner orientation or tendency, such as:
 
-- event + method => `memory` + `procedural_info`
-- value + communication behavior => `personality` + `interaction_style`
-- event + reflection => `memory` + `personality`
-- communication behavior + tool/checklist => `interaction_style` + `procedural_info`
+- value priorities (e.g., fairness over speed, safety first)
+- long-term preferences/dislikes
+- recurring motivation/avoidance pattern
+- explicit personal boundaries or principles
 
-Role-aware recall hints (do not suppress evidence-based labels):
+Do **not** tag `personality` for a one-off action unless the text explicitly states it as a stable pattern/value.
 
-- `SELF`: all four dimensions are common.
-- `COLLEAGUE`: prioritize `procedural_info` + `interaction_style`; `memory` if work events exist.
-- `MENTOR`: prioritize teaching style/principles/methods; `memory` if mentor stories exist.
-- `FAMILY`/`FRIEND`/`PARTNER`: prioritize `interaction_style` + `memory` + `personality`; tag `procedural_info` if explicit repeatable method exists.
-- `PUBLIC_FIGURE`: classify only from public textual evidence; no private inference.
-- `STRANGER`: no prior role bias; rely on text only.
+##### B. `interaction_style`
 
-### 4) approx_date
+Tag when the segment describes **how the person communicates or reacts to others**, such as:
 
-- If explicit or inferable time exists, output a time string.
-- Otherwise output `null`.
+- tone, wording style, directness, politeness, emotional expression style
+- how they ask questions, challenge, refuse, negotiate, give feedback
+- behavior in disagreement/conflict situations
+- channel/response rhythm if framed as communication habit
 
-### 5) original_source_type (single label, strict priority)
+##### C. `procedural_info`
+
+Tag when the segment provides actionable “how to do” knowledge, such as:
+
+- explicit steps, workflow, checklist, sequence
+- tool/stack/environment usage tied to that person’s method
+- acceptance criteria, quality bar, delivery standard
+- decision process (“because X, choose Y”), escalation boundaries
+
+Do **not** tag `procedural_info` for generic industry common sense unless text ties it to this person’s own practice.
+
+##### D. `memory`
+
+Tag when the segment is about experiences/events with temporal or narrative context, such as:
+
+- specific life/work events, turning points, incidents
+- time nodes (year, period, before/after, phase)
+- repeatedly told stories, shared memories, contextual episodes
+
+##### E. `other`
+
+Use only if none of the above can be assigned with confidence, including:
+
+- pure metadata/noise (IDs, links, boilerplate without semantic content)
+- vague statements with no clear personality/interaction/procedure/memory signal
+- content outside task scope that cannot be mapped reliably
+
+#### Rules
+
+- Classify by **information type in the text itself**, not by what you guess the figure "is like".
+- A segment can belong to **multiple dimensions** if it contains multiple information types.
+- `included_dimensions` MUST include **all** matched dimensions; never force single-label.
+- Typical co-occurrence:
+    - event + method => `memory` + `procedural_info`
+    - value + communication behavior => `personality` + `interaction_style`
+    - event + value reflection => `memory` + `personality`
+- If any matched dimension exists, do **not** add `other`.
+
+### 4. Approximate Date Rule
+
+- If there is explicit time or inductive time in the text, fill in the time as a string
+- Otherwise output `null`
+
+### 5. Original Source Type Rule
 
 Classify the original source type of given content following strict unique matching rules, based on figure_role and the content perspective of cleaned_content. The core principle is: first determine "who wrote/said this content", then determine "content form".
 
@@ -122,27 +154,33 @@ Classify the original source type of given content following strict unique match
         - `PUBLIC_FIGURE_NEWS_REPORT`: Media reports (third-party, not user narration)
         - `PUBLIC_FIGURE_ARTIFACT`: Creative works, e.g. works/code
 
-## Output Schema (strict JSON only)
+#### Notes
 
+- You must make only one unique matching classification, do not output multiple labels
+- Always follow the priority: first check if it is user narration, if yes output `NARRATIVE_FROM_USER` immediately, do not proceed to further classification
+- As long as it is user perspective narration, it is strictly forbidden to misclassify as any LONG_FORM / CHAT / ARTIFACT type
+- If the content is not original output from the figure personally, always fall back to `NARRATIVE_FROM_USER`
+
+## Output Format
+
+Output a strictly valid JSON object that conforms to the following schema, no extra content allowed:
 {
 "cleaned_content": "string",
 "metadata": {
-"original_source_type": "NARRATIVE_FROM_USER|WORK_RELATION_LONG_FORM|WORK_RELATION_EDIT_TRACE|WORK_RELATION_GUIDANCE|WORK_RELATION_ARTIFACT|CLOSE_RELATION_LONG_FORM|CLOSE_RELATION_PRIVATE_CHAT|CLOSE_RELATION_SOCIAL_EXPRESSION|CLOSE_RELATION_ARTIFACT|SELF_LONG_FORM|SELF_CHAT_MESSAGE|SELF_SOCIAL_EXPRESSION|SELF_ARTIFACT|PUBLIC_FIGURE_ARTICLE_BLOG|PUBLIC_FIGURE_INTERVIEW_SPEECH_TRANSCRIPT|PUBLIC_FIGURE_SOCIAL_EXPRESSION|PUBLIC_FIGURE_NEWS_REPORT|PUBLIC_FIGURE_ARTIFACT",
+"original_source_type": "string",
 "confidence": "verbatim|artifact|impression",
 "included_dimensions": ["personality|interaction_style|procedural_info|memory|other"],
 "approx_date": "string|null"
 },
 "coverage_check": {
-"removed_as_redundant": ["string"],
+"removed_as_redundant": ["list of content removed as redundant repetition/nonsense; empty array if no content removed"],
 "completeness_pass": true
 }
 }
 
-## Final Checks Before Output
+## Notes
 
-- No key information lost from input.
-- No non-enum custom label.
-- `other` excluded if any real dimension matched.
-- Exactly one `original_source_type`.
-- No text outside JSON.
-- `cleaned_content` is type `string` only; arrays/objects are invalid.
+- All field values must strictly follow the enumeration requirements; do not use custom values that are not in the given enumeration
+- Do not add any explanatory text outside the JSON object
+- Ensure all valuable information is retained; only true redundant content is removed
+- Output language is exactly consistent with the input language

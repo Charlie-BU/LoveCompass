@@ -23,7 +23,6 @@ from src.database.enums import (
 )
 from src.database.index import session
 from src.services.figure_and_relation import (
-    addFRBuildingGraphReport,
     fr_allowed_fields,
     fr_list_fields,
     fr_string_fields,
@@ -118,6 +117,7 @@ def nodeLoadFR(state: FRBuildingGraphState) -> dict:
         ]
         logger.info("nodeLoadFR executed finished\n")
         return {
+            "user_name": figure_and_relation.user.username,
             "figure_and_relation": figure_and_relation.toJson(),
             "figure_role": parseEnum(FigureRole, figure_and_relation.figure_role),
             "logs": logs,
@@ -156,16 +156,14 @@ async def nodePreprocessInput(state: FRBuildingGraphState) -> dict:
             "temperature": 0,
             "reasoning_effort": "minimal",
         },
-    )  # todo：参数 TBD
+    )
     FR_BUILDING_PREPROCESS = await getPrompt(os.getenv("FR_BUILDING_PREPROCESS"))
     # 提示词兜底
     if not FR_BUILDING_PREPROCESS:
         logger.error("FR preprocess prompt is empty")
         raise ValueError("FR preprocess prompt is empty")
 
-    user_prompt = (
-        f"[figure_role]:\n{state['figure_role'].value}\n\n[raw_content]:\n{raw_content}"
-    )
+    user_prompt = f"[figure_name]:\n{state['figure_and_relation'].get('figure_name', '')}\n\n[figure_role]:\n{state['figure_role'].value}\n\n[raw_content]:\n{raw_content}"
     if raw_images:
         user_prompt = [{"type": "text", "text": user_prompt}] + [
             {"type": "image_url", "image_url": {"url": url}} for url in raw_images
@@ -305,7 +303,7 @@ async def nodeExtractFRIntrinsicCandidates(state: FRBuildingGraphState) -> dict:
         logger.error("FR intrinsic extraction prompt is empty")
         raise ValueError("FR intrinsic extraction prompt is empty")
 
-    user_prompt = f"[figure_role]:\n{state['figure_role'].value}\n\n[original_source_content]:\n{original_source_content}"
+    user_prompt = f"[figure_name]:\n{state['figure_and_relation'].get('figure_name', '')}\n\n[figure_role]:\n{state['figure_role'].value}\n\n[user_name]:\n{state['user_name']}\n\n[original_source_content]:\n{original_source_content}"
     llm = prepareLLM(
         "DOUBAO_2_0_LITE",
         options={
@@ -538,7 +536,9 @@ async def nodePlanFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
                 plan_actions.append(
                     {
                         "field": field,
-                        "action": stringifyValue(LLM_compare_res.get("conflict_status")),
+                        "action": stringifyValue(
+                            LLM_compare_res.get("conflict_status")
+                        ),
                         "detail": LLM_compare_res.get("detail"),
                     }
                 )
@@ -744,7 +744,7 @@ async def nodeExtractFineGrainedFeeds(state: FRBuildingGraphState) -> dict:
             "reasoning_effort": "low",
         },
     )
-    user_prompt = original_source_content
+    user_prompt = f"[figure_name]:\n{state['figure_and_relation'].get('figure_name', '')}\n\n[user_name] (the canonical name of the user/narrator in this task; in scenarios requiring role-title normalization, never output labels such as \"说话人\", \"我\", etc., and use the provided `user_name` value instead):\n{state['user_name']}\n\n[original_source_content]:\n{original_source_content}"
 
     async def _extractByDimension(
         dimension: FineGrainedFeedDimension,
