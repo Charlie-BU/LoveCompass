@@ -4,9 +4,10 @@ from tabulate import tabulate
 from rich.console import Console
 from rich.markdown import Markdown
 
+from src.utils.index import stringifyValue
 from src.services.user import getUserIdByAccessToken
 from src.cli.session import clearLocalSession, loadLocalSession
-from src.utils.index import stringifyValue
+from src.cli.constants import ANSI_BLUE, ANSI_GREEN, ANSI_RED, ANSI_RESET, ANSI_YELLOW
 
 
 class CLIError(Exception):
@@ -27,13 +28,13 @@ def immortalityPrint(
     Immortality 打印，支持不同颜色的输出
     """
     color_map = {
-        "success": "\033[92m",  # green
-        "info": "\033[94m",  # blue
-        "warning": "\033[93m",  # yellow
-        "error": "\033[91m",  # red
-        "default": "",
+        "success": ANSI_GREEN,
+        "info": ANSI_BLUE,
+        "warning": ANSI_YELLOW,
+        "error": ANSI_RED,
+        "default": ANSI_RESET,
     }
-    reset = "\033[0m"  # 输出后追加 reset，避免影响后续终端输出
+    reset = ANSI_RESET  # 输出后追加 reset，避免影响后续终端输出
     color = color_map.get(type, "")
     print(f"『Immortality』{color}{message}{reset}")
 
