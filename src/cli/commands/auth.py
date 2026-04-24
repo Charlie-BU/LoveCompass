@@ -26,8 +26,10 @@ def registerAuthSubparser(
 
     # auth login
     login_parser = auth_subparsers.add_parser("login", help="User login")
-    login_parser.usage = "immortality auth login [-h] [--json]"
+    login_parser.usage = "immortality auth login [--username <username> --password <password>] [-h] [--json]"
     add_json(login_parser)
+    login_parser.add_argument("--username", required=False, help="Username or email")
+    login_parser.add_argument("--password", required=False, help="Password")
     login_parser.set_defaults(func=loginCLI)
 
     # auth logout
@@ -47,17 +49,27 @@ def loginCLI(args: Namespace) -> int:
     """
     用户登录
     """
-    username = getattr(args, "username", None)
-    if not isinstance(username, str) or username.strip() == "":
-        username = input("Username / Email: ").strip()
-    if username == "":
-        raise CLIError("Username / Email cannot be empty", exit_code=2)
+    arg_username = getattr(args, "username", None)
+    arg_password = getattr(args, "password", None)
+    has_username = isinstance(arg_username, str) and arg_username.strip() != ""
+    has_password = isinstance(arg_password, str) and arg_password.strip() != ""
 
-    password = getattr(args, "password", None)
-    if not isinstance(password, str) or password.strip() == "":
+    if has_username and has_password:
+        username = arg_username.strip()
+        password = arg_password
+    elif has_username or has_password:
+        raise CLIError(
+            "Either username and password are provided together, or none of them are provided",
+            exit_code=2,
+        )
+    else:
+        username = input("Username / Email: ").strip()
+        if username == "":
+            raise CLIError("Username / Email cannot be empty", exit_code=2)
+
         password = getpass.getpass("Password: ")
-    if password == "":
-        raise CLIError("Password cannot be empty", exit_code=2)
+        if password == "":
+            raise CLIError("Password cannot be empty", exit_code=2)
 
     res = userLogin(username=username, password=password)
     if res.get("status") != 200:

@@ -34,8 +34,17 @@ def registerFRSubparser(
 
     # fr add
     fr_create_parser = fr_subparsers.add_parser("add", help="Add FigureAndRelation")
-    fr_create_parser.usage = "immortality fr add [-h] [--json]"
+    fr_create_parser.usage = "immortality fr add [--name <name> --gender <gender> --role <role>] [-h] [--json]"
     add_json(fr_create_parser)
+    fr_create_parser.add_argument("--name", required=False, help="Figure name")
+    fr_create_parser.add_argument(
+        "--gender", required=False, help="Gender (male/female/other)"
+    )
+    fr_create_parser.add_argument(
+        "--role",
+        required=False,
+        help="Role (self/family/friend/mentor/colleague/partner/public_figure/stranger)",
+    )
     fr_create_parser.set_defaults(func=createFRCLI)
 
     # fr list
@@ -132,75 +141,108 @@ def createFRCLI(args: Namespace) -> int:
 
     user_id = getUserIdFromLocalSession()
 
-    name = _resolveText(getattr(args, "name", None), "Name", required=True)
+    mode = "USER_INPUT"
+    # 模式 1：args 提供参数
+    arg_name = getattr(args, "name", None)
+    arg_gender = getattr(args, "gender", None)
+    arg_role = getattr(args, "role", None)
+    has_name = isinstance(arg_name, str) and arg_name.strip() != ""
+    has_gender = isinstance(arg_gender, str) and arg_gender.strip() != ""
+    has_role = isinstance(arg_role, str) and arg_role.strip() != ""
 
-    selected_gender = _resolveEnum(
-        getattr(args, "gender", None),
-        "Gender",
-        [item.value for item in Gender],
-        allow_empty=False,
-    )
-    gender = parseEnum(Gender, selected_gender)
-    if not isinstance(gender, Gender):
+    if all([has_name, has_gender, has_role]):
+        name = arg_name.strip()
+        gender = parseEnum(Gender, arg_gender.upper())
+        figure_role = parseEnum(FigureRole, arg_role.upper())
+        if not isinstance(gender, Gender):
+            raise CLIError("Invalid gender", exit_code=2)
+        if not isinstance(figure_role, FigureRole):
+            raise CLIError("Invalid role", exit_code=2)
+        mode = "ARGS_INPUT"
+    elif any([has_name, has_gender, has_role]):
         raise CLIError(
-            f"Invalid gender",
+            f"Either name, gender, and role are provided together, or none of them are provided",
             exit_code=2,
         )
 
-    selected_role = _resolveEnum(
-        getattr(args, "role", None),
-        "Role",
-        [item.value for item in FigureRole],
-        allow_empty=False,
-    )
-    figure_role = parseEnum(FigureRole, selected_role)
-    if not isinstance(figure_role, FigureRole):
-        raise CLIError(
-            f"Invalid role",
-            exit_code=2,
+    if mode == "ARGS_INPUT":
+        res = addFigureAndRelation(
+            user_id=user_id,
+            figure_name=name,
+            figure_gender=gender,
+            figure_role=figure_role,
         )
-
-    exact_relation = _resolveText(
-        getattr(args, "exact_relation", None), "Exact Relation (Optional)"
-    )
-
-    figure_mbti = None
-    selected_mbti = _resolveEnum(
-        getattr(args, "mbti", None),
-        "MBTI (Optional)",
-        [item.value for item in MBTI],
-        allow_empty=True,
-    )
-    if selected_mbti:
-        mbti = parseEnum(MBTI, selected_mbti.upper())
-        if not isinstance(mbti, MBTI):
+    else:
+        # 模式 2：用户交互输入
+        name = _resolveText(getattr(args, "name", None), "Name", required=True)
+        selected_gender = _resolveEnum(
+            getattr(args, "gender", None),
+            "Gender",
+            [item.value for item in Gender],
+            allow_empty=False,
+        )
+        gender = parseEnum(Gender, selected_gender)
+        if not isinstance(gender, Gender):
             raise CLIError(
-                f"Invalid mbti",
+                f"Invalid gender",
                 exit_code=2,
             )
-        figure_mbti = mbti
+        selected_role = _resolveEnum(
+            getattr(args, "role", None),
+            "Role",
+            [item.value for item in FigureRole],
+            allow_empty=False,
+        )
+        figure_role = parseEnum(FigureRole, selected_role)
+        if not isinstance(figure_role, FigureRole):
+            raise CLIError(
+                f"Invalid role",
+                exit_code=2,
+            )
+        exact_relation = _resolveText(
+            getattr(args, "exact_relation", None), "Exact Relation (Optional)"
+        )
+        figure_mbti = None
+        selected_mbti = _resolveEnum(
+            getattr(args, "mbti", None),
+            "MBTI (Optional)",
+            [item.value for item in MBTI],
+            allow_empty=True,
+        )
+        if selected_mbti:
+            mbti = parseEnum(MBTI, selected_mbti.upper())
+            if not isinstance(mbti, MBTI):
+                raise CLIError(
+                    f"Invalid mbti",
+                    exit_code=2,
+                )
+            figure_mbti = mbti
 
-    birthday = _resolveText(getattr(args, "birthday", None), "Birthday (Optional)")
-    occupation = _resolveText(
-        getattr(args, "occupation", None), "Occupation (Optional)"
-    )
-    education = _resolveText(getattr(args, "education", None), "Education (Optional)")
-    residence = _resolveText(getattr(args, "residence", None), "Residence (Optional)")
-    hometown = _resolveText(getattr(args, "hometown", None), "Hometown (Optional)")
+        birthday = _resolveText(getattr(args, "birthday", None), "Birthday (Optional)")
+        occupation = _resolveText(
+            getattr(args, "occupation", None), "Occupation (Optional)"
+        )
+        education = _resolveText(
+            getattr(args, "education", None), "Education (Optional)"
+        )
+        residence = _resolveText(
+            getattr(args, "residence", None), "Residence (Optional)"
+        )
+        hometown = _resolveText(getattr(args, "hometown", None), "Hometown (Optional)")
 
-    res = addFigureAndRelation(
-        user_id=user_id,
-        figure_name=name,
-        figure_gender=gender,
-        figure_role=figure_role,
-        figure_mbti=figure_mbti,
-        figure_birthday=birthday,
-        figure_occupation=occupation,
-        figure_education=education,
-        figure_residence=residence,
-        figure_hometown=hometown,
-        exact_relation=exact_relation,
-    )
+        res = addFigureAndRelation(
+            user_id=user_id,
+            figure_name=name,
+            figure_gender=gender,
+            figure_role=figure_role,
+            figure_mbti=figure_mbti,
+            figure_birthday=birthday,
+            figure_occupation=occupation,
+            figure_education=education,
+            figure_residence=residence,
+            figure_hometown=hometown,
+            exact_relation=exact_relation,
+        )
     printServiceResInCLI(res, as_json=args.json)
     return 0 if res.get("status") == 200 else 1
 
