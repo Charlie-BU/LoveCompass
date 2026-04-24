@@ -6,20 +6,19 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 if command -v uv >/dev/null 2>&1; then
-  echo "[pack-all] Found uv, installing and running PyInstaller via uv..."
-  uv add pyinstaller
-  uv run pyinstaller --onedir src/main.py
+  echo "[install-all] Found uv, syncing dependencies from pyproject.toml..."
+  uv sync
 else
-  echo "[pack-all] uv not found, fallback to pip..."
+  echo "[install-all] uv not found, fallback to pip editable install..."
   if command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN="python3"
   elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
   else
-    echo "[pack-all] Error: python not found in PATH."
+    echo "[install-all] Error: python not found in PATH."
     exit 1
   fi
 
-  "$PYTHON_BIN" -m pip install pyinstaller
-  pyinstaller --onedir src/main.py
+  "$PYTHON_BIN" -m pip install --upgrade pip
+  "$PYTHON_BIN" -m pip install -e .
 fi
