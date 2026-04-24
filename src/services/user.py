@@ -78,7 +78,7 @@ def getUserById(
         return {
             "status": 200,
             "message": "Get user success",
-            "user": user.toJson(),
+            "user": user.toJson(include=["username", "nickname", "gender", "email"]),
         }
 
 

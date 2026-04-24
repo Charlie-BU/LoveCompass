@@ -1,11 +1,6 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-_project_root = Path(__file__).resolve().parents[2]
-load_dotenv(_project_root / ".env", override=True)
 
 _engine = None
 _session_factory = None

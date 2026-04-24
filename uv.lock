@@ -638,7 +638,7 @@ wheels = [
 [[package]]
 name = "immortality"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "alembic" },
@@ -661,6 +661,7 @@ dependencies = [
     { name = "python-jose", extra = ["cryptography"] },
     { name = "requests" },
     { name = "sqlalchemy" },
+    { name = "tabulate" },
     { name = "vikingdb-python-sdk" },
     { name = "volcengine-python-sdk", extra = ["ark"] },
 ]
@@ -688,6 +689,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "requests", specifier = ">=2.32.0" },
     { name = "sqlalchemy", specifier = ">=2.0.46" },
+    { name = "tabulate", specifier = ">=0.9.0" },
     { name = "vikingdb-python-sdk", specifier = ">=0.1.15" },
     { name = "volcengine-python-sdk", extras = ["ark"], specifier = ">=5.0.9" },
 ]
@@ -1966,6 +1968,15 @@ source = { registry = "https://mirrors.volces.com/pypi/simple/" }
 sdist = { url = "https://mirrors.volces.com/pypi/packages/ef/52/9ba0f43b686e7f3ddfeaa78ac3af750292662284b3661e91ad5494f21dbc/structlog-25.5.0.tar.gz", hash = "sha256:098522a3bebed9153d4570c6d0288abf80a031dfdb2048d59a49e9dc2190fc98" }
 wheels = [
     { url = "https://mirrors.volces.com/pypi/packages/a8/45/a132b9074aa18e799b891b91ad72133c98d8042c70f6240e4c5f9dabee2f/structlog-25.5.0-py3-none-any.whl", hash = "sha256:a8453e9b9e636ec59bd9e79bbd4a72f025981b3ba0f5837aebf48f02f37a7f9f" },
+]
+
+[[package]]
+name = "tabulate"
+version = "0.10.0"
+source = { registry = "https://mirrors.volces.com/pypi/simple/" }
+sdist = { url = "https://mirrors.volces.com/pypi/packages/46/58/8c37dea7bbf769b20d58e7ace7e5edfe65b849442b00ffcdd56be88697c6/tabulate-0.10.0.tar.gz", hash = "sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d" }
+wheels = [
+    { url = "https://mirrors.volces.com/pypi/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl", hash = "sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3" },
 ]
 
 [[package]]

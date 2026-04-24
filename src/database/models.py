@@ -70,8 +70,12 @@ class SerializableMixin:
             if name in exclude:
                 continue
             value = getattr(self, name)
+            # 处理 datetime 类型
             if isinstance(value, datetime):
                 value = value.isoformat()
+            # 处理 Enum 类型
+            if hasattr(value, "value"):
+                value = (str(value.value)).strip()
             data[name] = value
 
         if include_relations:

@@ -28,8 +28,20 @@ dependencies = [
     "protobuf<6",
     "vikingdb-python-sdk>=0.1.15",
     "pyinstaller>=6.19.0",
+    "tabulate>=0.9.0",
 ]
+
+[project.scripts]
+immortality = "src.cli.main:main"
 
 [[tool.uv.index]]
 name = "volces"
 url = "https://mirrors.volces.com/pypi/simple/"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

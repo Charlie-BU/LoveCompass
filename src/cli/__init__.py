@@ -1,0 +1,2 @@
+"""Immortality CLI package."""
+
