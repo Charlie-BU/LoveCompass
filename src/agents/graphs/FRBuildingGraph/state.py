@@ -85,6 +85,7 @@ def _mergeUniqueList(left: list[Any], right: list[Any]) -> list[Any]:
 
 class FRBuildingGraphState(TypedDict, total=False):
     request: Request
+    user_name: str
     figure_and_relation: dict[str, Any]
     figure_role: FigureRole
     role_recipe_path: str

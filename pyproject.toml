@@ -27,8 +27,22 @@ dependencies = [
     "langgraph-api<0.5.0",
     "protobuf<6",
     "vikingdb-python-sdk>=0.1.15",
+    "tabulate>=0.9.0",
+    "questionary>=2.1.0",
+    "rich>=14.2.0",
 ]
+
+[project.scripts]
+immortality = "src.cli.main:main"
 
 [[tool.uv.index]]
 name = "volces"
 url = "https://mirrors.volces.com/pypi/simple/"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

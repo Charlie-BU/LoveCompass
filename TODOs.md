@@ -1,7 +1,7 @@
 - 模型输出 json 不稳定，需要兜底+重试，不能阻塞整个链路（P2）
 - ✅ Cronjob：按照不同类别的 feed 更新 fr core 字段（不放在 FRBuildingGrph，太耗时）
 - ✅ System Message 飞书卡片渲染
-- CLI 支持（P0）
+- ✅ CLI 支持（P0）
 - ✅ checkpoint 短期记忆 trim
 - Viking 接入（P2）
 - words_figure2user, words_user2figure 字段需要更严格的限制（P1）

@@ -317,7 +317,7 @@ def getAllFigureAndRelations(
     user_id: int,
 ) -> dict:
     """
-    获取用户所有 FigureAndRelation
+    获取用户所有 FigureAndRelation（简短信息）
     """
     if not isinstance(user_id, int):
         return {"status": -1, "message": "Invalid user_id"}
@@ -339,13 +339,13 @@ def getAllFigureAndRelations(
                 fr.toJson(
                     include=[
                         "id",
-                        "user_id",
+                        # "user_id",
                         "figure_role",
                         "figure_name",
-                        "figure_gender",
-                        "is_deleted",
-                        "created_at",
-                        "updated_at",
+                        # "figure_gender",
+                        # "is_deleted",
+                        # "created_at",
+                        # "updated_at",
                     ]
                 )
                 for fr in figure_and_relations
@@ -632,60 +632,60 @@ async def getFRAllContext(
         "recalled_memory": None,
     }
     normalized_query = query.strip() if isinstance(query, str) else ""
-    if normalized_query != "":
-        dimension_conf = [
-            {
-                "result_key": "recalled_personality",
-                "title": "性格与价值观",
-                "dimension": FineGrainedFeedDimension.PERSONALITY,
-                "top_k": 20,
-            },
-            {
-                "result_key": "recalled_interaction_style",
-                "title": "互动风格",
-                "dimension": FineGrainedFeedDimension.INTERACTION_STYLE,
-                "top_k": 10,
-            },
-            {
-                "result_key": "recalled_procedural_info",
-                "title": "程序性知识",
-                "dimension": FineGrainedFeedDimension.PROCEDURAL_INFO,
-                "top_k": 5,
-            },
-            {
-                "result_key": "recalled_memory",
-                "title": "人生记忆与故事",
-                "dimension": FineGrainedFeedDimension.MEMORY,
-                "top_k": 5,
-            },
-        ]
-        for conf in dimension_conf:
-            recall_res = await recallFineGrainedFeeds(
-                user_id=user_id,
-                fr_id=fr_id,
-                scope=[
-                    {
-                        "scope": conf["dimension"],
-                        "top_k": conf["top_k"],
-                    }
-                ],
-                query=normalized_query,
-            )
-            if recall_res.get("status") != 200:
-                return {
-                    "status": -5,
-                    "message": f"Recall FineGrainedFeed failed: {recall_res.get('message', '')}",
-                }
-            items = []
-            raw_items = recall_res.get("items", {})
-            if isinstance(raw_items, dict):
-                items = raw_items.get(conf["dimension"].value, [])
 
-            recalled_map[conf["result_key"]] = (
-                buildRecalledMarkdown(title=conf["title"], items=items)
-                if items
-                else None
-            )
+    dimension_conf = [
+        {
+            "result_key": "recalled_personality",
+            "title": "性格与价值观",
+            "dimension": FineGrainedFeedDimension.PERSONALITY,
+            "top_k": 20,
+        },
+        {
+            "result_key": "recalled_interaction_style",
+            "title": "互动风格",
+            "dimension": FineGrainedFeedDimension.INTERACTION_STYLE,
+            "top_k": 10,
+        },
+        {
+            "result_key": "recalled_procedural_info",
+            "title": "程序性知识",
+            "dimension": FineGrainedFeedDimension.PROCEDURAL_INFO,
+            "top_k": 5,
+        },
+        {
+            "result_key": "recalled_memory",
+            "title": "人生记忆与故事",
+            "dimension": FineGrainedFeedDimension.MEMORY,
+            "top_k": 5,
+        },
+    ]
+    for conf in dimension_conf:
+        recall_res = await recallFineGrainedFeeds(
+            user_id=user_id,
+            fr_id=fr_id,
+            scope=[
+                {
+                    "scope": conf["dimension"],
+                    "top_k": conf["top_k"],
+                }
+            ],
+            query=normalized_query,
+        )
+        if recall_res.get("status") != 200:
+            return {
+                "status": -5,
+                "message": f"Recall FineGrainedFeed failed: {recall_res.get('message', '')}",
+            }
+        items = []
+        raw_items = recall_res.get("items", {})
+        if isinstance(raw_items, dict):
+            items = raw_items.get(conf["dimension"].value, [])
+
+        recalled_map[conf["result_key"]] = (
+            buildRecalledMarkdown(title=conf["title"], items=items)
+            if items
+            else None
+        )
 
     return {
         "status": 200,
@@ -865,7 +865,7 @@ async def syncFeedsToFRCore(
             db.rollback()
             logger.error(f"syncFeedsToFRCore db update failed: {str(e)}")
             return {"status": -5, "message": "Sync FR core failed"}
-
+            
     return {
         "status": 200,
         "message": "Sync FR core success",

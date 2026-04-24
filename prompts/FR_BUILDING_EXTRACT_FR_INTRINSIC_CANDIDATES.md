@@ -21,7 +21,9 @@ You can only extract the following allowed keys from the input text:
 
 Two input parameters will be provided:
 
+- figure_name: the explicit name of the target figure in this extraction task; use this value when you need to disambiguate references like "he/she/they" in analysis, but never fabricate a new name if it is missing in `original_source_content`
 - figure_role: one of `SELF` | `FAMILY` | `FRIEND` | `MENTOR` | `COLLEAGUE` | `PARTNER` | `PUBLIC_FIGURE` | `STRANGER`
+- user_name: the canonical name of the user/narrator in this task; in scenarios requiring role-title normalization, never output labels such as "说话人", "我", "本人", etc., and use the provided `user_name` value instead
 - original_source_content: the raw text to extract information from
 
 ## Core Principles: High Precision First
