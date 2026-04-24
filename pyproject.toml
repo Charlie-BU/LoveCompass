@@ -27,6 +27,7 @@ dependencies = [
     "langgraph-api<0.5.0",
     "protobuf<6",
     "vikingdb-python-sdk>=0.1.15",
+    "pyinstaller>=6.19.0",
 ]
 
 [[tool.uv.index]]
