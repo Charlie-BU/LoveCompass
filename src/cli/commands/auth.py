@@ -13,6 +13,7 @@ from src.database.enums import Gender, parseEnum
 from src.services.user import (
     getUserById,
     getUserIdByAccessToken,
+    userBindLark,
     userLogin,
     userModifyPassword,
     userRegister,
@@ -29,9 +30,7 @@ def registerAuthSubparser(
     """
     # auth
     auth_parser = subparsers.add_parser("auth", help="Authorization commands")
-    auth_parser.usage = (
-        "immortality auth {login, register, logout, whoami, modify-password} [-h]"
-    )
+    auth_parser.usage = "immortality auth {login, register, logout, whoami, modify-password, bind-lark} [-h]"
     auth_subparsers = auth_parser.add_subparsers(dest="auth_command")
 
     # auth login
@@ -78,7 +77,7 @@ def registerAuthSubparser(
     modify_password_parser = auth_subparsers.add_parser(
         "modify-password", help="Modify password for current user"
     )
-    modify_password_parser.usage = "immortality auth modify-password [--old-password <old_password> --new-password <new_password>] [-h] [--json]"
+    modify_password_parser.usage = "immortality auth modify-password [--old-password <old password> --new-password <new password>] [-h] [--json]"
     add_json(modify_password_parser)
     modify_password_parser.add_argument(
         "--old-password", required=False, help="Old password"
@@ -87,6 +86,17 @@ def registerAuthSubparser(
         "--new-password", required=False, help="New password"
     )
     modify_password_parser.set_defaults(func=modifyPasswordCLI)
+
+    # auth bind-lark
+    bind_lark_parser = auth_subparsers.add_parser(
+        "bind-lark", help="Bind current user with Lark open id"
+    )
+    bind_lark_parser.usage = (
+        "immortality auth bind-lark --lark-open-id <lark-open-id> [-h] [--json]"
+    )
+    add_json(bind_lark_parser)
+    bind_lark_parser.add_argument("--lark-open-id", required=True, help="Lark open id")
+    bind_lark_parser.set_defaults(func=bindLarkCLI)
 
 
 def loginCLI(args: Namespace) -> int:
@@ -286,5 +296,19 @@ def modifyPasswordCLI(args: Namespace) -> int:
         old_password=old_password,
         new_password=new_password,
     )
+    printServiceResInCLI(res, as_json=args.json)
+    return 0 if res.get("status") == 200 else 1
+
+
+def bindLarkCLI(args: Namespace) -> int:
+    """
+    绑定飞书 open id
+    """
+    user_id = getUserIdFromLocalSession()
+    lark_open_id = getattr(args, "lark_open_id", None)
+    if not isinstance(lark_open_id, str) or lark_open_id.strip() == "":
+        raise CLIError("lark-open-id is required", exit_code=2)
+
+    res = userBindLark(user_id=user_id, lark_open_id=lark_open_id.strip())
     printServiceResInCLI(res, as_json=args.json)
     return 0 if res.get("status") == 200 else 1
