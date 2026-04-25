@@ -9,7 +9,9 @@ def preconfig():
     预配置
     """
     # 加载环境变量
-    load_dotenv()
+    from src.cli.constants import IMMORTALITY_ENV_PATH
+
+    load_dotenv(IMMORTALITY_ENV_PATH)
     # 配置日志
     LOG_DIR = Path(__file__).resolve().parents[1] / "logs"
     LOG_DIR.mkdir(parents=True, exist_ok=True)

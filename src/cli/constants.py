@@ -1,3 +1,5 @@
+from pathlib import Path
+
 # ANSI colors
 ANSI_RESET = "\033[0m"
 ANSI_ORANGE = "\033[38;5;208m"
@@ -22,3 +24,6 @@ IMMORTALITY_LOGO = f"""{ANSI_ORANGE}{ANSI_BOLD}
 ██║██║ ╚═╝ ██║██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   ██║  ██║███████╗██║   ██║      ██║
 ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝   ╚═╝      ╚═╝
 {ANSI_RESET}"""
+
+IMMORTALITY_HOME_DIR = Path.home() / ".immortality"
+IMMORTALITY_ENV_PATH = IMMORTALITY_HOME_DIR / ".env"

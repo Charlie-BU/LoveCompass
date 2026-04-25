@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from src.cli.utils import immortalityPrint, printServiceResInCLI
 from src.cli.utils import CLIError
+from src.cli.constants import IMMORTALITY_HOME_DIR, IMMORTALITY_ENV_PATH
 from src.database.index import session
 
 
@@ -88,7 +89,7 @@ def runDoctorCheck() -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     healthy = True
     guidance: list[str] = []
-    env_path = Path.cwd() / ".env"
+    env_path = IMMORTALITY_ENV_PATH
 
     # 1) Python 版本检查
     python_ok = True
@@ -113,7 +114,7 @@ def runDoctorCheck() -> dict[str, Any]:
     healthy = healthy and env_exists
     if not env_exists:
         guidance.append(
-            "`.env` is missing in current working directory. Please run `immortality setup` first."
+            "`.env` is missing in ~/.immortality/.env. Please run `immortality setup` first."
         )
 
     required_envs = [
@@ -299,7 +300,14 @@ def setupCLI(args: Namespace) -> int:
 
     cwd = Path.cwd()
     local_env_example_path = cwd / ".env.example"
-    env_path = cwd / ".env"
+    env_path = IMMORTALITY_ENV_PATH
+    try:
+        IMMORTALITY_HOME_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as err:
+        raise CLIError(
+            f"Cannot create config directory `{IMMORTALITY_HOME_DIR}`: {err}. Please create it manually.",
+            exit_code=1,
+        ) from err
 
     arg_db_user = getattr(args, "db_user", None)
     arg_db_password = getattr(args, "db_password", None)
@@ -366,7 +374,12 @@ def setupCLI(args: Namespace) -> int:
     for key, value in values.items():
         output = output.replace(f"<{key}>", value)
 
-    env_path.write_text(output, encoding="utf-8")
+    try:
+        env_path.write_text(output, encoding="utf-8")
+    except OSError as err:
+        raise CLIError(
+            f"Cannot write env file `{env_path}`: {err}", exit_code=1
+        ) from err
 
     printServiceResInCLI(
         {

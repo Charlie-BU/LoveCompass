@@ -1,8 +1,9 @@
 import json
-from pathlib import Path
 from typing import Any
 
-_SESSION_DIR = Path.home() / ".immortality"
+from src.cli.constants import IMMORTALITY_HOME_DIR
+
+_SESSION_DIR = IMMORTALITY_HOME_DIR
 _SESSION_FILE = _SESSION_DIR / "session.json"
 
 

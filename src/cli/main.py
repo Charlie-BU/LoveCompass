@@ -2,7 +2,9 @@ import argparse
 import sys
 from dotenv import load_dotenv
 
-load_dotenv()
+from src.cli.constants import IMMORTALITY_ENV_PATH
+
+load_dotenv(IMMORTALITY_ENV_PATH)
 
 
 def parserBuilder() -> argparse.ArgumentParser:
