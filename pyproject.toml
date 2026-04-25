@@ -1,6 +1,6 @@
 [project]
-name = "immortality"
-version = "0.1.0"
+name = "Digital-Immortality"
+version = "1.0.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.13"
