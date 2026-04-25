@@ -8,6 +8,7 @@ from src.agents.graphs.FRBuildingGraph.graph import getFRBuildingGraph
 from src.database.index import session
 from src.database.models import FigureAndRelation, User
 from src.channels.lark.integration.utils import sendCard2OpenId
+from src.utils.index import stringifyValue
 
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,7 @@ def listAvailableFRs(open_id: str) -> None:
         figure_and_relations = (
             db.query(FigureAndRelation)
             .filter(FigureAndRelation.user_id == user_id)
+            .order_by(FigureAndRelation.id)
             .all()
         )
         if not figure_and_relations or len(figure_and_relations) == 0:
@@ -113,7 +115,7 @@ def listAvailableFRs(open_id: str) -> None:
             return
         fr_list = "\n".join(
             [
-                f"- **{fr.figure_name}**  \n   `fr_id: {fr.id}`"
+                f"- **{fr.figure_name}** - {stringifyValue(fr.figure_role).upper()}  \n   `fr_id: {fr.id}`"
                 for fr in figure_and_relations
             ]
         )
