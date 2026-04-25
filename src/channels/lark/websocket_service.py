@@ -50,9 +50,9 @@ def startLarkWebSocketServer(message_handler: Callable[[str, str], None]) -> Non
     """
     app_id = os.getenv("LARK_APP_ID", "")
     app_secret = os.getenv("LARK_APP_SECRET", "")
-    assert (
-        app_id and app_secret
-    ), "required 'LARK_APP_ID' and 'LARK_APP_SECRET' for Lark websocket!!!"
+
+    if not app_id or not app_secret:
+        return
 
     event_handler = (
         lark.EventDispatcherHandler.builder("", "", lark.LogLevel.INFO)

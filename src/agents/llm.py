@@ -28,14 +28,13 @@ def prepareLLM(
     options: LLMOptions | None = None,
 ) -> ChatOpenAI:
     ARK_BASE_URL = os.getenv("ARK_BASE_URL", "")
-    assert ARK_BASE_URL, "required 'ARK_BASE_URL' for AI Agent!!!"
     logger.info(f"LLM prepared")
 
     model_name = os.getenv(model, "")
     api_key = os.getenv("ARK_API_KEY", "")
-    assert (
-        model_name and api_key
-    ), f"required '{model}' and 'ARK_API_KEY' for AI Agent!!!"
+
+    if not ARK_BASE_URL or not model_name or not api_key:
+        return None
 
     model_args = {
         "model": model_name,
@@ -78,12 +77,13 @@ async def arkAinvoke(
     messages: List[BaseMessage],
     model_options: LLMOptions = {},
     reasoning_content_in_ai_message: bool = True,  # 是否把 reasoning_content 放到 ai_message 中
-) -> ArkLLMResponse:
+) -> ArkLLMResponse | None:
     """
     通过 Ark SDK ainvoke LLM
     """
     model_name = os.getenv(model, "")
-    assert model_name, f"required '{model}' for AI Agent!!!"
+    if not model_name:
+        return None
 
     # 全局单例
     _ark_client = arkClient()

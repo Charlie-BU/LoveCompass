@@ -1,6 +1,8 @@
 import re
 import sys
 import tomllib
+import getpass
+import uuid
 from pathlib import Path
 from argparse import Namespace, ArgumentParser, Action, _SubParsersAction
 from typing import Callable
@@ -9,6 +11,7 @@ from importlib import metadata
 from sqlalchemy import text
 
 from src.cli.utils import immortalityPrint, printServiceResInCLI
+from src.cli.utils import CLIError
 from src.database.index import session
 
 
@@ -24,6 +27,58 @@ def registerTopSubparser(
     doctor_parser.usage = "immortality doctor [-h] [--json]"
     add_json(doctor_parser)
     doctor_parser.set_defaults(func=doctorCLI)
+
+    # setup
+    setup_parser = subparsers.add_parser("setup", help="Setup environment variables")
+    setup_parser.usage = (
+        "immortality setup "
+        "[--db-user <db_user> --db-password <db_password> --db-host <db_host> --db-port <db_port> "
+        "--ark-api-key <ark_api_key> "
+        "--doubao-2-0-lite <endpoint_or_model_id> --doubao-2-0-mini <endpoint_or_model_id> "
+        "--embedding-endpoint-id <embedding_endpoint_id> "
+        "--lark-app-id <lark_bot_app_id> --lark-app-secret <lark_bot_app_secret> "
+        "--lark-card-template-id <lark_card_template_id>] "
+        "[-h] [--json]"
+    )
+    add_json(setup_parser)
+    setup_parser.add_argument(
+        "--db-user",
+        required=False,
+        help="Database user (⚠️ Attention: Must be PostgreSQL)",
+    )
+    setup_parser.add_argument("--db-password", required=False, help="Database password")
+    setup_parser.add_argument("--db-host", required=False, help="Database host")
+    setup_parser.add_argument("--db-port", required=False, help="Database port")
+    setup_parser.add_argument(
+        "--ark-api-key",
+        required=False,
+        help="ARK API key (⚠️ Attention: Must use VolcEngine Ark Service, otherwise Ark Service will not be called)",
+    )
+    setup_parser.add_argument(
+        "--doubao-2-0-lite",
+        required=False,
+        help="DOUBAO_2_0_LITE endpoint_id or model_id",
+    )
+    setup_parser.add_argument(
+        "--doubao-2-0-mini",
+        required=False,
+        help="DOUBAO_2_0_MINI endpoint_id or model_id (Can be the same as DOUBAO_2_0_LITE model, but not recommended)",
+    )
+    setup_parser.add_argument(
+        "--embedding-endpoint-id",
+        required=False,
+        help="Embedding endpoint id",
+    )
+    setup_parser.add_argument("--lark-app-id", required=False, help="Lark app id")
+    setup_parser.add_argument(
+        "--lark-app-secret", required=False, help="Lark app secret"
+    )
+    setup_parser.add_argument(
+        "--lark-card-template-id",
+        required=False,
+        help="Lark card template id (Please ask [15947513567charlie@gmail.com] for this)",
+    )
+    setup_parser.set_defaults(func=setupCLI)
 
 
 def runDoctorCheck() -> dict[str, Any]:
@@ -60,19 +115,21 @@ def runDoctorCheck() -> dict[str, Any]:
         python_ok = False
         python_detail = f"failed to parse pyproject.toml: {err}"
 
-    checks.append(
-        {"item": "python:version", "ok": python_ok, "detail": python_detail}
-    )
+    checks.append({"item": "python:version", "ok": python_ok, "detail": python_detail})
     healthy = healthy and python_ok
     if not python_ok:
-        guidance.append("Python version does not meet requirements. Please use `>=3.13`.")
+        guidance.append(
+            "Python version does not meet requirements. Please use `>=3.13`."
+        )
 
     # 2) .env 文件存在性与必填项完整性检查
     env_exists = env_path.exists()
     checks.append({"item": "env:file_exists", "ok": env_exists, "path": str(env_path)})
     healthy = healthy and env_exists
     if not env_exists:
-        guidance.append("`.env` is missing in the project root. Please create it and fill required configs.")
+        guidance.append(
+            "`.env` is missing in the project root. Please create it and fill required configs."
+        )
 
     required_envs = [
         "DATABASE_URI",
@@ -139,7 +196,9 @@ def runDoctorCheck() -> dict[str, Any]:
         except Exception as err:
             checks.append({"item": "env:file_parse", "ok": False, "error": str(err)})
             healthy = False
-            guidance.append("Failed to parse `.env`. Please check the format (`KEY=VALUE`).")
+            guidance.append(
+                "Failed to parse `.env`. Please check the format (`KEY=VALUE`)."
+            )
 
     missing_envs: list[str] = []
     for key in required_envs:
@@ -191,7 +250,9 @@ def runDoctorCheck() -> dict[str, Any]:
     )
     healthy = healthy and dependencies_ok
     if not dependencies_ok:
-        guidance.append("Dependencies are incomplete. Please run `uv sync` (or `uv pip install -e .`).")
+        guidance.append(
+            "Dependencies are incomplete. Please run `uv sync` (or `uv pip install -e .`)."
+        )
 
     # 4) 数据库可用性检查
     db_ok = True
@@ -206,11 +267,17 @@ def runDoctorCheck() -> dict[str, Any]:
 
     checks.append({"item": "database:connectivity", "ok": db_ok, "error": db_error})
     if not db_ok:
-        guidance.append("Database connection failed. Please check `DATABASE_URI`, network, and DB service status.")
+        guidance.append(
+            "Database connection failed. Please check `DATABASE_URI`, network, and DB service status."
+        )
 
     return {
         "status": 200 if healthy else -1,
-        "message": "Doctor check passed" if healthy else "Doctor check failed",
+        "message": (
+            "Doctor check passed"
+            if healthy
+            else "Doctor check failed, please run `immortality setup` to configure environment variables"
+        ),
         "checks": checks,
         "guidance": guidance,
     }
@@ -226,3 +293,91 @@ def doctorCLI(args: Namespace) -> int:
         for idx, item in enumerate(result.get("guidance", []), start=1):
             immortalityPrint(f"[guide-{idx}] {item}", type="warning")
     return 0 if result.get("status") == 200 else 1
+
+
+def setupCLI(args: Namespace) -> int:
+    """
+    配置环境变量
+    """
+
+    def _resolveText(arg_value: str | None, label: str) -> str:
+        if isinstance(arg_value, str):
+            return arg_value.strip()
+        return input(f"{label}: ").strip()
+
+    def _resolveSecret(arg_value: str | None, label: str) -> str:
+        if isinstance(arg_value, str):
+            return arg_value.strip()
+        return getpass.getpass(f"{label}: ").strip()
+
+    project_root = Path(__file__).resolve().parents[3]
+    env_example_path = project_root / ".env.example"
+    env_path = project_root / ".env"
+
+    if not env_example_path.exists():
+        raise CLIError("`.env.example` not found in project root", exit_code=1)
+
+    arg_db_user = getattr(args, "db_user", None)
+    arg_db_password = getattr(args, "db_password", None)
+    arg_db_host = getattr(args, "db_host", None)
+    arg_db_port = getattr(args, "db_port", None)
+    arg_ark_api_key = getattr(args, "ark_api_key", None)
+    arg_doubao_2_0_lite = getattr(args, "doubao_2_0_lite", None)
+    arg_doubao_2_0_mini = getattr(args, "doubao_2_0_mini", None)
+    arg_embedding_endpoint_id = getattr(args, "embedding_endpoint_id", None)
+    arg_lark_app_id = getattr(args, "lark_app_id", None)
+    arg_lark_app_secret = getattr(args, "lark_app_secret", None)
+    arg_lark_card_template_id = getattr(args, "lark_card_template_id", None)
+
+    db_user = _resolveText(arg_db_user, "db_user")
+    db_password = _resolveSecret(arg_db_password, "db_password")
+    db_host = _resolveText(arg_db_host, "db_host")
+    db_port = _resolveText(arg_db_port, "db_port")
+    login_secret = uuid.uuid4().hex
+    ark_api_key = _resolveSecret(arg_ark_api_key, "ark_api_key")
+    doubao_2_0_lite = _resolveText(
+        arg_doubao_2_0_lite, "doubao_2_0_lite_endpoint_or_model_id"
+    )
+    doubao_2_0_mini = _resolveText(
+        arg_doubao_2_0_mini, "doubao_2_0_mini_endpoint_or_model_id"
+    )
+    embedding_endpoint_id = _resolveText(
+        arg_embedding_endpoint_id, "embedding_endpoint_id"
+    )
+    lark_app_id = _resolveText(arg_lark_app_id, "lark_bot_app_id")
+    lark_app_secret = _resolveSecret(arg_lark_app_secret, "lark_bot_app_secret")
+    lark_card_template_id = _resolveText(
+        arg_lark_card_template_id, "lark_card_template_id"
+    )
+
+    values = {
+        "db_user": db_user,
+        "db_password": db_password,
+        "db_host": db_host,
+        "db_port": db_port,
+        "login_secret": login_secret,
+        "ark_api_key": ark_api_key,
+        "doubao_2_0_lite_endpoint_or_model_id": doubao_2_0_lite,
+        "doubao_2_0_mini_endpoint_or_model_id": doubao_2_0_mini,
+        "embedding_endpoint_id": embedding_endpoint_id,
+        "lark_bot_app_id": lark_app_id,
+        "lark_bot_app_secret": lark_app_secret,
+        "lark_card_template_id": lark_card_template_id,
+    }
+
+    template = env_example_path.read_text(encoding="utf-8")
+    output = template
+    for key, value in values.items():
+        output = output.replace(f"<{key}>", value)
+
+    env_path.write_text(output, encoding="utf-8")
+
+    printServiceResInCLI(
+        {
+            "status": 200,
+            "message": f"Environment variables are configured successfully, please run `immortality doctor` to check",
+            "env_path": str(env_path),
+        },
+        as_json=args.json,
+    )
+    return 0

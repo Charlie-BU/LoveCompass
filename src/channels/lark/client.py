@@ -5,10 +5,12 @@ import lark_oapi as lark
 
 # 全局单例
 @lru_cache
-def larkClient():
+def larkClient() -> lark.Client | None:
     app_id = os.getenv("LARK_APP_ID", "")
     app_secret = os.getenv("LARK_APP_SECRET", "")
-    assert app_id and app_secret, "required 'LARK_APP_ID' and 'LARK_APP_SECRET' for Lark client!!!"
+
+    if not app_id or not app_secret:
+        return None
 
     client = (
         lark.Client.builder()

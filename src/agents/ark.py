@@ -5,9 +5,10 @@ from volcenginesdkarkruntime import AsyncArk
 
 # 全局单例
 @lru_cache
-def arkClient():
+def arkClient() -> AsyncArk | None:
     api_key = os.getenv("ARK_API_KEY", "")
-    assert api_key, "required 'ARK_API_KEY' for AI Agent!!!"
+    if not api_key:
+        return None
 
     client = AsyncArk(
         api_key=api_key,
