@@ -32,6 +32,8 @@ def startLarkServiceCLI(args: Namespace) -> int:
     """
     启动 lark 服务（先执行 doctor，通过后才启动）
     """
+    from src.main import main
+
     doctor_result = runDoctorCheck()
     if doctor_result.get("status") != 200:
         printServiceResInCLI(doctor_result, as_json=args.json)
@@ -41,12 +43,5 @@ def startLarkServiceCLI(args: Namespace) -> int:
         return 1
 
     immortalityPrint("Doctor check passed. Starting lark service...", type="success")
-
-    # 延迟导入，避免启动 CLI 时触发重依赖初始化
-    from src.channels.lark.websocket_service import startLarkWebSocketServer
-    from src.channels.lark.integration.index import messageHandler
-    from src.database.models import initDatabaseIfNeeded
-
-    initDatabaseIfNeeded()
-    startLarkWebSocketServer(messageHandler)
+    main()
     return 0

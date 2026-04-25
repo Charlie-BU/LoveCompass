@@ -68,3 +68,15 @@ def startLarkWebSocketServer(message_handler: Callable[[str, str], None]) -> Non
         log_level=lark.LogLevel.INFO,
     )
     ws_client.start()
+
+
+def startLarkService():
+    """
+    启动 Lark 服务
+    """
+    # 延迟导入，避免环境变量未加载
+    from src.channels.lark.integration.index import messageHandler
+    from src.database.models import initDatabaseIfNeeded
+
+    initDatabaseIfNeeded()
+    startLarkWebSocketServer(messageHandler)
