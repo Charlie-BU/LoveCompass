@@ -363,7 +363,7 @@ def setupCLI(args: Namespace) -> int:
         try:
             template = (
                 resources.files("src.cli")
-                .joinpath("assets/env.example")
+                .joinpath("assets/.env.example")
                 .read_text(encoding="utf-8")
             )
         except Exception as err:
