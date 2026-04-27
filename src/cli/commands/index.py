@@ -11,6 +11,7 @@ from typing import Callable, Any
 from importlib import metadata, resources
 from sqlalchemy import text
 import questionary
+from datetime import datetime
 
 from src.cli.utils import immortalityPrint, printServiceResInCLI
 from src.cli.utils import CLIError
@@ -83,9 +84,19 @@ def registerTopSubparser(
     setup_parser.add_argument(
         "--lark-card-template-id",
         required=False,
-        help="Lark card template id (Please ask [15947513567charlie@gmail.com] for this)",
+        help="Lark card template id",
     )
     setup_parser.set_defaults(func=setupCLI)
+
+    # logs
+    logs_parser = subparsers.add_parser("logs", help="View logs dynamically")
+    logs_parser.usage = "immortality logs [--date <YYYYMMDD>] [-h]"
+    logs_parser.add_argument(
+        "--date",
+        required=False,
+        help="Log date in YYYYMMDD format, defaults to today",
+    )
+    logs_parser.set_defaults(func=logsCLI)
 
 
 def runDoctorCheck() -> dict[str, Any]:
@@ -633,4 +644,47 @@ def setupCLI(args: Namespace) -> int:
         },
         as_json=args.json,
     )
+    return 0
+
+
+def logsCLI(args: Namespace) -> int:
+    """
+    动态打印当天日志
+    """
+    date = getattr(args, "date", None)
+    if date:
+        if not re.fullmatch(r"\d{8}", date):
+            raise CLIError(
+                "Invalid date format. Please use YYYYMMDD format.", exit_code=1
+            )
+        try:
+            datetime.strptime(date, "%Y%m%d")
+        except ValueError as err:
+            raise CLIError(
+                "Invalid date value. Please use a valid YYYYMMDD date.",
+                exit_code=1,
+            ) from err
+
+    current_date = datetime.now().strftime("%Y%m%d")
+    if not date:
+        date = current_date
+
+    log_path = IMMORTALITY_HOME_DIR / "logs" / f"app-{date}.log"
+    if not log_path.exists():
+        immortalityPrint(f"No logs for {date}", type="info")
+        return 0
+    try:
+        check_logs = subprocess.run(
+            ["tail", "-n", "100", "-f", str(log_path)],
+            check=False,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except KeyboardInterrupt:
+        return 0
+    if check_logs.returncode != 0:
+        raise CLIError(
+            "Failed to tail logs: " + (check_logs.stderr or "").strip(),
+            exit_code=1,
+        )
     return 0

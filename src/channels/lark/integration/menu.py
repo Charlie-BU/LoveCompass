@@ -216,7 +216,7 @@ def buildPersona(open_id: str, fr_id: int, text: str) -> None:
         open_id=open_id,
         title="任务开始",
         content=f"开始完善 **{figure_name}** 的人物画像，完成后会通知结果",
-        theme="green",
+        theme="blue",
     )
 
     async def _task() -> None:
