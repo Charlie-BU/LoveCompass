@@ -53,7 +53,7 @@ def registerFRSubparser(
     )
     fr_list_parser.usage = "immortality fr list [-h] [--json]"
     add_json(fr_list_parser)
-    fr_list_parser.set_defaults(func=listAllFRsCLI)
+    fr_list_parser.set_defaults(func=listAvailableFRsCLI)
 
     # fr show
     fr_show_parser = fr_subparsers.add_parser("show", help="Show full FR context")
@@ -247,7 +247,10 @@ def createFRCLI(args: Namespace) -> int:
     return 0 if res.get("status") == 200 else 1
 
 
-def listAllFRsCLI(args: Namespace) -> int:
+def listAvailableFRsCLI(args: Namespace) -> int:
+    """
+    查看当前用户可用 FR
+    """
     user_id = getUserIdFromLocalSession()
     res = getAllFigureAndRelations(user_id=user_id)
     frs = res.get("figure_and_relations", [])
@@ -301,7 +304,7 @@ def showFRCLI(args: Namespace) -> int:
         printServiceResInCLI(
             {
                 "status": 200,
-                "message": "Get FigureAndRelation all context success (empty markdown)",
+                "message": "No information found for this FR",
             },
             as_json=False,
         )

@@ -8,8 +8,8 @@ from src.agents.graphs.FRBuildingGraph.graph import getFRBuildingGraph
 from src.database.index import session
 from src.database.models import FigureAndRelation, User
 from src.channels.lark.integration.utils import sendCard2OpenId
+from src.services.figure_and_relation import getFRAllContext
 from src.utils.index import stringifyValue
-
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def _submitBackgroundCoroutine(coro: asyncio.coroutines) -> None:
     future.add_done_callback(_onDone)
 
 
-def showMenu(open_id: str) -> None:
+def showMenuLark(open_id: str) -> None:
     """
     发送可用指令菜单
     """
@@ -82,9 +82,9 @@ def showMenu(open_id: str) -> None:
     )
 
 
-def listAvailableFRs(open_id: str) -> None:
+def listAvailableFRsLark(open_id: str) -> None:
     """
-    列出可用 FR
+    查看当前用户可用 FR
     """
     with session() as db:
         user = db.query(User).filter(User.lark_open_id == open_id).first()
@@ -127,7 +127,7 @@ def listAvailableFRs(open_id: str) -> None:
         )
 
 
-def switchFR(open_id: str, fr_id: int) -> None:
+def switchFRLark(open_id: str, fr_id: int) -> None:
     """
     切换 FR
     """
@@ -169,7 +169,7 @@ def switchFR(open_id: str, fr_id: int) -> None:
     )
 
 
-def clearCurrentRelationChain(open_id: str) -> None:
+def clearCurrentRelationChainLark(open_id: str) -> None:
     """
     清除当前对话对象
     """
@@ -188,7 +188,106 @@ def clearCurrentRelationChain(open_id: str) -> None:
     )
 
 
-def buildPersona(open_id: str, fr_id: int, text: str) -> None:
+def showFRLark(open_id: str, fr_id: int, query: str | None = None) -> None:
+    """
+    查看完整 FR 画像
+    """
+    common_info, error_type = _getCommonInfo(open_id, fr_id)
+    if common_info is None:
+        if error_type == "unauthorized":
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="当前飞书账号未授权，请先绑定账号",
+                theme="red",
+            )
+            return
+        sendCard2OpenId(
+            open_id=open_id,
+            title="出错啦",
+            content=f"切换失败：未找到 `fr_id={fr_id}` 对应的对话对象",
+            theme="red",
+        )
+        return
+
+    user_id = common_info.get("user_id")
+    figure_name = common_info.get("figure_name")
+    normalized_query = query.strip() if isinstance(query, str) else None
+
+    async def _task() -> None:
+        try:
+            res = await getFRAllContext(
+                user_id=user_id,
+                fr_id=fr_id,
+                query=normalized_query,
+            )
+            if res.get("status") != 200:
+                logger.warning(
+                    "Fail to show FR context, open_id=%s, fr_id=%s, status=%s, msg=%s",
+                    open_id,
+                    fr_id,
+                    res.get("status"),
+                    res.get("message"),
+                )
+                sendCard2OpenId(
+                    open_id=open_id,
+                    title="出错啦",
+                    content="获取画像失败，请稍后重试",
+                    theme="red",
+                )
+                return
+
+            sections = [
+                res.get("persona"),
+                res.get("recalled_personality"),
+                res.get("recalled_interaction_style"),
+                res.get("recalled_procedural_info"),
+                res.get("recalled_memory"),
+            ]
+            markdown_parts = [
+                part.strip()
+                for part in sections
+                if isinstance(part, str) and part.strip() != ""
+            ]
+            if len(markdown_parts) == 0:
+                sendCard2OpenId(
+                    open_id=open_id,
+                    title="Immortality 提示",
+                    content="暂无该 FR 的画像信息，请先完善人物画像",
+                    theme="yellow",
+                )
+                return
+            full_md_content = "\n".join(markdown_parts)
+            # 飞书消息不可包含敏感信息，需脱敏
+            sensitive_regex = [
+                r"(?i)\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b",  # 邮箱
+            ]
+            for pattern in sensitive_regex:
+                full_md_content = re.sub(pattern, "[SENSITIVE]", full_md_content)
+
+            sendCard2OpenId(
+                open_id=open_id,
+                title=f"{figure_name} 画像",
+                content=full_md_content,
+                theme="violet",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Error in showFRLark, open_id={open_id}, fr_id={fr_id}, err={e}",
+                exc_info=True,
+            )
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="获取画像失败，请稍后重试",
+                theme="red",
+            )
+
+    # 避免在运行中的事件循环里调用 asyncio.run
+    _submitBackgroundCoroutine(_task())
+
+
+def buildPersonaLark(open_id: str, fr_id: int, text: str) -> None:
     """
     完善 / 补充人物画像
     """
@@ -259,36 +358,45 @@ def buildPersona(open_id: str, fr_id: int, text: str) -> None:
     _submitBackgroundCoroutine(_task())
 
 
+# def
+
+
 menu = [
     {
         "hint": "/menu",
         "content": "显示菜单",
         "regex": r"/menu",
-        "command": showMenu,
+        "command": showMenuLark,
     },
     {
         "hint": "/list_available_persons",
         "content": "查找全部对话对象 fr_id",
         "regex": r"/list_available_persons",
-        "command": listAvailableFRs,
+        "command": listAvailableFRsLark,
     },
     {
         "hint": "/<fr_id>",
         "content": "切换当前对话对象",
         "regex": r"/(\d+)",
-        "command": switchFR,
+        "command": switchFRLark,
     },
     {
         "hint": "/clear_current_person",
         "content": "清除当前对话对象",
         "regex": r"/clear_current_person",
-        "command": clearCurrentRelationChain,
+        "command": clearCurrentRelationChainLark,
+    },
+    {
+        "hint": "/show_persona:<fr_id>\n<query(可选，用于语义召回相关画像)>",
+        "content": "查看人物画像（不填 query 查看通用画像；填写 query 优先返回与 query 语义相关的画像细节。例如：“沟通风格和冲突处理”）",
+        "regex": r"/show_persona:(\d+)(?:\n(.*))?",
+        "command": showFRLark,
     },
     {
         "hint": "/build_persona:<fr_id>\n<text>",
         "content": "完善 / 补充人物画像（可添加你对对方的文字表述、对方主笔长文（博客、日记、笔记等）、聊天记录、社交表达、创作物等）",
         "regex": r"/build_persona:(\d+)\n(.*)",
-        "command": buildPersona,
+        "command": buildPersonaLark,
     },
 ]
 
@@ -311,14 +419,14 @@ def handleMenuCommand(message: str, open_id: str) -> bool:
     current_item = menu[index_hit]
     command = current_item["command"]
 
-    if command == switchFR:
+    if command == switchFRLark:
         command(open_id, int(match.group(1)))
-    elif command == buildPersona:
+    elif command == buildPersonaLark or command == showFRLark:
         command(open_id, int(match.group(1)), match.group(2))
     elif (
-        command == showMenu
-        or command == listAvailableFRs
-        or command == clearCurrentRelationChain
+        command == showMenuLark
+        or command == listAvailableFRsLark
+        or command == clearCurrentRelationChainLark
     ):
         command(open_id)
     else:
