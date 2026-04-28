@@ -155,14 +155,14 @@ async def ainvokeJsonWithRetry(
     messages: list[BaseMessage],
     invoke_content: Callable[[list[BaseMessage]], Awaitable[str]],
     correction_hint: str | None = None,
-    max_retry: int = 1,
+    max_retries: int = 1,
 ) -> tuple[Any, str]:
     """
     调用 LLM 并解析 JSON；若解析失败，自动追加 AIMessage + HumanMessage 后重试。
     返回最后一次 (parsed_json, raw_content)。
     """
-    if max_retry < 0:
-        max_retry = 0
+    if max_retries < 0:
+        max_retries = 0
 
     retry_messages = list(messages)
     default_hint = (
@@ -176,14 +176,14 @@ async def ainvokeJsonWithRetry(
     hint = correction_hint or default_hint
     last_raw_content = ""
 
-    for attempt in range(max_retry + 1):
+    for attempt in range(max_retries + 1):
         last_raw_content = stringifyValue(
             await invoke_content(retry_messages), strip=False
         )
         try:
             return json.loads(last_raw_content), last_raw_content
         except json.JSONDecodeError:
-            if attempt >= max_retry:
+            if attempt >= max_retries:
                 break
             retry_messages = retry_messages + [
                 AIMessage(content=last_raw_content),
