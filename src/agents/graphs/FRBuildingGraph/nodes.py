@@ -935,7 +935,7 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
             "logs": logs,
         }
 
-    # 召回条数限制在 3-5，默认 3
+    # 召回条数限制在 3-5，默认 5
     top_k = int(os.getenv("TOP_K_FEEDS_FOR_COMPARE") or 5)
 
     feed_upsert_plan = []
