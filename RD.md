@@ -791,7 +791,7 @@ graph.add_edge("nodeOrganizeContext", END)
     "graphs": {
         "ContextGraph": "./src/agent/graph/ContextGraph/graph.py:ContextGraph"
     },
-    "python_version": "3.13",
+    "python_version": "3.11",
     "env": "./.env",
     "dependencies": ["."]
 }

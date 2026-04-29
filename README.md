@@ -7,7 +7,7 @@
 在开始前，请先满足以下任一条件：
 
 - 已安装 `uv`（推荐）
-- 已安装 `Python 3.13+` 环境
+- 已安装 `Python 3.11+` 环境
 
 安装 `uv`，请在 `terminal` 执行：
 
@@ -76,7 +76,7 @@ immortality doctor
 
 - `.env` 环境变量是否已配置
 - 数据库是否可连接
-- `Python` 版本是否满足要求（`>= 3.13`）
+- `Python` 版本是否满足要求（`>= 3.11`）
 - 依赖是否安装完整
 
 ## PostgreSQL 手动配置（不推荐）
@@ -290,8 +290,7 @@ sudo systemctl start postgresql
 ![创建空白卡片](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_c2c2a3080e.png)
 
 3. 导入卡片：
-    - 下载 [Immortality.card](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/Immortality.card)
-    - 项目根目录也提供 `Immortality.card`
+    - 下载 [Immortality.card](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/Immortality.card)（项目根目录也提供 `Immortality.card`）
     - 在卡片搭建工具中完成导入
 
 ![导入卡片](https://charlie-assets.oss-rg-china-mainland.aliyuncs.com/images/article/image_e6c33f6e20.png)

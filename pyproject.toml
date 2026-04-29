@@ -3,7 +3,7 @@ name = "Digital-Immortality"
 version = "1.5.3"
 description = ""
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.28.1",
     "alembic>=1.18.3",
