@@ -1,7 +1,7 @@
 from urllib.parse import unquote
+from robyn import Request
 from sqlalchemy import or_
 from jose import jwt
-from jose.exceptions import JWTError
 import os
 import logging
 from datetime import datetime, timedelta, timezone
@@ -44,22 +44,20 @@ def decodeAccessToken(token: str) -> dict:
 
 
 def getUserIdByAccessToken(
+    request: Request | None = None,
     token: str | None = None,
 ) -> int:
-    """
-    通过access token获取user id
-    """
-    if token is None:
-        raise Exception("Access token is required")
-    try:
-        payload = decodeAccessToken(token)
-    except JWTError as e:
-        logger.warning(f"Decode access token failed: {str(e)}")
-        raise Exception("Invalid or expired access token")
-    id = payload.get("id")
-    if not isinstance(id, int):
-        raise Exception("Invalid access token payload")
-    return id
+    if request is not None and token is not None:
+        raise Exception("Request and token should not be provided at the same time")
+    if request is not None:
+        authorization = request.headers.get("Authorization")
+        if not authorization or not authorization.startswith("Bearer "):
+            raise Exception("Invalid Authorization header format")
+        token = authorization.split("Bearer ")[1]
+    elif token is None:
+        raise Exception("Either request or token is required")
+    payload = decodeAccessToken(token)
+    return int(payload["id"])
 
 
 def getUserById(
@@ -78,7 +76,7 @@ def getUserById(
         return {
             "status": 200,
             "message": "Get user success",
-            "user": user.toJson(include=["username", "nickname", "gender", "email"]),
+            "user": user.toJson(),
         }
 
 

@@ -261,6 +261,9 @@ def whoamiCLI(args: Namespace) -> int:
     user_id = getUserIdFromLocalSession()
     res = getUserById(id=user_id)
     user = res.get("user")
+    user = {
+        k: user[k] for k in ("username", "nickname", "gender", "email") if k in user
+    }
 
     if args.json:
         printServiceResInCLI(res, as_json=True)
