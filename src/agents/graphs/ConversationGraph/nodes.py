@@ -13,9 +13,10 @@ from src.agents.graphs.ConversationGraph.state import (
 from src.agents.llm import arkAinvoke, prepareLLM
 from src.agents.prompt import getPrompt
 from src.database.enums import FineGrainedFeedDimension
-from src.database.index import session
+from src.service_dispatcher import dispatchServiceCall
 from src.services.fine_grained_feed import recallFineGrainedFeeds
 from src.services.figure_and_relation import buildFigurePersonaMarkdown
+from src.services.user import getUserById
 from src.utils.index import (
     ainvokeJsonWithRetry,
     checkFigureAndRelationOwnership,
@@ -218,46 +219,56 @@ def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
     round_uuid = str(uuid.uuid4())
 
     request = state["request"]
-    with session() as db:
-        figure_and_relation = checkFigureAndRelationOwnership(
-            db=db, user_id=request["user_id"], fr_id=request["fr_id"]
-        )
-        if figure_and_relation is None:
-            logger.error("Figure and relation not found")
-            raise ValueError("Figure and relation not found")
+    figure_and_relation = checkFigureAndRelationOwnership(
+        user_id=request["user_id"], fr_id=request["fr_id"]
+    )
+    if figure_and_relation is None:
+        logger.error("Figure and relation not found")
+        raise ValueError("Figure and relation not found")
 
-        figure_persona = buildFigurePersonaMarkdown(
-            fr=figure_and_relation,
-            exclude_fields=[
-                "words_figure2user",
-                "words_user2figure",
-                "core_procedural_info",
-                "core_memory",
-            ],  # 不包含在其他部分被注入的字段
-        )
-        words_to_user = figure_and_relation.words_figure2user
-        # 追加节点执行日志，保留上游日志链路
-        logs = state.get("logs") or []
-        logs += [
-            {
-                "step": "nodeLoadFRAndPersona",
-                "status": "ok",
-                "detail": "FigureAndRelation loaded",
-                "data": {
-                    "fr_id": request["fr_id"],
-                    "figure_role": figure_and_relation.figure_role,
-                },
-            }
-        ]
-        logger.info("nodeLoadFRAndPersona executed finished\n")
-        return {
-            "round_uuid": round_uuid,
-            "user_name": figure_and_relation.user.username,
-            "figure_and_relation": figure_and_relation.toJson(),
-            "figure_persona": figure_persona,
-            "words_to_user": ", ".join(words_to_user),
-            "logs": logs,
+    user_res = dispatchServiceCall(
+        getUserById,
+        {"id": request["user_id"]},
+    )
+    user = user_res.get("user")
+    if user_res.get("status") != 200 or not isinstance(user, dict):
+        logger.error("User not found")
+        raise ValueError("User not found")
+
+    figure_persona = buildFigurePersonaMarkdown(
+        fr=figure_and_relation,
+        exclude_fields=[
+            "words_figure2user",
+            "words_user2figure",
+            "core_procedural_info",
+            "core_memory",
+        ],  # 不包含在其他部分被注入的字段
+    )
+    words_to_user = figure_and_relation.get("words_figure2user")
+    if not isinstance(words_to_user, list):
+        words_to_user = []
+    # 追加节点执行日志，保留上游日志链路
+    logs = state.get("logs") or []
+    logs += [
+        {
+            "step": "nodeLoadFRAndPersona",
+            "status": "ok",
+            "detail": "FigureAndRelation loaded",
+            "data": {
+                "fr_id": request["fr_id"],
+                "figure_role": figure_and_relation.get("figure_role"),
+            },
         }
+    ]
+    logger.info("nodeLoadFRAndPersona executed finished\n")
+    return {
+        "round_uuid": round_uuid,
+        "user_name": stringifyValue(user.get("username")),
+        "figure_and_relation": figure_and_relation,
+        "figure_persona": figure_persona,
+        "words_to_user": ", ".join([stringifyValue(item) for item in words_to_user]),
+        "logs": logs,
+    }
 
 
 async def nodeRecallFeedsFromDB(state: ConversationGraphState) -> dict:
@@ -298,35 +309,41 @@ async def nodeRecallFeedsFromDB(state: ConversationGraphState) -> dict:
             "logs": logs,
         }
 
-    recalled = await recallFineGrainedFeeds(
-        user_id=user_id,
-        fr_id=fr_id,
-        scope=[
-            # 重大改动：完全不从 db 召回这两个低语境依赖的信息，避免和 persona 重复注入
-            # {
-            #     "scope": FineGrainedFeedDimension.PERSONALITY,
-            #     "top_k": int(
-            #         os.getenv("TOP_K_PERSONALITY_FEEDS_FOR_CONVERSATION", "3")
-            #     ),
-            # },
-            # {
-            #     "scope": FineGrainedFeedDimension.INTERACTION_STYLE,
-            #     "top_k": int(
-            #         os.getenv("TOP_K_INTERACTION_FEEDS_FOR_CONVERSATION", "3")
-            #     ),
-            # },
-            {
-                "scope": FineGrainedFeedDimension.PROCEDURAL_INFO,
-                "top_k": int(
-                    os.getenv("TOP_K_PROCEDURAL_FEEDS_FOR_CONVERSATION", "10")
-                ),
-            },
-            {
-                "scope": FineGrainedFeedDimension.MEMORY,
-                "top_k": int(os.getenv("TOP_K_MEMORY_FEEDS_FOR_CONVERSATION", "10")),
-            },
-        ],
-        query=query,
+    # recallFineGrainedFeeds 为异步，在 dispatchServiceCall 内已做处理
+    recalled = dispatchServiceCall(
+        recallFineGrainedFeeds,
+        {
+            "user_id": user_id,
+            "fr_id": fr_id,
+            "scope": [
+                # 重大改动：完全不从 db 召回这两个低语境依赖的信息，避免和 persona 重复注入
+                # {
+                #     "scope": FineGrainedFeedDimension.PERSONALITY,
+                #     "top_k": int(
+                #         os.getenv("TOP_K_PERSONALITY_FEEDS_FOR_CONVERSATION", "3")
+                #     ),
+                # },
+                # {
+                #     "scope": FineGrainedFeedDimension.INTERACTION_STYLE,
+                #     "top_k": int(
+                #         os.getenv("TOP_K_INTERACTION_FEEDS_FOR_CONVERSATION", "3")
+                #     ),
+                # },
+                {
+                    "scope": FineGrainedFeedDimension.PROCEDURAL_INFO,
+                    "top_k": int(
+                        os.getenv("TOP_K_PROCEDURAL_FEEDS_FOR_CONVERSATION", "10")
+                    ),
+                },
+                {
+                    "scope": FineGrainedFeedDimension.MEMORY,
+                    "top_k": int(
+                        os.getenv("TOP_K_MEMORY_FEEDS_FOR_CONVERSATION", "10")
+                    ),
+                },
+            ],
+            "query": query,
+        },
     )
     if recalled.get("status") != 200:
         error_message = f"Recall failed: {recalled.get('message', 'Unknown error')}"

@@ -114,8 +114,8 @@ async def getFineGrainedFeedRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getFineGrainedFeed(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
-        fine_grained_feed_id=toInt(request.query_params.get("fine_grained_feed_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
+        fine_grained_feed_id=toInt(request.query_params.get("fine_grained_feed_id", None)),  # type: ignore
     )
 
 
@@ -124,7 +124,7 @@ async def getAllFineGrainedFeedRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getAllFineGrainedFeed(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
     )
 
 
@@ -178,8 +178,8 @@ async def getOriginalSourceRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getOriginalSource(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
-        original_source_id=toInt(request.query_params.get("original_source_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
+        original_source_id=toInt(request.query_params.get("original_source_id", None)),  # type: ignore
     )
 
 
@@ -188,7 +188,7 @@ async def getAllOriginalSourceRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getAllOriginalSource(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
     )
 
 
@@ -240,17 +240,17 @@ async def getFineGrainedFeedConflictRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getFineGrainedFeedConflict(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
-        fine_grained_feed_conflict_id=toInt(request.query_params.get("fine_grained_feed_conflict_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
+        fine_grained_feed_conflict_id=toInt(request.query_params.get("fine_grained_feed_conflict_id", None)),  # type: ignore
     )
 
 
 @feed_router.get("/getAllFineGrainedFeedConflict", auth_required=True)
 async def getAllFineGrainedFeedConflictRouter(request: Request):
     id = getUserIdByAccessToken(request)
-    scope = request.query_params.get("scope")
+    scope = request.query_params.get("scope", None)
     return getAllFineGrainedFeedConflict(
         user_id=id,
-        fr_id=toInt(request.query_params.get("fr_id")),  # type: ignore
+        fr_id=toInt(request.query_params.get("fr_id", None)),  # type: ignore
         scope=scope if isinstance(scope, str) else "unresolved",  # type: ignore
     )

@@ -80,6 +80,24 @@ def getUserById(
         }
 
 
+def getUserIdByOpenId(open_id: str) -> dict:
+    """
+    根据飞书 openid 获取用户 id
+    """
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            return {
+                "status": -1,
+                "message": "User not found",
+            }
+        return {
+            "status": 200,
+            "message": "Get user_id success",
+            "user_id": user.id,
+        }
+
+
 def getUserByUsernameOrNicknameOrEmail(
     username_or_nickname_or_email: str,
 ) -> dict:
@@ -141,6 +159,29 @@ def userLogin(
         return {
             "status": 200,
             "message": "Login success",
+            "access_token": access_token,
+        }
+
+
+def userLoginByOpenId(open_id: str) -> dict:
+    """
+    根据飞书 openid 登录
+    不开放 OpenAPI，仅用于飞书心跳登录
+    """
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            return {
+                "status": -1,
+                "message": "User not found",
+            }
+        access_token = createAccessToken(
+            data={"id": user.id, "username": user.username}
+        )
+        return {
+            "status": 200,
+            "message": "Lark login success",
+            "user_id": user.id,
             "access_token": access_token,
         }
 

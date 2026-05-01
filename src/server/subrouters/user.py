@@ -6,7 +6,7 @@ from src.server.authentication import AuthHandler
 from src.services.user import (
     getUserById,
     getUserIdByAccessToken,
-    getUserByUsernameOrNicknameOrEmail,
+    getUserIdByOpenId,
     userLogin,
     userRegister,
     userModifyPassword,
@@ -42,10 +42,21 @@ async def getUserByIdRouter(request: Request):
 #     """
 #     通过用户名或昵称或邮箱搜索用户信息
 #     """
-#     keyword = request.query_params.get("keyword")
+#     keyword = request.query_params.get("keyword", None)
 #     if not isinstance(keyword, str):
 #         return {"status": -1, "message": "Invalid keyword"}
 #     return getUserByUsernameOrNicknameOrEmail(keyword)
+
+
+@user_router.get("/getUserIdByOpenId")
+async def getUserIdByOpenIdRouter(request: Request):
+    """
+    通过飞书 openid 获取用户 id
+    """
+    open_id = request.query_params.get("open_id", None)
+    if not open_id or not isinstance(open_id, str):
+        return {"status": -1, "message": "Invalid open_id"}
+    return getUserIdByOpenId(open_id)
 
 
 @user_router.post("/userLogin")

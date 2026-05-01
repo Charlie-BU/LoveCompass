@@ -5,35 +5,26 @@ from typing import Literal
 from src.channels.lark.client import larkClient
 from src.channels.lark.composite_api.im.send_card import sendCard
 from src.channels.lark.composite_api.im.send_text import SendTextRequest, sendText
-from src.database.index import session
-from src.database.models import FigureAndRelation, User
+from src.service_dispatcher import dispatchServiceCall
+from src.services.figure_and_relation import frBelongsToUser as frBelongsToUserService
 
 
 _lark_client = larkClient()
 logger = logging.getLogger(__name__)
 
 
-def getUserIdByOpenId(open_id: str) -> int | None:
-    """
-    根据飞书 openid 获取用户 id
-    """
-    with session() as db:
-        user = db.query(User).filter(User.lark_open_id == open_id).first()
-        if user is None:
-            logger.warning(f"open_id：{open_id} 未授权")
-            return None
-        return user.id
-
-
 def frBelongsToUser(user_id: int, fr_id: int) -> bool:
     """
     判断 fr 是否属于用户
     """
-    with session() as db:
-        fr = db.get(FigureAndRelation, fr_id)
-        if fr is None:
-            return False
-        return fr.user_id == user_id
+    response = dispatchServiceCall(
+        frBelongsToUserService,
+        {
+            "user_id": user_id,
+            "fr_id": fr_id,
+        },
+    )
+    return bool(response.get("belongs_to_user", False))
 
 
 def sendText2OpenId(open_id: str, text: str) -> None:

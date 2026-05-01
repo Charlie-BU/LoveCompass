@@ -1,7 +1,6 @@
 from robyn import SubRouter, Request, Response
 from robyn.authentication import BearerGetter
 import logging
-import json
 
 from src.server.authentication import AuthHandler
 from src.services.user import getUserIdByAccessToken
@@ -11,6 +10,8 @@ from src.services.figure_and_relation import (
     updateFigureAndRelation,
     getFigureAndRelation,
     getAllFigureAndRelations,
+    frBelongsToUser,
+    getFRAccessContextByOpenId,
     addFRBuildingGraphReport,
     deleteFRBuildingGraphReport,
     getFRBuildingGraphReport,
@@ -110,7 +111,7 @@ async def getFigureAndRelationRouter(request: Request):
     通过 fr_id 获取 FigureAndRelation
     """
     id = getUserIdByAccessToken(request)
-    fr_id = toInt(request.query_params.get("fr_id"))
+    fr_id = toInt(request.query_params.get("fr_id", None))
     return getFigureAndRelation(user_id=id, fr_id=fr_id)  # type: ignore
 
 
@@ -121,6 +122,26 @@ async def getAllFigureAndRelationsRouter(request: Request):
     """
     id = getUserIdByAccessToken(request)
     return getAllFigureAndRelations(user_id=id)
+
+
+@fr_router.get("/frBelongsToUser", auth_required=True)
+async def frBelongsToUserRouter(request: Request):
+    """
+    判断 fr 是否属于当前用户
+    """
+    id = getUserIdByAccessToken(request)
+    fr_id = toInt(request.query_params.get("fr_id", None))
+    return frBelongsToUser(user_id=id, fr_id=fr_id)  # type: ignore
+
+
+@fr_router.get("/getFRAccessContextByOpenId")
+async def getFRAccessContextByOpenIdRouter(request: Request):
+    """
+    基于飞书 open_id 获取 FR 访问上下文
+    """
+    open_id = request.query_params.get("open_id", None)
+    fr_id = toInt(request.query_params.get("fr_id", None))
+    return getFRAccessContextByOpenId(open_id=open_id, fr_id=fr_id)  # type: ignore
 
 
 @fr_router.post("/addFRBuildingGraphReport", auth_required=True)
@@ -151,9 +172,9 @@ async def deleteFRBuildingGraphReportRouter(request: Request):
 @fr_router.get("/getFRBuildingGraphReport", auth_required=True)
 async def getFRBuildingGraphReportRouter(request: Request):
     id = getUserIdByAccessToken(request)
-    fr_id = toInt(request.query_params.get("fr_id"))
+    fr_id = toInt(request.query_params.get("fr_id", None))
     fr_building_graph_report_id = toInt(
-        request.query_params.get("fr_building_graph_report_id")
+        request.query_params.get("fr_building_graph_report_id", None)
     )
     return getFRBuildingGraphReport(
         user_id=id,
@@ -165,15 +186,15 @@ async def getFRBuildingGraphReportRouter(request: Request):
 @fr_router.get("/getAllFRBuildingGraphReport", auth_required=True)
 async def getAllFRBuildingGraphReportRouter(request: Request):
     id = getUserIdByAccessToken(request)
-    fr_id = toInt(request.query_params.get("fr_id"))
+    fr_id = toInt(request.query_params.get("fr_id", None))
     return getAllFRBuildingGraphReport(user_id=id, fr_id=fr_id)  # type: ignore
 
 
 @fr_router.get("/getFRAllContext", auth_required=True)
 async def getFRAllContextRouter(request: Request):
     id = getUserIdByAccessToken(request)
-    fr_id = toInt(request.query_params.get("fr_id"))
-    query = request.query_params.get("query")
+    fr_id = toInt(request.query_params.get("fr_id", None))
+    query = request.query_params.get("query", None)
     return await getFRAllContext(
         user_id=id,
         fr_id=fr_id,  # type: ignore
@@ -197,8 +218,8 @@ async def syncAllFeedsToFRCoreRouter(request: Request):
 
 @fr_router.get("/getFROverallUpdateLogsThisRound", auth_required=True)
 async def getFROverallUpdateLogsThisRoundRouter(request: Request):
-    fr_id = toInt(request.query_params.get("fr_id"))
-    original_source_id = toInt(request.query_params.get("original_source_id"))
+    fr_id = toInt(request.query_params.get("fr_id", None))
+    original_source_id = toInt(request.query_params.get("original_source_id", None))
     logs = getFROverallUpdateLogsThisRound(
         fr_id=fr_id,  # type: ignore
         original_source_id=original_source_id,  # type: ignore

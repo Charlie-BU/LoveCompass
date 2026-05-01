@@ -21,14 +21,14 @@ from src.database.enums import (
     OriginalSourceType,
     parseEnum,
 )
-from src.database.index import session
+from src.service_dispatcher import dispatchServiceCall
 from src.services.figure_and_relation import (
-    addFRBuildingGraphReport,
     fr_allowed_fields,
     fr_list_fields,
     fr_string_fields,
     getFROverallUpdateLogsThisRound,
     updateFigureAndRelation,
+    addFRBuildingGraphReport,
 )
 from src.services.fine_grained_feed import (
     addFineGrainedFeed,
@@ -37,6 +37,7 @@ from src.services.fine_grained_feed import (
     recallFineGrainedFeeds,
     updateFineGrainedFeed,
 )
+from src.services.user import getUserById
 from src.utils.index import (
     ainvokeJsonWithRetry,
     checkFigureAndRelationOwnership,
@@ -108,33 +109,48 @@ def nodeLoadFR(state: FRBuildingGraphState) -> dict:
     """
     logger.info("nodeLoadFR is called")
     request = state["request"]
-    with session() as db:
-        figure_and_relation = checkFigureAndRelationOwnership(
-            db=db, user_id=request["user_id"], fr_id=request["fr_id"]
-        )
-        if figure_and_relation is None:
-            logger.error("Figure and relation not found")
-            raise ValueError("Figure and relation not found")
-        # 追加节点执行日志，保留上游日志链路
-        logs = state.get("logs") or []
-        logs += [
-            {
-                "step": "nodeLoadFR",
-                "status": "ok",
-                "detail": "FigureAndRelation loaded",
-                "data": {
-                    "fr_id": request["fr_id"],
-                    "figure_role": figure_and_relation.figure_role,
-                },
-            }
-        ]
-        logger.info("nodeLoadFR executed finished\n")
-        return {
-            "user_name": figure_and_relation.user.username,
-            "figure_and_relation": figure_and_relation.toJson(),
-            "figure_role": parseEnum(FigureRole, figure_and_relation.figure_role),
-            "logs": logs,
+
+    figure_and_relation = checkFigureAndRelationOwnership(
+        user_id=request["user_id"], fr_id=request["fr_id"]
+    )
+    if figure_and_relation is None:
+        logger.error("Figure and relation not found")
+        raise ValueError("Figure and relation not found")
+
+    user_res = dispatchServiceCall(
+        getUserById,
+        {"id": request["user_id"]},
+    )
+    user = user_res.get("user")
+    if user_res.get("status") != 200 or not isinstance(user, dict):
+        logger.error("User not found")
+        raise ValueError("User not found")
+
+    figure_role = parseEnum(FigureRole, figure_and_relation.get("figure_role"))
+    if not isinstance(figure_role, FigureRole):
+        logger.error("Invalid figure_role")
+        raise ValueError("Invalid figure_role")
+
+    # 追加节点执行日志，保留上游日志链路
+    logs = state.get("logs") or []
+    logs += [
+        {
+            "step": "nodeLoadFR",
+            "status": "ok",
+            "detail": "FigureAndRelation loaded",
+            "data": {
+                "fr_id": request["fr_id"],
+                "figure_role": figure_role,
+            },
         }
+    ]
+    logger.info("nodeLoadFR executed finished\n")
+    return {
+        "user_name": stringifyValue(user.get("username")),
+        "figure_and_relation": figure_and_relation,
+        "figure_role": figure_role,
+        "logs": logs,
+    }
 
 
 # 步骤 4
@@ -263,10 +279,13 @@ def nodePersistOriginalSource(state: FRBuildingGraphState) -> dict:
     """
     logger.info("nodePersistOriginalSource is called")
     original_source = state["original_source"]
-    res = addOriginalSource(
-        user_id=state["request"]["user_id"],
-        fr_id=state["request"]["fr_id"],
-        **original_source,
+    res = dispatchServiceCall(
+        addOriginalSource,
+        {
+            "user_id": state["request"]["user_id"],
+            "fr_id": state["request"]["fr_id"],
+            **original_source,
+        },
     )
     if res["status"] != 200:
         logger.error(res.get("message", "Add original source failed"))
@@ -678,11 +697,14 @@ def nodePersistFRIntrinsicUpdate(state: FRBuildingGraphState) -> dict:
             "logs": logs,
         }
 
-    res = updateFigureAndRelation(
-        user_id=request["user_id"],
-        fr_id=request["fr_id"],
-        fr_body=fr_intrinsic_updates,
-        original_source_id=state.get("original_source_id"),
+    res = dispatchServiceCall(
+        updateFigureAndRelation,
+        {
+            "user_id": request["user_id"],
+            "fr_id": request["fr_id"],
+            "fr_body": fr_intrinsic_updates,
+            "original_source_id": state.get("original_source_id"),
+        },
     )
     if res.get("status") != 200:
         logger.error(res.get("message", "Update FigureAndRelation failed"))
@@ -959,14 +981,17 @@ async def nodePlanFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
             warnings = warnings + [warning]
             continue
 
-        recall_res = await recallFineGrainedFeeds(
-            user_id=user_id,
-            fr_id=fr_id,
-            # scope=[{"scope": dimension, "top_k": top_k}],
-            scope=[
-                {"scope": "all", "top_k": top_k}
-            ],  # 从所有维度召回细粒度信息，当前维度召回可能遗漏其他维度的需要变更的信息
-            query=content,
+        recall_res = dispatchServiceCall(
+            recallFineGrainedFeeds,
+            {
+                "user_id": user_id,
+                "fr_id": fr_id,
+                # scope=[{"scope": dimension, "top_k": top_k}],
+                "scope": [
+                    {"scope": "all", "top_k": top_k}
+                ],  # 从所有维度召回细粒度信息，当前维度召回可能遗漏其他维度的需要变更的信息
+                "query": content,
+            },
         )
 
         recalled_candidates = []
@@ -1220,14 +1245,17 @@ async def nodePersistFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                     result_item["status"] = -1
                     result_item["message"] = "Empty content for add action"
                 else:
-                    add_res = await addFineGrainedFeed(
-                        user_id=user_id,
-                        fr_id=fr_id,
-                        original_source_id=original_source_id,
-                        dimension=dimension,
-                        confidence=confidence,
-                        content=content,
-                        sub_dimension=sub_dimension,
+                    add_res = dispatchServiceCall(
+                        addFineGrainedFeed,
+                        {
+                            "user_id": user_id,
+                            "fr_id": fr_id,
+                            "original_source_id": original_source_id,
+                            "dimension": dimension,
+                            "confidence": confidence,
+                            "content": content,
+                            "sub_dimension": sub_dimension,
+                        },
                     )
                     result_item["status"] = add_res.get("status", -1)
                     result_item["message"] = add_res.get(
@@ -1242,13 +1270,16 @@ async def nodePersistFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                     result_item["status"] = -2
                     result_item["message"] = "merged_content is required for update"
                 else:
-                    update_res = await updateFineGrainedFeed(
-                        user_id=user_id,
-                        fr_id=fr_id,
-                        fine_grained_feed_id=target_feed_id,
-                        new_original_source_id=original_source_id,
-                        new_content=merged_content,
-                        new_sub_dimension=sub_dimension,
+                    update_res = dispatchServiceCall(
+                        updateFineGrainedFeed,
+                        {
+                            "user_id": user_id,
+                            "fr_id": fr_id,
+                            "fine_grained_feed_id": target_feed_id,
+                            "new_original_source_id": original_source_id,
+                            "new_content": merged_content,
+                            "new_sub_dimension": sub_dimension,
+                        },
                     )
                     result_item["status"] = update_res.get("status", -1)
                     result_item["message"] = update_res.get(
@@ -1277,24 +1308,30 @@ async def nodePersistFineGrainedFeedUpsert(state: FRBuildingGraphState) -> dict:
                         old_value = merged_content
 
                     # 降级方案：先记录冲突，再直接采用新内容进行更新
-                    conflict_res = addFineGrainedFeedConflict(
-                        user_id=user_id,
-                        fr_id=fr_id,
-                        dimension=dimension,
-                        feed_ids=[target_feed_id],
-                        old_value=old_value,
-                        new_value=content or merged_content,
-                        conflict_detail=reason or "Conflictive by LLM compare",
-                        status=ConflictStatus.PENDING,
+                    conflict_res = dispatchServiceCall(
+                        addFineGrainedFeedConflict,
+                        {
+                            "user_id": user_id,
+                            "fr_id": fr_id,
+                            "dimension": dimension,
+                            "feed_ids": [target_feed_id],
+                            "old_value": old_value,
+                            "new_value": content or merged_content,
+                            "conflict_detail": reason or "Conflictive by LLM compare",
+                            "status": ConflictStatus.PENDING,
+                        },
                     )
 
-                    update_res = await updateFineGrainedFeed(
-                        user_id=user_id,
-                        fr_id=fr_id,
-                        fine_grained_feed_id=target_feed_id,
-                        new_original_source_id=original_source_id,
-                        new_content=merged_content,
-                        new_sub_dimension=sub_dimension,
+                    update_res = dispatchServiceCall(
+                        updateFineGrainedFeed,
+                        {
+                            "user_id": user_id,
+                            "fr_id": fr_id,
+                            "fine_grained_feed_id": target_feed_id,
+                            "new_original_source_id": original_source_id,
+                            "new_content": merged_content,
+                            "new_sub_dimension": sub_dimension,
+                        },
                     )
                     result_item["status"] = (
                         200
@@ -1437,7 +1474,20 @@ async def nodeGenerateFRBuildingReport(
     warnings = state.get("warnings") or []
     logs = state.get("logs") or []
 
-    fr_update_logs = getFROverallUpdateLogsThisRound(fr_id, original_source_id)
+    fr_update_logs_res = dispatchServiceCall(
+        getFROverallUpdateLogsThisRound,
+        {
+            "fr_id": fr_id,
+            "original_source_id": original_source_id,
+        },
+    )
+    if isinstance(fr_update_logs_res, list):
+        fr_update_logs = fr_update_logs_res
+    elif isinstance(fr_update_logs_res, dict):
+        raw_items = fr_update_logs_res.get("items")
+        fr_update_logs = raw_items if isinstance(raw_items, list) else []
+    else:
+        fr_update_logs = []
     fr_intrinsic_updates = state.get("fr_intrinsic_updates") or {}
     feed_upsert_plan = state.get("feed_upsert_plan") or []
     if not fr_update_logs and not fr_intrinsic_updates and not feed_upsert_plan:
@@ -1494,11 +1544,15 @@ async def nodeGenerateFRBuildingReport(
         warnings = warnings + [warning]
         raise ValueError(warning)
 
-    persist_res = addFRBuildingGraphReport(
-        user_id=user_id,
-        fr_id=fr_id,
-        report=report_markdown,
+    persist_res = dispatchServiceCall(
+        addFRBuildingGraphReport,
+        {
+            "user_id": user_id,
+            "fr_id": fr_id,
+            "report": report_markdown,
+        },
     )
+
     if persist_res.get("status") != 200:
         logger.error(
             f"Persist FRBuildingGraphReport failed: {persist_res.get('message', '')}"

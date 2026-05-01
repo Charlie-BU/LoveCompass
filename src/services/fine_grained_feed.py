@@ -19,8 +19,8 @@ from src.database.models import (
 from src.utils.index import (
     serialize2String,
     timeDecay,
-    checkFigureAndRelationOwnership,
-    checkOriginalSourceOwnership,
+    checkFigureAndRelationOwnershipInDB,
+    checkOriginalSourceOwnershipInDB,
 )
 
 
@@ -76,7 +76,7 @@ async def addFineGrainedFeed(
         return {"status": -7, "message": "Invalid sub_dimension"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(
+        fr = checkFigureAndRelationOwnershipInDB(
             db=db,
             user_id=user_id,
             fr_id=fr_id,
@@ -84,7 +84,7 @@ async def addFineGrainedFeed(
         if fr is None:
             return {"status": -8, "message": "FigureAndRelation not found"}
 
-        original_source = checkOriginalSourceOwnership(
+        original_source = checkOriginalSourceOwnershipInDB(
             db=db,
             user_id=user_id,
             fr_id=fr_id,
@@ -144,7 +144,7 @@ def deleteFineGrainedFeed(
         return {"status": -3, "message": "Invalid fine_grained_feed_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
         try:
@@ -193,11 +193,11 @@ async def updateFineGrainedFeed(
         return {"status": -6, "message": "Invalid new_sub_dimension"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -7, "message": "FigureAndRelation not found"}
 
-        original_source = checkOriginalSourceOwnership(
+        original_source = checkOriginalSourceOwnershipInDB(
             db=db,
             user_id=user_id,
             fr_id=fr_id,
@@ -272,7 +272,7 @@ def getFineGrainedFeed(
         return {"status": -3, "message": "Invalid fine_grained_feed_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -309,7 +309,7 @@ def getAllFineGrainedFeed(
         return {"status": -2, "message": "Invalid fr_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -3, "message": "FigureAndRelation not found"}
 
@@ -407,7 +407,7 @@ async def recallFineGrainedFeeds(
     }
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -7, "message": "FigureAndRelation not found"}
         try:
@@ -537,7 +537,7 @@ def addOriginalSource(
         return {"status": -7, "message": "Invalid approx_date"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -8, "message": "FigureAndRelation not found"}
 
@@ -581,7 +581,7 @@ def deleteOriginalSource(
         return {"status": -3, "message": "Invalid original_source_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -623,7 +623,7 @@ def getOriginalSource(
         return {"status": -3, "message": "Invalid original_source_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -658,7 +658,7 @@ def getAllOriginalSource(
         return {"status": -2, "message": "Invalid fr_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -3, "message": "FigureAndRelation not found"}
 
@@ -724,7 +724,7 @@ def addFineGrainedFeedConflict(
         return {"status": -10, "message": "Invalid status"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -8, "message": "FigureAndRelation not found"}
         if not _checkFineGrainedFeedIds(db, fr_id, feed_ids):
@@ -767,7 +767,7 @@ def hardDeleteFineGrainedFeedConflict(
         return {"status": -3, "message": "Invalid fine_grained_feed_conflict_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -813,7 +813,7 @@ def resolveFineGrainedFeedConflict(
         return {"status": -5, "message": "status cannot be pending when resolving"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -6, "message": "FigureAndRelation not found"}
 
@@ -860,7 +860,7 @@ def getFineGrainedFeedConflict(
         return {"status": -3, "message": "Invalid fine_grained_feed_conflict_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -895,7 +895,7 @@ def getAllFineGrainedFeedConflict(
         return {"status": -2, "message": "Invalid fr_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db, user_id, fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db, user_id, fr_id)
         if fr is None:
             return {"status": -3, "message": "FigureAndRelation not found"}
 

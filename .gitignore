@@ -14,7 +14,6 @@ logs/
 .DS_Store
 .langgraph_api
 .vscode
-.trae
 .VSCodeCounter
 
 # Alembic migrations

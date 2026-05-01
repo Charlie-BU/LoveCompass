@@ -4,7 +4,6 @@ import threading
 import inspect
 from typing import Any, Awaitable, Callable, TypeVar
 
-from src.cli.utils import getCurrentUserFromLocalSession
 from src.utils.request import afetch
 
 
@@ -14,6 +13,11 @@ SERVICE_API_MAP = {
         "method": "GET",
         "path": "/user/getUserById",
         "auth_required": True,
+    },
+    "getUserIdByOpenId": {
+        "method": "GET",
+        "path": "/user/getUserIdByOpenId",
+        "auth_required": False,
     },
     "userLogin": {
         "method": "POST",
@@ -60,6 +64,16 @@ SERVICE_API_MAP = {
         "method": "GET",
         "path": "/fr/getAllFigureAndRelations",
         "auth_required": True,
+    },
+    "frBelongsToUser": {
+        "method": "GET",
+        "path": "/fr/frBelongsToUser",
+        "auth_required": True,
+    },
+    "getFRAccessContextByOpenId": {
+        "method": "GET",
+        "path": "/fr/getFRAccessContextByOpenId",
+        "auth_required": False,
     },
     "addFRBuildingGraphReport": {
         "method": "POST",
@@ -256,6 +270,12 @@ def _runAwaitableSync(awaitable_factory: Callable[..., Awaitable[T]]) -> T:
 def dispatchServiceCall(
     service: Callable[..., dict[str, Any]], args: dict[str, Any]
 ) -> dict[str, Any]:
+    """
+    调用服务接口，按照是否是共享数据库模式分发请求到本地服务或远程 http 服务
+    """
+    # 延迟导入，避免循环依赖
+    from src.cli.utils import getCurrentUserFromLocalSession
+
     if not _isSharedDatabaseMode():
         local_result = service(**args)
         # 本地模式下，service 可能是同步或异步函数，需要统一转换为同步对象

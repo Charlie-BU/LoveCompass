@@ -65,7 +65,7 @@ async def getKnowledgePieceRouter(request: Request):
     id = getUserIdByAccessToken(request)
     return getKnowledgePiece(
         user_id=id,
-        knowledge_id=toInt(request.query_params.get("knowledge_id")),  # type: ignore
+        knowledge_id=toInt(request.query_params.get("knowledge_id", None)),  # type: ignore
     )
 
 

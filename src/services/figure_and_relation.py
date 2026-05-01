@@ -12,10 +12,11 @@ from src.database.models import (
     FRBuildingGraphReport,
     FROverallUpdateLog,
     FigureAndRelation,
+    User,
 )
 from src.services.fine_grained_feed import recallFineGrainedFeeds
 from src.utils.index import (
-    checkFigureAndRelationOwnership,
+    checkFigureAndRelationOwnershipInDB,
     cleanList,
     stringifyValue,
     serialize2String,
@@ -333,7 +334,7 @@ def getAllFigureAndRelations(
                 FigureAndRelation.user_id == user_id,
                 FigureAndRelation.is_deleted == False,
             )
-            .order_by(FigureAndRelation.updated_at.desc())
+            .order_by(FigureAndRelation.id.asc())
             .all()
         )
         return {
@@ -357,6 +358,85 @@ def getAllFigureAndRelations(
         }
 
 
+def frBelongsToUser(user_id: int, fr_id: int) -> dict:
+    """
+    判断 fr 是否属于用户
+    """
+    if not isinstance(user_id, int):
+        return {"status": -1, "message": "Invalid user_id"}
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id"}
+
+    with session() as db:
+        fr = (
+            db.query(FigureAndRelation)
+            .filter(
+                FigureAndRelation.id == fr_id,
+                FigureAndRelation.is_deleted == False,
+            )
+            .first()
+        )
+        if fr is None:
+            return {
+                "status": 200,
+                "message": "Check FR ownership success",
+                "belongs_to_user": False,
+            }
+
+        return {
+            "status": 200,
+            "message": "Check FR ownership success",
+            "belongs_to_user": fr.user_id == user_id,
+        }
+
+
+def getFRAccessContextByOpenId(open_id: str, fr_id: int) -> dict:
+    """
+    基于飞书 open_id 获取 FR 访问上下文（user_id, figure_name）
+    """
+    if not isinstance(open_id, str) or open_id.strip() == "":
+        return {
+            "status": -1,
+            "message": "Invalid open_id",
+            "error_type": "unauthorized",
+        }
+    if not isinstance(fr_id, int):
+        return {"status": -2, "message": "Invalid fr_id", "error_type": "fr_not_found"}
+
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            return {
+                "status": 200,
+                "message": "Open ID is unauthorized",
+                "error_type": "unauthorized",
+            }
+
+        figure_and_relation = (
+            db.query(FigureAndRelation)
+            .filter(
+                FigureAndRelation.id == fr_id,
+                FigureAndRelation.user_id == user.id,
+                FigureAndRelation.is_deleted == False,
+            )
+            .first()
+        )
+        if figure_and_relation is None:
+            return {
+                "status": 200,
+                "message": "FigureAndRelation not found",
+                "error_type": "fr_not_found",
+            }
+
+        return {
+            "status": 200,
+            "message": "Get FR access context success",
+            "error_type": None,
+            "user_id": user.id,
+            "figure_name": figure_and_relation.figure_name,
+        }
+
+
 def addFRBuildingGraphReport(
     user_id: int,
     fr_id: int,
@@ -373,7 +453,7 @@ def addFRBuildingGraphReport(
         return {"status": -3, "message": "report cannot be empty"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -413,7 +493,7 @@ def deleteFRBuildingGraphReport(
         return {"status": -3, "message": "Invalid fr_building_graph_report_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -455,7 +535,7 @@ def getFRBuildingGraphReport(
         return {"status": -3, "message": "Invalid fr_building_graph_report_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
 
@@ -491,7 +571,7 @@ def getAllFRBuildingGraphReport(
         return {"status": -2, "message": "Invalid fr_id"}
 
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -3, "message": "FigureAndRelation not found"}
 
@@ -523,12 +603,15 @@ def getAllFRBuildingGraphReport(
 
 
 def buildFigurePersonaMarkdown(
-    fr: FigureAndRelation,
+    fr: dict[str, Any],
     exclude_fields: list[str] | None = None,
 ) -> str:
     """
     构建 Markdown 格式人物画像
     """
+    if not isinstance(fr, dict):
+        return "# 人物画像\n- 暂无有效画像信息"
+
     excluded_fields = set(exclude_fields or [])
     field_map: list[tuple[str, str]] = [
         ("figure_name", "姓名"),
@@ -551,9 +634,10 @@ def buildFigurePersonaMarkdown(
         ("core_procedural_info", "核心程序性知识"),
         ("core_memory", "核心记忆"),
     ]
-    lines = [f"# {fr.figure_name} 画像"]
+    figure_name = stringifyValue(fr.get("figure_name"))
+    lines = [f"# {figure_name or '人物'} 画像"]
     for field_name, title in field_map:
-        value = getattr(fr, field_name, None)
+        value = fr.get(field_name)
         if value is None:
             continue
         if field_name in excluded_fields:
@@ -624,10 +708,10 @@ async def getFRAllContext(
     if not isinstance(query, str) and query is not None:
         return {"status": -3, "message": "query must be a str"}
     with session() as db:
-        fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
+        fr = checkFigureAndRelationOwnershipInDB(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
-    persona = buildFigurePersonaMarkdown(fr=fr)
+    persona = buildFigurePersonaMarkdown(fr=fr.toJson())
 
     recalled_map = {
         "recalled_personality": None,
@@ -713,7 +797,7 @@ async def syncFeedsToFRCore(
         return {"status": -2, "message": "Invalid fr_id"}
 
     with session() as db:
-        figure_and_relation = checkFigureAndRelationOwnership(
+        figure_and_relation = checkFigureAndRelationOwnershipInDB(
             db=db, user_id=user_id, fr_id=fr_id
         )
         if figure_and_relation is None:
@@ -842,7 +926,7 @@ async def syncFeedsToFRCore(
     with session() as db:
         try:
             fr_logs: list[FROverallUpdateLog] = []
-            figure_and_relation = checkFigureAndRelationOwnership(
+            figure_and_relation = checkFigureAndRelationOwnershipInDB(
                 db=db, user_id=user_id, fr_id=fr_id
             )
             if figure_and_relation is None:

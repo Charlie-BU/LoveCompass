@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
 
 from src.database.models import FigureAndRelation, OriginalSource
+from src.service_dispatcher import dispatchServiceCall
 
 
 def timeDecay(created_at: datetime) -> float:
@@ -22,11 +23,12 @@ def timeDecay(created_at: datetime) -> float:
     return math.exp(-delta_days / int(os.getenv("HALF_LIFE_DAYS")))
 
 
-def checkFigureAndRelationOwnership(
+def checkFigureAndRelationOwnershipInDB(
     db: Session, user_id: int, fr_id: int
 ) -> FigureAndRelation | None:
     """
-    FigureAndRelation 归属校验
+    FigureAndRelation 归属校验（本地 DB 直连）
+    只在 service 中使用
     """
     return (
         db.query(FigureAndRelation)
@@ -39,14 +41,36 @@ def checkFigureAndRelationOwnership(
     )
 
 
-def checkOriginalSourceOwnership(
-    db,
+def checkFigureAndRelationOwnership(user_id: int, fr_id: int) -> dict[str, Any] | None:
+    """
+    FigureAndRelation 归属校验（通过 service + dispatch）
+    """
+    from src.services.figure_and_relation import getFigureAndRelation
+
+    response = dispatchServiceCall(
+        getFigureAndRelation,
+        {
+            "user_id": user_id,
+            "fr_id": fr_id,
+        },
+    )
+    if response.get("status") != 200:
+        return None
+    figure_and_relation = response.get("figure_and_relation")
+    if not isinstance(figure_and_relation, dict):
+        return None
+    return figure_and_relation
+
+
+def checkOriginalSourceOwnershipInDB(
+    db: Session,
     user_id: int,
     fr_id: int,
     original_source_id: int,
 ) -> OriginalSource | None:
     """
-    OriginalSource 归属校验
+    OriginalSource 归属校验（本地 DB 直连）
+    只在 service 中使用
     """
     original_source: OriginalSource | None = (
         db.query(OriginalSource)
