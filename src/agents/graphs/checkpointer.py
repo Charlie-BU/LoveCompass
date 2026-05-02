@@ -5,6 +5,7 @@ import asyncio
 import os
 from threading import Lock
 from typing import Any
+
 from src.database.enums import (
     FigureRole,
     Gender,

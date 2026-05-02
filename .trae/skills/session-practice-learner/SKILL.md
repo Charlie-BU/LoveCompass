@@ -1,6 +1,6 @@
 ---
 name: 'session-practice-learner'
-description: 'session 收尾自动提炼经验并路由到 skill/rule/agent/eslint。触发条件：session 收尾、用户明确纠偏、稳定实践/重复错误/harness 资产缺口暴露。关键字：session 收尾、纠偏、经验落盘、知识沉淀、skill 更新、rule 更新、agent 更新、ESLint 规则新增。文件类型：.trae/skills/**、.trae/rules/**、.trae/agents/**、AGENTS.md、.eslintrc.*。使用场景：每次 session 结束前判断是否有长期可复用知识，落盘到最合适的资产或输出 No-op。'
+description: 'session 收尾自动提炼经验并路由到 skill/rule/agent。触发条件：session 收尾、用户明确纠偏、稳定实践/重复错误/harness 资产缺口暴露。关键字：session 收尾、纠偏、经验落盘、知识沉淀、skill 更新、rule 更新、agent 更新、ESLint 规则新增。文件类型：.trae/skills/**、.trae/rules/**、.trae/agents/**、AGENTS.md、.eslintrc.*。使用场景：每次 session 结束前判断是否有长期可复用知识，落盘到最合适的资产或输出 No-op。'
 ---
 
 # Session Practice Learner
