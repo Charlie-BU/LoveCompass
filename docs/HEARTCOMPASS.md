@@ -1,4 +1,4 @@
-# Immortality 研发之路
+# HeartCompass 研发
 
 ## FIRST ENTRY - 2026.02.07
 
