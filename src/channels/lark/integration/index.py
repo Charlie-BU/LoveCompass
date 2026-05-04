@@ -8,12 +8,12 @@ from typing import Any, List
 from src.agents.graphs.ConversationGraph.graph import getConversationGraph
 from src.agents.graphs.ConversationGraph.state import ConversationGraphOutput
 from src.channels.lark.integration.utils import (
-    frBelongsToUser,
-    getUserIdByOpenId,
     sendCard2OpenId,
     sendText2OpenId,
 )
 from src.channels.lark.integration.menu import handleMenuCommand
+from src.services.figure_and_relation import ifFRBelongsToUser
+from src.services.user import getUserIdByOpenId
 
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ def _sendBatchMessages(open_id: str) -> None:
     if not messages_to_process:
         return
 
-    user_id = getUserIdByOpenId(open_id)
+    user_id = getUserIdByOpenId(open_id).get("user_id")
     if user_id is None:
         sendCard2OpenId(
             open_id=open_id,
@@ -155,7 +155,7 @@ def _sendBatchMessages(open_id: str) -> None:
         )
         return
 
-    if not frBelongsToUser(user_id, fr_id):
+    if not ifFRBelongsToUser(user_id, fr_id).get("is_belong"):
         with _state_lock:
             _active_fr_by_open_id.pop(open_id, None)
         sendCard2OpenId(
@@ -258,7 +258,7 @@ def messageHandler(message: str, open_id: str) -> None:
         )
         return
 
-    user_id = getUserIdByOpenId(open_id)
+    user_id = getUserIdByOpenId(open_id).get("user_id")
     if user_id is None:
         sendCard2OpenId(
             open_id=open_id,
@@ -279,7 +279,7 @@ def messageHandler(message: str, open_id: str) -> None:
         )
         return
 
-    if not frBelongsToUser(user_id, fr_id):
+    if not ifFRBelongsToUser(user_id, fr_id).get("is_belong"):
         with _state_lock:
             _active_fr_by_open_id.pop(open_id, None)
         sendCard2OpenId(
