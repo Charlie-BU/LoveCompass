@@ -5,10 +5,13 @@ import time
 from typing import Literal
 
 from src.agents.graphs.FRBuildingGraph.graph import getFRBuildingGraph
-from src.database.index import session
-from src.database.models import FigureAndRelation, User
 from src.channels.lark.integration.utils import sendCard2OpenId
-from src.services.figure_and_relation import getFRAllContext
+from src.services.figure_and_relation import (
+    getAllFigureAndRelations,
+    getFRAllContext,
+    getFigureAndRelation,
+)
+from src.services.user import getUserIdByOpenId
 from src.utils.index import stringifyValue
 
 logger = logging.getLogger(__name__)
@@ -20,27 +23,19 @@ def _getCommonInfo(
     """
     获取通用信息，包括用户 ID 和 figure 姓名，同时返回错误类型
     """
-    with session() as db:
-        user = db.query(User).filter(User.lark_open_id == open_id).first()
-        if user is None:
-            logger.warning(f"open_id：{open_id} is invalid")
-            return None, "unauthorized"
-        user_id = user.id
-        figure_and_relation = (
-            db.query(FigureAndRelation)
-            .filter(FigureAndRelation.id == fr_id, FigureAndRelation.user_id == user_id)
-            .first()
-        )
-        if figure_and_relation is None:
-            logger.warning(f"FR not found")
-            return None, "fr_not_found"
-        return (
-            {
-                "user_id": user_id,
-                "figure_name": figure_and_relation.figure_name,
-            },
-            None,
-        )
+    user_id = getUserIdByOpenId(open_id).get("user_id")
+    if user_id is None:
+        return None, "unauthorized"
+    fr = getFigureAndRelation(user_id, fr_id).get("figure_and_relation")
+    if fr is None:
+        return None, "fr_not_found"
+    return (
+        {
+            "user_id": user_id,
+            "figure_name": fr.get("figure_name"),
+        },
+        None,
+    )
 
 
 def _submitBackgroundCoroutine(coro: asyncio.coroutines) -> None:
@@ -86,45 +81,37 @@ def listAvailableFRsLark(open_id: str) -> None:
     """
     查看当前用户可用 FR
     """
-    with session() as db:
-        user = db.query(User).filter(User.lark_open_id == open_id).first()
-        if user is None:
-            logger.warning(f"open_id：{open_id} is invalid")
-            sendCard2OpenId(
-                open_id=open_id,
-                title="出错啦",
-                content="当前飞书账号未授权，请先绑定账号",
-                theme="red",
-            )
-            return
-        user_id = user.id
-        figure_and_relations = (
-            db.query(FigureAndRelation)
-            .filter(FigureAndRelation.user_id == user_id)
-            .order_by(FigureAndRelation.id)
-            .all()
-        )
-        if not figure_and_relations or len(figure_and_relations) == 0:
-            logger.warning(f"No FR found for this user")
-            sendCard2OpenId(
-                open_id=open_id,
-                title="Immortality 提示",
-                content="当前账号未绑定任何对话对象（FR）",
-                theme="yellow",
-            )
-            return
-        fr_list = "\n".join(
-            [
-                f"- **{fr.figure_name}** - {stringifyValue(fr.figure_role).upper()}  \n   `fr_id: {fr.id}`"
-                for fr in figure_and_relations
-            ]
-        )
+    user_id = getUserIdByOpenId(open_id).get("user_id")
+    if not user_id:
         sendCard2OpenId(
             open_id=open_id,
-            title="可选对话对象",
-            content=f"请选择要切换的对象：\n\n{fr_list}\n\n发送 `/<fr_id>` 即可切换",
-            theme="turquoise",
+            title="出错啦",
+            content="当前飞书账号未授权，请先绑定账号",
+            theme="red",
         )
+        return
+    frs = getAllFigureAndRelations(user_id=user_id).get("figure_and_relations", [])
+    if not frs or len(frs) == 0:
+        logger.warning(f"No FR found for this user")
+        sendCard2OpenId(
+            open_id=open_id,
+            title="Immortality 提示",
+            content="当前账号未绑定任何对话对象（FR）",
+            theme="yellow",
+        )
+        return
+    fr_list = "\n".join(
+        [
+            f"- **{fr.get('figure_name')}** - {stringifyValue(fr.get('figure_role')).upper()}  \n   `fr_id: {fr.get('id')}`"
+            for fr in frs
+        ]
+    )
+    sendCard2OpenId(
+        open_id=open_id,
+        title="可选对话对象",
+        content=f"请选择要切换的对象：\n\n{fr_list}\n\n发送 `/<fr_id>` 即可切换",
+        theme="turquoise",
+    )
 
 
 def switchFRLark(open_id: str, fr_id: int) -> None:

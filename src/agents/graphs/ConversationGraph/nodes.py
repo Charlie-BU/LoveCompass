@@ -13,12 +13,14 @@ from src.agents.graphs.ConversationGraph.state import (
 from src.agents.llm import arkAinvoke, prepareLLM
 from src.agents.prompt import getPrompt
 from src.database.enums import FineGrainedFeedDimension
-from src.database.index import session
 from src.services.fine_grained_feed import recallFineGrainedFeeds
-from src.services.figure_and_relation import buildFigurePersonaMarkdown
+from src.services.figure_and_relation import (
+    buildFigurePersonaMarkdown,
+    getFigureAndRelation,
+)
+from src.services.user import getUserById
 from src.utils.index import (
     ainvokeJsonWithRetry,
-    checkFigureAndRelationOwnership,
     stringifyValue,
 )
 
@@ -218,46 +220,51 @@ def nodeLoadFRAndPersona(state: ConversationGraphState) -> dict:
     round_uuid = str(uuid.uuid4())
 
     request = state["request"]
-    with session() as db:
-        figure_and_relation = checkFigureAndRelationOwnership(
-            db=db, user_id=request["user_id"], fr_id=request["fr_id"]
-        )
-        if figure_and_relation is None:
-            logger.error("Figure and relation not found")
-            raise ValueError("Figure and relation not found")
+    user_id = request["user_id"]
+    fr_id = request["fr_id"]
 
-        figure_persona = buildFigurePersonaMarkdown(
-            fr=figure_and_relation,
-            exclude_fields=[
-                "words_figure2user",
-                "words_user2figure",
-                "core_procedural_info",
-                "core_memory",
-            ],  # 不包含在其他部分被注入的字段
-        )
-        words_to_user = figure_and_relation.words_figure2user
-        # 追加节点执行日志，保留上游日志链路
-        logs = state.get("logs") or []
-        logs += [
-            {
-                "step": "nodeLoadFRAndPersona",
-                "status": "ok",
-                "detail": "FigureAndRelation loaded",
-                "data": {
-                    "fr_id": request["fr_id"],
-                    "figure_role": figure_and_relation.figure_role,
-                },
-            }
-        ]
-        logger.info("nodeLoadFRAndPersona executed finished\n")
-        return {
-            "round_uuid": round_uuid,
-            "user_name": figure_and_relation.user.username,
-            "figure_and_relation": figure_and_relation.toJson(),
-            "figure_persona": figure_persona,
-            "words_to_user": ", ".join(words_to_user),
-            "logs": logs,
+    user = getUserById(user_id).get("user")
+    if user is None:
+        logger.error("User not found")
+        raise ValueError("User not found")
+
+    fr = getFigureAndRelation(user_id, fr_id).get("figure_and_relation")
+    if fr is None:
+        logger.error("Figure and relation not found")
+        raise ValueError("Figure and relation not found")
+
+    figure_persona = buildFigurePersonaMarkdown(
+        fr=fr,
+        exclude_fields=[
+            "words_figure2user",
+            "words_user2figure",
+            "core_procedural_info",
+            "core_memory",
+        ],  # 不包含在其他部分被注入的字段
+    )
+    words_to_user = fr.get("words_figure2user", [])
+    # 追加节点执行日志，保留上游日志链路
+    logs = state.get("logs") or []
+    logs += [
+        {
+            "step": "nodeLoadFRAndPersona",
+            "status": "ok",
+            "detail": "FigureAndRelation loaded",
+            "data": {
+                "fr_id": request["fr_id"],
+                "figure_role": fr.get("figure_role"),
+            },
         }
+    ]
+    logger.info("nodeLoadFRAndPersona executed finished\n")
+    return {
+        "round_uuid": round_uuid,
+        "user_name": user.get("username"),
+        "figure_and_relation": fr,
+        "figure_persona": figure_persona,
+        "words_to_user": ", ".join(words_to_user),
+        "logs": logs,
+    }
 
 
 async def nodeRecallFeedsFromDB(state: ConversationGraphState) -> dict:

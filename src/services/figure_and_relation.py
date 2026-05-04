@@ -343,13 +343,13 @@ def getAllFigureAndRelations(
                 fr.toJson(
                     include=[
                         "id",
-                        # "user_id",
+                        "user_id",
                         "figure_role",
                         "figure_name",
-                        # "figure_gender",
-                        # "is_deleted",
-                        # "created_at",
-                        # "updated_at",
+                        "figure_gender",
+                        "is_deleted",
+                        "created_at",
+                        "updated_at",
                     ]
                 )
                 for fr in figure_and_relations
@@ -523,7 +523,7 @@ def getAllFRBuildingGraphReport(
 
 
 def buildFigurePersonaMarkdown(
-    fr: FigureAndRelation,
+    fr: dict[str, Any],
     exclude_fields: list[str] | None = None,
 ) -> str:
     """
@@ -551,9 +551,10 @@ def buildFigurePersonaMarkdown(
         ("core_procedural_info", "核心程序性知识"),
         ("core_memory", "核心记忆"),
     ]
-    lines = [f"# {fr.figure_name} 画像"]
+    figure_name = str(fr.get("figure_name", "")).strip()
+    lines = [f"# {figure_name} 画像" if figure_name else "# 人物画像"]
     for field_name, title in field_map:
-        value = getattr(fr, field_name, None)
+        value = fr.get(field_name)
         if value is None:
             continue
         if field_name in excluded_fields:
@@ -627,7 +628,7 @@ async def getFRAllContext(
         fr = checkFigureAndRelationOwnership(db=db, user_id=user_id, fr_id=fr_id)
         if fr is None:
             return {"status": -4, "message": "FigureAndRelation not found"}
-    persona = buildFigurePersonaMarkdown(fr=fr)
+    persona = buildFigurePersonaMarkdown(fr=fr.toJson())
 
     recalled_map = {
         "recalled_personality": None,
@@ -718,7 +719,7 @@ async def syncFeedsToFRCore(
         )
         if figure_and_relation is None:
             return {"status": -3, "message": "FigureAndRelation not found"}
-        # persona = buildFigurePersonaMarkdown(figure_and_relation) # 暂不需要 persona 注入提示词
+        # persona = buildFigurePersonaMarkdown(figure_and_relation.toJson()) # 暂不需要 persona 注入提示词
 
     dimension_conf: dict[str, dict[str, Any]] = {
         FineGrainedFeedDimension.PERSONALITY.value: {
@@ -949,3 +950,25 @@ def getFROverallUpdateLogsThisRound(
             item.toJson(exclude=["fr_id", "original_source_id", "created_at"])
             for item in logs
         ]
+
+
+def ifFRBelongsToUser(
+    user_id: int,
+    fr_id: int,
+) -> dict:
+    """
+    判断 fr 是否属于用户
+    """
+    with session() as db:
+        fr = db.get(FigureAndRelation, fr_id)
+        if fr is None:
+            return {
+                "status": 200,
+                "message": "Success",
+                "is_belong": False,
+            }
+        return {
+            "status": 200,
+            "message": "Success",
+            "is_belong": fr.user_id == user_id,
+        }

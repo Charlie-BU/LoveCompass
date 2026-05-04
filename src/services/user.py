@@ -110,6 +110,26 @@ def getUserByUsernameOrNicknameOrEmail(
         }
 
 
+def getUserIdByOpenId(
+    open_id: str,
+) -> dict:
+    """
+    根据飞书 openid 获取用户 id
+    """
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            return {
+                "status": -1,
+                "message": "User not found",
+            }
+        return {
+            "status": 200,
+            "message": "Get user success",
+            "user_id": user.id,
+        }
+
+
 def userLogin(
     username: str,
     password: str,

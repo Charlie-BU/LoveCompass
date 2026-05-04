@@ -18,6 +18,7 @@ from src.services.figure_and_relation import (
     syncAllFeedsToFRCore,
     syncFeedsToFRCore,
 )
+from src.utils.index import stringifyValue
 
 
 def registerFRSubparser(
@@ -254,7 +255,11 @@ def listAvailableFRsCLI(args: Namespace) -> int:
     user_id = getUserIdFromLocalSession()
     res = getAllFigureAndRelations(user_id=user_id)
     frs = res.get("figure_and_relations", [])
-
+    frs = [{
+        "id": fr.get("id"),
+        "figure_role": stringifyValue(fr.get("figure_role")).upper(),
+        "figure_name": fr.get("figure_name"),
+    } for fr in frs]
     if args.json:
         printServiceResInCLI(res, as_json=True)
     else:

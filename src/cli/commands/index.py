@@ -19,7 +19,6 @@ from src.cli.constants import (
     IMMORTALITY_HOME_DIR,
     IMMORTALITY_ENV_PATH,
 )
-from src.database.index import session
 from src.database.models import initDatabaseIfNeeded
 
 
@@ -263,6 +262,8 @@ def runDoctorCheck() -> dict[str, Any]:
     db_ok = True
     db_error = None
     try:
+        from src.database.index import session  # 只用来检查数据库连接
+
         with session() as db:
             db.execute(text("SELECT 1"))
     except Exception as err:
@@ -560,7 +561,9 @@ def setupCLI(args: Namespace) -> int:
     arg_ark_api_key = getattr(args, "ark_api_key", None)
     arg_doubao_2_0_lite = getattr(args, "doubao_2_0_lite", None)
     arg_doubao_2_0_mini = getattr(args, "doubao_2_0_mini", None)
-    arg_embedding_endpoint_id = getattr(args, "embedding_model_endpoint_or_model_id", None)
+    arg_embedding_endpoint_id = getattr(
+        args, "embedding_model_endpoint_or_model_id", None
+    )
     arg_lark_app_id = getattr(args, "lark_app_id", None)
     arg_lark_app_secret = getattr(args, "lark_app_secret", None)
     arg_lark_card_template_id = getattr(args, "lark_card_template_id", None)
