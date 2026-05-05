@@ -311,7 +311,6 @@ def buildPersonaLark(open_id: str, fr_id: int, text: str) -> None:
         """
         start_time = time.perf_counter()
         try:
-            graph = getFRBuildingGraph()
             init_state = {
                 "request": {
                     "user_id": user_id,
@@ -320,7 +319,8 @@ def buildPersonaLark(open_id: str, fr_id: int, text: str) -> None:
                     # "raw_images": [],
                 },
             }
-            res = await graph.ainvoke(init_state)
+            async with getFRBuildingGraph() as graph:
+                res = await graph.ainvoke(init_state)
             end_time = time.perf_counter()
             # print(res)
             logger.info(f"Successfully build persona for {figure_name}")
@@ -341,6 +341,17 @@ def buildPersonaLark(open_id: str, fr_id: int, text: str) -> None:
                         content=report_text,
                         theme="violet",
                     )
+        except RuntimeError as rte:
+            if "FRBuildingGraph is running" not in str(rte):
+                raise rte
+            logger.warning("FRBuildingGraph is running, please wait until it finishes")
+            sendCard2OpenId(
+                open_id=open_id,
+                title="请稍后再试",
+                content="当前存在运行中人物画像完善任务，请等待完成后再试",
+                theme="yellow",
+            )
+            return
         except Exception as e:
             logger.warning(
                 f"Fail to build persona, open_id={open_id}, fr_id={fr_id}, err={e}",
@@ -352,12 +363,10 @@ def buildPersonaLark(open_id: str, fr_id: int, text: str) -> None:
                 content="完善人物画像失败，请稍后重试",
                 theme="red",
             )
+            return
 
     # 提交到后台异步 loop 执行，不阻塞当前消息处理链路
     _submitBackgroundCoroutine(_task())
-
-
-# def
 
 
 menu = [

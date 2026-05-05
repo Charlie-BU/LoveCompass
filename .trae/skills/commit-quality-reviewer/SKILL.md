@@ -1,6 +1,6 @@
 ---
 name: "commit-quality-reviewer"
-description: "针对当前仓库执行 git commit 间差异质检。触发于用户要求对“当前版本 vs 上次或指定 commit”做代码审查时。"
+description: "针对当前仓库执行 git commit 间差异质检。触发于用户要求对当前版本 vs 上次或指定 commit 做代码审查、审查本次改动、检查代码变更、review 代码、代码质检等场景。"
 ---
 
 # Commit Diff Quality Reviewer
@@ -12,24 +12,27 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 
 所有审查结论必须优先回答以下 3 个问题：
 
-1. 当前改动是否合理  
+1. 当前改动是否合理
    - 是否真正解决目标问题，是否存在过度设计/错误抽象/不必要复杂度。
-2. 是否引入新的问题  
+2. 是否引入新的问题
    - 是否带来新 bug、安全隐患、性能退化、异常处理退化或可维护性显著下降。
-3. 是否破坏依赖改动部分的代码可用性  
+3. 是否破坏依赖改动部分的代码可用性
    - 是否导致调用方、上下游模块、配置、脚本、测试或运行链路无法正常工作。
 
 ## 触发时机
 
-- 用户要求“对比上次提交做质检 / review / CR”
-- 用户提供 commit id，要求“当前版本 vs 某次 commit”审查
+- 用户要求"对比上次提交做质检 / review / CR"
+- 用户要求"审查本次改动"、"检查本次变更"、"review 本次改动"
+- 用户要求"代码质检"、"审查代码"、"检查代码质量"
+- 用户提供 commit id，要求"当前版本 vs 某次 commit"审查
 - 提交 commit / 发起 MR 前的质量闸门检查
+- 用户要求对当前工作区或暂存区改动做审查
 
 ## 输入约定（强制）
 
 - `base_commit`：
-    - 默认：`HEAD~1`（当前版本对比上次提交）
-    - 指定：用户显式给出 commit id（如 `abc1234`）
+  - 默认：`HEAD~1`（当前版本对比上次提交）
+  - 指定：用户显式给出 commit id（如 `abc1234`）
 - `compare_target`：固定为当前工作区（`HEAD + working tree`）
 - `whitelist`：读取 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`
 
@@ -74,22 +77,22 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 ## 执行步骤
 
 1. 确认基线 commit
-    - 默认 `HEAD~1`；若用户给 commit id，则使用用户给定值。
+   - 默认 `HEAD~1`；若用户给 commit id，则使用用户给定值。
 2. 收集 diff 上下文
-    - 获取变更文件列表与关键 hunks。
-    - 对每个变更点，补读所在文件必要上下文（导入、调用链、异常处理、类型定义）。
+   - 获取变更文件列表与关键 hunks。
+   - 对每个变更点，补读所在文件必要上下文（导入、调用链、异常处理、类型定义）。
 3. 先做“三问主检”（最高优先）
-    - 合理性检查：改动动机、实现路径、复杂度与收益是否匹配。
-    - 新问题检查：是否引入新的功能/稳定性/安全/性能风险。
-    - 依赖影响检查：改动接口、数据结构、配置或行为后，依赖方是否仍可正常运行。
+   - 合理性检查：改动动机、实现路径、复杂度与收益是否匹配。
+   - 新问题检查：是否引入新的功能/稳定性/安全/性能风险。
+   - 依赖影响检查：改动接口、数据结构、配置或行为后，依赖方是否仍可正常运行。
 4. 读取白名单
-    - 加载 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`。
-    - 命中白名单的条目，按规则降级为 `WAIVED`。
+   - 加载 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`。
+   - 命中白名单的条目，按规则降级为 `WAIVED`。
 5. 按通用 + 项目清单审查
-    - 先看 `CRITICAL/HIGH`，再看 `MEDIUM/LOW`。
+   - 先看 `CRITICAL/HIGH`，再看 `MEDIUM/LOW`。
 6. 输出结论
-    - 先列问题，再给摘要与裁决。
-    - 对每个问题给出“证据 + 风险 + 建议修复”。
+   - 先列问题，再给摘要与裁决。
+   - 对每个问题给出“证据 + 风险 + 建议修复”。
 
 ## 收尾建议规则（强制）
 
@@ -133,14 +136,14 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 
 - 文件：`.trae/skills/commit-quality-reviewer/docs/whitelist.md`
 - 允许豁免的典型场景：
-    - 临时保留的 `print` 调试输出
-    - 计划短期保留的注释代码
-    - 已知技术债但有明确截止时间与负责人
+  - 临时保留的 `print` 调试输出
+  - 计划短期保留的注释代码
+  - 已知技术债但有明确截止时间与负责人
 - 豁免条目至少包含：
-    - 匹配范围（文件路径/关键字/正则）
-    - 豁免原因
-    - 失效时间（建议）
-    - 负责人（建议）
+  - 匹配范围（文件路径/关键字/正则）
+  - 豁免原因
+  - 失效时间（建议）
+  - 负责人（建议）
 
 ## 输出格式（强制）
 
@@ -148,6 +151,7 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 
 ```markdown
 ## Core Check
+
 - Reasonableness: PASS | WARN | FAIL
 - New Issues Introduced: NO | YES
 - Dependency Impact: SAFE | RISKY | BROKEN
@@ -155,11 +159,11 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 ## Findings
 
 - [CRITICAL] <问题标题>
-    - File: <path>
-    - Evidence: <触发代码或行为>
-    - Risk: <具体风险>
-    - Fix: <可执行修复建议>
-    - Status: OPEN | WAIVED
+  - File: <path>
+  - Evidence: <触发代码或行为>
+  - Risk: <具体风险>
+  - Fix: <可执行修复建议>
+  - Status: OPEN | WAIVED
 
 ## Summary
 

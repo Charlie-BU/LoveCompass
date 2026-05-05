@@ -149,7 +149,6 @@ DevOps：带领团队完成开发、测试、部署与运维流程，构建 CI/C
 
 
 async def main():
-    graph = getFRBuildingGraph()
     init_state = {
         "request": {
             "user_id": 1,
@@ -158,7 +157,8 @@ async def main():
             # "raw_images": [],
         },
     }
-    result = await graph.ainvoke(init_state)
+    async with getFRBuildingGraph() as graph:
+        result = await graph.ainvoke(init_state)
     return result
 
 

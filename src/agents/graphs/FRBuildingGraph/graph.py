@@ -1,6 +1,9 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
-import logging
 
 from src.agents.graphs.FRBuildingGraph.nodes import (
     nodeBuildFRBuildingGraphOutput,
@@ -68,7 +71,27 @@ def buildFRBuildingGraph() -> CompiledStateGraph:
 
 # 全局单例：在模块导入时执行一次，进程内后续都复用同一个对象
 FRBuildingGraph = buildFRBuildingGraph()
+# 限制并发任务数量（同一时刻最多 1 个任务在跑）
+_frBuildingGraphSemaphore = asyncio.Semaphore(1)
 
 
-def getFRBuildingGraph() -> CompiledStateGraph:
-    return FRBuildingGraph
+@asynccontextmanager
+async def getFRBuildingGraph() -> AsyncIterator[CompiledStateGraph]:
+    """
+    获取 FRBuildingGraph 的异步上下文管理器。
+
+    - 通过 asyncio.Semaphore(1) 保证同一时刻仅一个任务占用 Graph，避免
+      `+=` 这种非原子操作在多协程下计数错乱的问题；
+    - 若当前已有任务在跑则直接抛 RuntimeError，保持原有“拒绝并发”的语义；
+    - 通过 `async with` 保证异常路径也能正确释放信号量，避免计数泄漏。
+
+    使用方式:
+        async with getFRBuildingGraph() as graph:
+            res = await graph.ainvoke(init_state)
+    """
+    if _frBuildingGraphSemaphore.locked():
+        raise RuntimeError(
+            "FRBuildingGraph is running, please wait until it finishes"
+        )
+    async with _frBuildingGraphSemaphore:
+        yield FRBuildingGraph
