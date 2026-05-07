@@ -1,11 +1,11 @@
 ---
 name: "commit-quality-reviewer"
-description: "针对当前仓库执行 git commit 间差异质检。触发于用户要求对当前版本 vs 上次或指定 commit 做代码审查、审查本次改动、检查代码变更、review 代码、代码质检等场景。"
+description: "针对当前仓库执行指定改动范围的差异质检（默认当前工作区）。触发于用户要求审查本次改动、检查代码变更、review 代码、代码质检等场景。"
 ---
 
 # Commit Diff Quality Reviewer
 
-用于对 **当前工作区代码** 与 **上次或用户指定 commit** 之间的改动做质量审查。  
+用于对 **用户指定范围** 的改动做质量审查（默认 `working tree`）。  
 该 skill 只审查 diff 覆盖内容，不对未变更代码做泛化点评。
 
 ## 最重要质检目标（最高优先级）
@@ -13,11 +13,11 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 所有审查结论必须优先回答以下 3 个问题：
 
 1. 当前改动是否合理
-   - 是否真正解决目标问题，是否存在过度设计/错误抽象/不必要复杂度。
+    - 是否真正解决目标问题，是否存在过度设计/错误抽象/不必要复杂度。
 2. 是否引入新的问题
-   - 是否带来新 bug、安全隐患、性能退化、异常处理退化或可维护性显著下降。
+    - 是否带来新 bug、安全隐患、性能退化、异常处理退化或可维护性显著下降。
 3. 是否破坏依赖改动部分的代码可用性
-   - 是否导致调用方、上下游模块、配置、脚本、测试或运行链路无法正常工作。
+    - 是否导致调用方、上下游模块、配置、脚本、测试或运行链路无法正常工作。
 
 ## 触发时机
 
@@ -31,16 +31,20 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 ## 输入约定（强制）
 
 - `base_commit`：
-  - 默认：`HEAD~1`（当前版本对比上次提交）
-  - 指定：用户显式给出 commit id（如 `abc1234`）
-- `compare_target`：固定为当前工作区（`HEAD + working tree`）
+    - 默认：`HEAD~1`（当前版本对比上次提交）
+    - 指定：用户显式给出 commit id（如 `abc1234`）
+- `compare_scope`：
+    - `working_tree_only`：仅审查未提交改动（默认）
+    - `last_commit_only`：仅审查 `HEAD~1..HEAD`
+    - `last_commit_plus_working_tree`：审查 `HEAD~1..HEAD` + 未提交改动
 - `whitelist`：读取 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`
 
 若用户要求“某次 commit 对比”，但未给 commit id，必须先追问并等待确认。
+若用户仅说“本次改动/当前改动”且未明确范围，默认使用 `working_tree_only`。
 
 ## 审查范围与边界
 
-- 仅基于 `git diff <base_commit>..HEAD` 与工作区未提交变更进行检查
+- 仅基于 `compare_scope` 对应的 diff 范围进行检查
 - 仅报告高置信度真实问题（默认置信度 >80%）
 - 不报告纯风格偏好、不报告未变更代码的历史问题
 - 遇到白名单豁免项时，标记为 `WAIVED`，不计入阻塞结论
@@ -77,27 +81,29 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 ## 执行步骤
 
 1. 确认基线 commit
-   - 默认 `HEAD~1`；若用户给 commit id，则使用用户给定值。
-2. 收集 diff 上下文
-   - 获取变更文件列表与关键 hunks。
-   - 对每个变更点，补读所在文件必要上下文（导入、调用链、异常处理、类型定义）。
-3. 先做“三问主检”（最高优先）
-   - 合理性检查：改动动机、实现路径、复杂度与收益是否匹配。
-   - 新问题检查：是否引入新的功能/稳定性/安全/性能风险。
-   - 依赖影响检查：改动接口、数据结构、配置或行为后，依赖方是否仍可正常运行。
-4. 读取白名单
-   - 加载 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`。
-   - 命中白名单的条目，按规则降级为 `WAIVED`。
-5. 按通用 + 项目清单审查
-   - 先看 `CRITICAL/HIGH`，再看 `MEDIUM/LOW`。
-6. 输出结论
-   - 先列问题，再给摘要与裁决。
-   - 对每个问题给出“证据 + 风险 + 建议修复”。
+    - 先判定 `compare_scope`；若语义不清，先向用户确认范围，不得猜测。
+2. 确认基线 commit
+    - 默认 `HEAD~1`；若用户给 commit id，则使用用户给定值。
+3. 收集 diff 上下文
+    - 获取变更文件列表与关键 hunks。
+    - 对每个变更点，补读所在文件必要上下文（导入、调用链、异常处理、类型定义）。
+4. 先做“三问主检”（最高优先）
+    - 合理性检查：改动动机、实现路径、复杂度与收益是否匹配。
+    - 新问题检查：是否引入新的功能/稳定性/安全/性能风险。
+    - 依赖影响检查：改动接口、数据结构、配置或行为后，依赖方是否仍可正常运行。
+5. 读取白名单
+    - 加载 `.trae/skills/commit-quality-reviewer/docs/whitelist.md`。
+    - 命中白名单的条目，按规则降级为 `WAIVED`。
+6. 按通用 + 项目清单审查
+    - 先看 `CRITICAL/HIGH`，再看 `MEDIUM/LOW`。
+7. 输出结论
+    - 先列问题，再给摘要与裁决。
+    - 对每个问题给出“证据 + 风险 + 建议修复”。
 
 ## 收尾建议规则（强制）
 
-- 当审查场景为“当前代码 vs 上一次 commit”（即 `base_commit = HEAD~1`）时，任务结束后必须附带如下建议：
-  - 建议用户执行 `commit-update-writer`，为本次改动生成并追加更新文档到 `docs/UPDATES.md`。
+- 当审查场景包含 `last_commit_only`（即 `base_commit = HEAD~1`）时，任务结束后必须附带如下建议：
+    - 建议用户执行 `commit-update-writer`，为本次改动生成并追加更新文档到 `docs/UPDATES.md`。
 - 该规则仅为“建议”，禁止在 `commit-quality-reviewer` 中自动触发或代执行 `commit-update-writer`。
 
 ## 项目定制审查清单（Immortality）
@@ -136,14 +142,14 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 
 - 文件：`.trae/skills/commit-quality-reviewer/docs/whitelist.md`
 - 允许豁免的典型场景：
-  - 临时保留的 `print` 调试输出
-  - 计划短期保留的注释代码
-  - 已知技术债但有明确截止时间与负责人
+    - 临时保留的 `print` 调试输出
+    - 计划短期保留的注释代码
+    - 已知技术债但有明确截止时间与负责人
 - 豁免条目至少包含：
-  - 匹配范围（文件路径/关键字/正则）
-  - 豁免原因
-  - 失效时间（建议）
-  - 负责人（建议）
+    - 匹配范围（文件路径/关键字/正则）
+    - 豁免原因
+    - 失效时间（建议）
+    - 负责人（建议）
 
 ## 输出格式（强制）
 
@@ -159,11 +165,11 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 ## Findings
 
 - [CRITICAL] <问题标题>
-  - File: <path>
-  - Evidence: <触发代码或行为>
-  - Risk: <具体风险>
-  - Fix: <可执行修复建议>
-  - Status: OPEN | WAIVED
+    - File: <path>
+    - Evidence: <触发代码或行为>
+    - Risk: <具体风险>
+    - Fix: <可执行修复建议>
+    - Status: OPEN | WAIVED
 
 ## Summary
 
@@ -176,7 +182,8 @@ description: "针对当前仓库执行 git commit 间差异质检。触发于用
 
 Decision: BLOCK | WARN | PASS
 Base Commit: <base_commit>
-Compared Range: <base_commit>..HEAD (+ working tree)
+Compared Scope: <working_tree_only | last_commit_only | last_commit_plus_working_tree>
+Compared Range: <scope对应的真实范围>
 ```
 
 ## 裁决标准
@@ -191,3 +198,4 @@ Compared Range: <base_commit>..HEAD (+ working tree)
 - 禁止把白名单当成永久忽略机制（过期应恢复检查）
 - 禁止报告无证据推断或低置信度猜测
 - 禁止把“未变更历史问题”伪装成本次 diff 问题
+- 禁止在用户未授权时自动将“已提交改动”与“未提交改动”混合作为审查范围

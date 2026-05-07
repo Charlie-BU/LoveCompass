@@ -98,3 +98,48 @@
 ### 建议 Commit Message（git-cz）
 
 - `feat(graph): guard FR building graph against concurrent runs`
+
+## UPDATE - 2026-05-07 19:06 - 文档体系补全与 Harness 约束沉淀
+
+### 撰写时间
+
+- 2026-05-07 19:06
+
+### Base Commit
+
+- 0e1926cdce2b9fff9caf373706f5d9773dccf3c5
+
+### 背景与改动目标
+
+- 这次改动的主体是文档收口，不是代码逻辑变更。目标是把项目现状、Harness 方法论和后续规划写成可复用的文档资产，减少协作时的信息断层。
+- 本次记录按用户确认口径，忽略 `.env.example` 删除，仅聚焦文档相关改动。
+
+### 改动概览
+
+- `docs/HARNESS.md`：从单行标题扩展为完整落地方案，补齐 skill 定位、生产流程、消费方式、闭环示例与边界说明。
+- `docs/BOTTLENECK.md`：在“共享数据库问题”之外，新增“单一飞书 Bot 问题”背景与长期方案，明确多 Bot 配置方向。
+- `docs/BRIEF_INTRO.md`：新增项目简要介绍文档，覆盖 Why/What/How、核心链路、数据对象、CLI 与飞书集成、Harness 角色等全局信息。
+- `docs/TODOs.md`：将“同一时间只允许一个 FRBuildingGraph 运行，限制并发”标记为已完成，状态与当前实现对齐。
+- `.trae/rules/language-style.md`：新增表达风格规则，约束文档与回复语言，减少模板化表达。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：现有实现与既有 skill（`commit-quality-reviewer`、`commit-update-writer`、`doc-generator`、`doc-optimizer`）是文档内容的事实来源，文档更新需要与这些能力契约保持一致。
+- 当前改动：通过 `HARNESS` 主文档 + `BRIEF_INTRO` 总览 + `BOTTLENECK` 议题沉淀 + `TODOs` 状态同步 + `language-style` 规则约束，形成“背景、方法、执行、约束、路线图”一体化文档链路。
+- 下游影响：后续协作在“项目介绍、任务对齐、文档写作、收尾沉淀”场景下可直接复用这些资产，减少口头传递和重复解释成本。
+
+### 改动结果与业务影响
+
+- 当前收益主要在工程协作层：项目介绍、瓶颈分析、Harness 方法和待办状态都获得了统一的书面基线。
+- 新成员和跨会话协作者可以更快理解系统结构与工作方式，降低“只看代码难以把握全貌”的成本。
+- 文档规则被显式化后，后续更新记录与说明文档在表达风格上更一致，可读性更稳定。
+
+### 风险与待办
+
+- 已知风险：文档体量快速增长后，若缺少周期性校对，容易与代码实现再次漂移。
+- 未验证项：`docs/BRIEF_INTRO.md` 中的流程和参数说明尚未做系统化一致性检查（仅基于当前认知整理）。
+- 后续动作：在后续迭代建立“文档一致性复查”节奏，重点核对 Graph 行为、CLI 命令和 skill 清单是否保持同步。
+
+### 建议 Commit Message（git-cz）
+
+- `docs(harness): enrich project docs and align writing rules`
