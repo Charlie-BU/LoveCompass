@@ -1,6 +1,6 @@
 [project]
 name = "Digital-Immortality"
-version = "1.5.3"
+version = "1.2.2"
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
