@@ -1,6 +1,6 @@
 # 共享数据库问题
 
-## 背景与目标
+## 问题
 
 当前系统里，用户通过 `pip install`（或 `uv tool install`）安装 CLI 后，仍需要完成一系列前置配置（数据库创建、模型配置、飞书机器人配置等），最终才能通过 CLI 在本地/服务器启动飞书 WebSocket 服务，再通过飞书机器人与系统交互。
 
@@ -73,7 +73,7 @@
 
 ## 单一飞书 Bot 问题
 
-### 问题背景
+### 问题
 
 目前用户通过 `pip` 或 `uv` 安装 `immortality` 后，会在本地 HOME 目录创建 `.immortality`，其中包含 `.env` 等用户配置。  
 现有实现基于单组环境变量（`LARK_APP_ID`、`LARK_APP_SECRET`、`LARK_CARD_TEMPLATE_ID`），因此 `immortality lark-service start` 每次只能启动一个 Bot 的 websocket 服务。  

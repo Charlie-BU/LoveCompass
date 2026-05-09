@@ -3,7 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 
-def preconfig():
+def preconfig() -> None:
     """
     预配置
     """
@@ -27,7 +27,7 @@ def preconfig():
 preconfig()
 
 
-def main():
+def main() -> None:
     """
     入口
     """

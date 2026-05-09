@@ -5,7 +5,7 @@ import questionary
 
 from src.cli.utils import (
     CLIError,
-    getUserIdFromLocalSession,
+    getCurrentUserFromLocalSession,
     printTableInCLI,
     printServiceResInCLI,
 )
@@ -258,7 +258,7 @@ def whoamiCLI(args: Namespace) -> int:
     """
     获取当前登录用户信息
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     res = getUserById(id=user_id)
     user = res.get("user")
 
@@ -273,7 +273,7 @@ def modifyPasswordCLI(args: Namespace) -> int:
     """
     修改当前用户密码
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     arg_old_password = getattr(args, "old_password", None)
     arg_new_password = getattr(args, "new_password", None)
     has_old = isinstance(arg_old_password, str) and arg_old_password.strip() != ""
@@ -304,7 +304,7 @@ def bindLarkCLI(args: Namespace) -> int:
     """
     绑定飞书 open id
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     lark_open_id = getattr(args, "lark_open_id", None)
     if not isinstance(lark_open_id, str) or lark_open_id.strip() == "":
         raise CLIError("lark-open-id is required", exit_code=2)

@@ -106,7 +106,7 @@ async def addFineGrainedFeed(
         # 向量化
         try:
             vector = await vectorizeText(
-                f"{sub_dimension}{"\n" if sub_dimension else ""}{content}"
+                f"{sub_dimension}{'\n' if sub_dimension else ''}{content}"
             )
         except Exception as e:
             logger.error(f"Embedding generation failed: {str(e)}")

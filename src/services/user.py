@@ -167,6 +167,29 @@ def userLogin(
         }
 
 
+def userLoginByOpenId(open_id: str) -> dict:
+    """
+    根据飞书 openid 登录
+    仅用于飞书心跳登录，不得开放
+    """
+    with session() as db:
+        user = db.query(User).filter(User.lark_open_id == open_id).first()
+        if user is None:
+            return {
+                "status": -1,
+                "message": "User not found",
+            }
+        access_token = createAccessToken(
+            data={"id": user.id, "username": user.username}
+        )
+        return {
+            "status": 200,
+            "message": "Lark login success",
+            "user_id": user.id,
+            "access_token": access_token,
+        }
+
+
 def userRegister(
     username: str,
     nickname: str,

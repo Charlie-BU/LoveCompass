@@ -103,7 +103,7 @@ description: "针对当前仓库执行指定改动范围的差异质检（默认
 ## 收尾建议规则（强制）
 
 - 当审查场景包含 `last_commit_only`（即 `base_commit = HEAD~1`）时，任务结束后必须附带如下建议：
-    - 建议用户执行 `commit-update-writer`，为本次改动生成并追加更新文档到 `docs/UPDATES.md`。
+    - 建议用户执行 `commit-update-writer`，为本次改动生成并追加更新文档到 `docs/CHANGELOG.md`。
 - 该规则仅为“建议”，禁止在 `commit-quality-reviewer` 中自动触发或代执行 `commit-update-writer`。
 
 ## 项目定制审查清单（Immortality）

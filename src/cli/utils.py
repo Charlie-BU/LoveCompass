@@ -207,9 +207,9 @@ def printMarkdownInCLI(markdown_text: str | list[str]) -> None:
     console.print(Markdown(content))
 
 
-def getUserIdFromLocalSession() -> int:
+def getCurrentUserFromLocalSession() -> dict[str, Any]:
     """
-    从本地 session 中校验登录态并获取 user_id
+    从本地 session 中校验登录态并获取当前用户信息
     """
     current_session = loadLocalSession()
     token = current_session.get("access_token")
@@ -219,7 +219,10 @@ def getUserIdFromLocalSession() -> int:
             message="Please login first via `immortality auth login`", exit_code=2
         )
     try:
-        return getUserIdByAccessToken(token=token)
+        return {
+            "user_id": getUserIdByAccessToken(token=token),
+            "access_token": token,
+        }
     except Exception:
         clearLocalSession()
         raise CLIError("Your login session is expired, please login again", exit_code=3)

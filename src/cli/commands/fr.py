@@ -5,7 +5,7 @@ import asyncio
 
 from src.cli.utils import (
     CLIError,
-    getUserIdFromLocalSession,
+    getCurrentUserFromLocalSession,
     printMarkdownInCLI,
     printServiceResInCLI,
     printTableInCLI,
@@ -140,7 +140,7 @@ def createFRCLI(args: Namespace) -> int:
             return None
         return str(selected)
 
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
 
     mode = "USER_INPUT"
     # 模式 1：args 提供参数
@@ -252,7 +252,7 @@ def listAvailableFRsCLI(args: Namespace) -> int:
     """
     查看当前用户可用 FR
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     res = getAllFigureAndRelations(user_id=user_id)
     frs = res.get("figure_and_relations", [])
     frs = [{
@@ -272,7 +272,7 @@ def showFRCLI(args: Namespace) -> int:
     """
     查看完整 FR 画像
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     fr_id = getattr(args, "id", None)
     if not isinstance(fr_id, int):
         raise CLIError("Invalid fr id", exit_code=2)
@@ -323,7 +323,7 @@ def syncFeedsToFRCoreCLI(args: Namespace) -> int:
     """
     同步细粒度 feeds 到 FigureAndRelation 核心字段
     """
-    user_id = getUserIdFromLocalSession()
+    user_id = getCurrentUserFromLocalSession().get("user_id")
     fr_id = getattr(args, "id", None)
     if fr_id is not None:
         res = asyncio.run(syncFeedsToFRCore(user_id=user_id, fr_id=fr_id))

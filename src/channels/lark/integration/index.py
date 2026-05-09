@@ -12,8 +12,10 @@ from src.channels.lark.integration.utils import (
     sendText2OpenId,
 )
 from src.channels.lark.integration.menu import handleMenuCommand
+from src.cli.session import saveLocalSession
+from src.cli.utils import getCurrentUserFromLocalSession
 from src.services.figure_and_relation import ifFRBelongsToUser
-from src.services.user import getUserIdByOpenId
+from src.services.user import getUserIdByOpenId, userLoginByOpenId
 
 
 logger = logging.getLogger(__name__)
@@ -236,6 +238,43 @@ def filterDuplicatedMessage(message: str, open_id: str) -> bool:
     return is_duplicate
 
 
+def loginIfNeeded(open_id: str) -> bool:
+    """
+    token 过期时触发登录，保证本地 token 有效
+    """
+    try:
+        # 从本地 session 中校验登录态并获取当前用户信息
+        getCurrentUserFromLocalSession()
+        return True
+    except Exception:
+        try:
+            login_res = userLoginByOpenId(open_id)
+            if login_res.get("status") != 200:
+                sendCard2OpenId(
+                    open_id=open_id,
+                    title="出错啦",
+                    content="请稍后重试",
+                    theme="red",
+                )
+                return False
+            saveLocalSession(
+                {
+                    "access_token": login_res["access_token"],
+                    "user_id": login_res["user_id"],
+                }
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Fail to login by open_id, open_id={open_id}, err={e}", exc_info=True)
+            sendCard2OpenId(
+                open_id=open_id,
+                title="出错啦",
+                content="请稍后重试",
+                theme="red",
+            )
+            return False
+
+
 def messageHandler(message: str, open_id: str) -> None:
     """
     消息处理入口
@@ -244,6 +283,10 @@ def messageHandler(message: str, open_id: str) -> None:
         return
 
     logger.info(f"Received: {message}")
+
+    # token 过期时触发登录，保证本地 token 有效
+    if not loginIfNeeded(open_id):
+        return
 
     try:
         if handleMenuCommand(message, open_id):

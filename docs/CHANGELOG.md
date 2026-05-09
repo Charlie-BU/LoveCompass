@@ -1,4 +1,4 @@
-## UPDATE - 2026-05-05 01:19 - Service 解耦收口与 Graph/Lark 链路对齐
+## CHANGELOG - 2026-05-05 01:19 - Service 解耦收口与 Graph/Lark 链路对齐
 
 ### 撰写时间
 
@@ -54,7 +54,7 @@
 
 - `refactor(service): align graph and lark flows with service-only data access`
 
-## UPDATE - 2026-05-05 15:14 - FRBuildingGraph 并发收口与提交质检文档补强
+## CHANGELOG - 2026-05-05 15:14 - FRBuildingGraph 并发收口与提交质检文档补强
 
 ### 撰写时间
 
@@ -99,7 +99,7 @@
 
 - `feat(graph): guard FR building graph against concurrent runs`
 
-## UPDATE - 2026-05-07 19:06 - 文档体系补全与 Harness 约束沉淀
+## CHANGELOG - 2026-05-07 19:06 - 文档体系补全与 Harness 约束沉淀
 
 ### 撰写时间
 
@@ -143,3 +143,54 @@
 ### 建议 Commit Message（git-cz）
 
 - `docs(harness): enrich project docs and align writing rules`
+
+## CHANGELOG - 2026-05-08 18:51 - 会话校验扩展为当前用户信息并补齐飞书自动续登链路
+
+### 撰写时间
+
+- 2026-05-08 18:51
+
+### Base Commit
+
+- 498d8172ffa9bd45a471fdee89c0eca5a9031a7b
+
+### Compare Scope
+
+- working_tree_only
+
+### 背景与改动目标
+
+- 这次改动的起点是登录态校验语义不足。原实现 `getUserIdFromLocalSession()` 只返回 `user_id`，调用方如果还需要 token，需要重复读取本地会话，链路上存在重复与分散。
+- 同时，飞书消息处理链路在 token 过期时没有自动恢复能力。用户在飞书里发消息时，若本地会话失效，服务侧会直接进入失败分支，交互连续性不稳定。
+- 因此这次目标有两点：一是把本地会话读取能力从“只拿 user_id”扩展成“返回当前用户信息”；二是在 Lark 集成入口补上基于 `open_id` 的自动登录与会话落盘，降低 token 过期带来的中断。
+
+### 改动概览
+
+- `src/cli/utils.py`：将 `getUserIdFromLocalSession` 重命名为 `getCurrentUserFromLocalSession`，并把返回值改为包含 `user_id` 与 `access_token` 的 dict，同时更新返回类型注解。
+- `src/cli/commands/auth.py`、`src/cli/commands/fr.py`、`src/cli/commands/lark_service.py`：统一切换到新接口，通过 `.get("user_id")` 读取身份信息，保持命令行为一致。
+- `src/services/user.py`：新增 `userLoginByOpenId(open_id)`，用于飞书链路在已绑定账号场景下补发 access token。
+- `src/channels/lark/integration/index.py`：新增 `loginIfNeeded(open_id)`，在 `messageHandler()` 前置执行。流程是先校验本地会话，失效时走 `userLoginByOpenId`，成功后 `saveLocalSession`。
+- `docs/BOTTLENECK.md` 与 `src/main.py`：分别做文档小标题表述收口与函数签名类型补充（`-> None`），不改变主功能行为。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：`getCurrentUserFromLocalSession()` 依赖 `loadLocalSession()` 与 `getUserIdByAccessToken()` 做本地 token 校验；`userLoginByOpenId()` 依赖 `User.lark_open_id` 查询与 `createAccessToken()` 发 token。
+- 当前改动：CLI 侧从“取单一 user_id”迁移到“取当前用户上下文”；Lark 侧在消息入口新增“先校验，后补登”的恢复逻辑，并将成功 token 写回本地 `session.json`。
+- 下游影响：`whoami`、`fr`、`lark-service start` 这些命令仍沿用原有 user_id 语义，但现在可以复用同一份会话上下文；飞书消息主链路在会话过期时具备自动续登能力，减少因 token 失效导致的对话中断。
+
+### 改动结果与业务影响
+
+- 当前看，主要收益是“登录态能力聚合”和“消息入口稳定性”提升。调用方不再各自拼接会话信息，Lark 服务也不需要完全依赖人工重新登录才能继续处理消息。
+- 这次还补了异常兜底：`loginIfNeeded()` 在自动登录或写本地会话异常时会记录日志并返回错误卡片，不会把异常直接抛到上层中断整条消息处理函数。
+- 边界上仍然存在一类语义问题：`open_id` 未绑定账号时，当前反馈文案仍是“请稍后重试”，可读性不如“请先绑定账号”直观。
+
+### 风险与待办
+
+- 已知风险：`loginIfNeeded()` 里把“未绑定账号”和“系统异常”都收敛成同一提示文案，排障信息粒度不够。
+- 已知风险：Lark 自动登录会覆盖本地 `session.json`，单机多账号轮流触发消息时会出现“最后一次登录覆盖前一次会话”的行为，需要后续按账号隔离会话文件。
+- 未验证项：当前未看到新增自动化测试覆盖“token 过期自动续登成功”“open_id 未绑定失败文案”“会话写盘失败兜底”三条关键分支。
+- 后续动作：补最小回归测试，并细分 `userLoginByOpenId` 的失败码与用户提示，降低误导性反馈。
+
+### 建议 Commit Message（git-cz）
+
+- `feat(auth): add lark open_id relogin and unify current session access`
