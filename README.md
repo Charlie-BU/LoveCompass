@@ -368,7 +368,7 @@ immortality auth login
 ### CLI 绑定飞书 open_id
 
 ```bash
-immortality bind-lark --lark-open-id <open_id>
+immortality auth bind-lark --lark-open-id <open_id>
 ```
 
 ## 启动飞书服务
