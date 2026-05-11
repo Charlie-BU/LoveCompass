@@ -260,7 +260,15 @@ def whoamiCLI(args: Namespace) -> int:
     """
     user_id = getCurrentUserFromLocalSession().get("user_id")
     res = getUserById(id=user_id)
-    user = res.get("user")
+    user_raw = res.get("user")
+    if user_raw is None:
+        raise CLIError("User not found", exit_code=2)
+    user = {
+        "username": user_raw.get("username"),
+        "nickname": user_raw.get("nickname"),
+        "gender": user_raw.get("gender"),
+        "email": user_raw.get("email"),
+    }
 
     if args.json:
         printServiceResInCLI(res, as_json=True)

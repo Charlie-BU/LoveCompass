@@ -336,3 +336,55 @@
 ### 建议 Commit Message（git-cz）
 
 - `fix(graph): unify user_name format with username and nickname`
+
+## CHANGELOG - 2026-05-11 17:33 - Robyn 服务化入口补齐并暴露 Graph HTTP API
+
+### 撰写时间
+
+- 2026-05-11 17:33
+
+### Base Commit
+
+- 9b3f8a72ad0fecf0975abf674e3094244e8e2742
+
+### Compare Scope
+
+- working_tree_only
+
+### 背景与改动目标
+
+- 这轮改动的主线是把“已有 service / graph 能力”收敛到统一的 HTTP 入口，而不是继续扩展业务逻辑。前一个阶段我们已经把核心能力沉淀在 `src/services/*` 和 `src/agents/graphs/*`，但服务端对外调用面还是缺口状态，调用方很难直接通过 API 对接。
+- 因此这次目标有三层：一是引入并启动 Robyn 服务入口；二是把 `figure_and_relation`、`fine_grained_feed`、`knowledge` 的 service 方法按既有风格封装成 router；三是把 `ConversationGraph` 与 `FRBuildingGraph` 暴露为可鉴权调用的 HTTP 接口，形成完整链路。
+
+### 改动概览
+
+- 依赖层：`pyproject.toml` 增加 `robyn>=0.84.0`，`uv.lock` 同步更新。
+- 服务入口层：新增 `src/server/app.py`、`src/server/auth.py`、`src/server/routers/index.py`，并在 `index.py` 统一注册 `user/fr/feed/knowledge/graph` 五组子路由。
+- router 封装层：新增 `src/server/routers/figure_and_relation.py`、`src/server/routers/fine_grained_feed.py`、`src/server/routers/knowledge.py`、`src/server/routers/user.py`，补齐 query/body 取参、鉴权、枚举解析与参数校验。
+- Graph API 层：新增 `src/server/routers/graph.py`，提供 `/graph/conversation` 与 `/graph/frBuilding` 两个入口，对接 `getConversationGraph()` 和 `getFRBuildingGraph()`。
+- 通用工具层：`src/utils/index.py` 新增 `parseInt()`、`parseFloat()`；相关 router 改为复用 util，不再重复定义局部解析函数。
+- 用户与 CLI 衔接：`src/services/user.py` 的 `getUserIdByAccessToken` 支持直接接收 `request`；`getUserById` 返回完整 `user.toJson()`；`src/cli/commands/auth.py` 的 `whoami` 增加 `user_raw is None` 防御分支，避免空指针。
+- Harness 资产：新增 `.trae/skills/service-router-api-wrapper/SKILL.md`，把 router 封装约束写成可复用规则（取参、鉴权、错误结构、util 复用）。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：Graph 路由依赖 `ConversationGraph` / `FRBuildingGraph` 的 `ainvoke` 调用语义；鉴权链依赖 `AuthHandler` 与 `getUserIdByAccessToken(request=request)`；service 路由依赖枚举解析 `parseEnum` 与各模块 service 返回协议。
+- 当前改动：HTTP 请求先在 Robyn router 做参数校验和身份提取，再把 `user_id` 注入 `request` state 后调用 service 或 graph。换句话说，router 现在承担“协议入口层”，业务逻辑仍留在 service / graph 本体。
+- 下游影响：调用方可以直接通过 API 触发人物关系 CRUD、细粒度 feed 管理、知识检索与两类 Graph 执行；CLI 与 service 的用户信息字段保持兼容，不再因为 `whoami` 空用户分支导致崩溃。
+
+### 改动结果与业务影响
+
+- 当前收益是服务化入口成型：项目从“内部函数可用”变成“可鉴权 API 可用”，后续前端或外部系统联调有了统一接入面。
+- 这次也顺带完成了参数解析能力的收敛，`parseInt()/parseFloat()` 统一放到 util 后，router 代码重复度下降，后续扩接口时更容易保持一致风格。
+- 代价是接口面迅速扩大，运行稳定性更依赖参数边界处理与统一错误语义；在这个边界下，后续需要更系统的接口级回归来兜底。
+
+### 风险与待办
+
+- 已知风险：`/graph/frBuilding` 当前仍要求 `raw_content` 非空，和 `FRBuildingGraph` 节点“文本与图片二选一即可”的语义存在偏差，纯图片输入会被提前拒绝。
+- 已知风险：Graph 路由顶层固定返回 `status=200`，而 graph 内部输出可能是失败状态；若调用方只看顶层 `status`，会产生成功误判。
+- 已知风险：`figure_and_relation` 中 `getFROverallUpdateLogsThisRound` 路由已注释下线，相关 service 仍保留；后续若重新开放，需要补 ownership 校验后再暴露。
+- 建议补充验证：至少覆盖五类路径，分别是 router 参数非法分支、token 缺失分支、`ConversationGraph` 正常调用、`FRBuildingGraph` busy 分支、以及 Graph 内部失败时的状态透传行为。
+
+### 建议 Commit Message（git-cz）
+
+- `feat(server): add robyn routers and expose graph http apis`

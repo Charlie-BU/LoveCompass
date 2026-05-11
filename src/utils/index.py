@@ -91,6 +91,26 @@ def cleanList(items: list):
     return result
 
 
+def parseInt(value: Any):
+    """
+    尝试将值转换为整数，返回 None 如果转换失败。
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parseFloat(value: Any):
+    """
+    尝试将值转换为浮点数，返回 None 如果转换失败。
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def stringifyValue(value: Any, strip: bool = True) -> str:
     """
     文本化，支持 enum、List[str|dict]、None 等类型。
@@ -125,7 +145,7 @@ def stringifyValue(value: Any, strip: bool = True) -> str:
 
 def serialize2String(value: Any) -> str | None:
     """
-    将 str/list/dict/enum 等不同类型的值序列化为字符串
+    将 str/list/dict/enum 等不同类型的值序列化为 json 字符串
     """
     if value is None:
         return None
