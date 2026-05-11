@@ -52,6 +52,15 @@ docker-compose --version
 uv tool install digital-immortality --default-index https://pypi.org/simple
 ```
 
+如果官方源安装过慢，可使用以下命令。该方案会优先保证从官方源安装最新版 `digital-immortality`，其依赖允许从镜像源获取：
+
+```bash
+uv tool install digital-immortality \
+  --index-url https://pypi.org/simple \
+  --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+  --index-strategy unsafe-best-match
+```
+
 未安装 `uv`：
 
 ```bash
@@ -373,7 +382,7 @@ immortality auth bind-lark --lark-open-id <open_id>
 
 ## 启动飞书服务
 
-前台启动（用于调试）：
+前台启动（**仅用于调试**）：
 
 ```bash
 immortality lark-service start
@@ -400,6 +409,16 @@ nohup immortality lark-service start &
 ```bash
 pgrep -af immortality
 ```
+
+出现以下输出可视为服务启动成功：
+
+```bash
+% nohup immortality lark-service start &
+[1] xxxxx   # 服务 PID
+% appending output to nohup.out
+```
+
+服务启动成功后，可直接在飞书 bot 中使用。
 
 终止服务：
 
