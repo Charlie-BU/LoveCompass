@@ -324,7 +324,7 @@ immortality setup
 - 启动 `PostgreSQL`（镜像为 `pgvector/pgvector:pg16`）
 - 确保存在两个数据库：
     - `immortality`
-    - `immortality_checkpoint`
+    - `immortality_checkpoints`
 - 初始化 `vector` 扩展（`CREATE EXTENSION IF NOT EXISTS vector;`）
 
 然后继续引导你填写其余必要配置，并在本地创建目录：

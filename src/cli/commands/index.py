@@ -2,7 +2,6 @@ import re
 import sys
 import getpass
 import uuid
-import socket
 import time
 import subprocess
 from pathlib import Path
@@ -357,23 +356,25 @@ def _checkDocker() -> list[str] | None:
     return compose_cmd
 
 
-def _setupCheckpointDBIfNeeded():
+def _setupCheckpointsDBIfNeeded():
     """
-    配置 immortality_checkpoint 数据库
+    配置 immortality_checkpoints 数据库
     """
-    # 检查 immortality_checkpoint 数据库是否存在
+    # 检查 immortality_checkpoints 数据库是否存在
     check_checkpoint_db = subprocess.run(
         [
             "docker",
             "exec",
             "immortality-postgres",
             "psql",
+            "-h",
+            "127.0.0.1",
             "-U",
             "immortality",
             "-d",
             "immortality",
             "-tAc",
-            "SELECT 1 FROM pg_database WHERE datname = 'immortality_checkpoint';",
+            "SELECT 1 FROM pg_database WHERE datname = 'immortality_checkpoints';",
         ],
         check=False,
         capture_output=True,
@@ -381,7 +382,7 @@ def _setupCheckpointDBIfNeeded():
     )
     if check_checkpoint_db.returncode != 0:
         raise CLIError(
-            "PostgreSQL is running but failed to check `immortality_checkpoint` database: "
+            "PostgreSQL is running but failed to check `immortality_checkpoints` database: "
             + (check_checkpoint_db.stderr or check_checkpoint_db.stdout).strip(),
             exit_code=1,
         )
@@ -394,6 +395,8 @@ def _setupCheckpointDBIfNeeded():
                 "exec",
                 "immortality-postgres",
                 "psql",
+                "-h",
+                "127.0.0.1",
                 "-U",
                 "immortality",
                 "-d",
@@ -401,7 +404,7 @@ def _setupCheckpointDBIfNeeded():
                 "-v",
                 "ON_ERROR_STOP=1",
                 "-c",
-                "CREATE DATABASE immortality_checkpoint;",
+                "CREATE DATABASE immortality_checkpoints;",
             ],
             check=False,
             capture_output=True,
@@ -409,7 +412,7 @@ def _setupCheckpointDBIfNeeded():
         )
         if create_checkpoint_db.returncode != 0:
             raise CLIError(
-                "PostgreSQL is running but failed to create `immortality_checkpoint` database: "
+                "PostgreSQL is running but failed to create `immortality_checkpoints` database: "
                 + (create_checkpoint_db.stderr or create_checkpoint_db.stdout).strip(),
                 exit_code=1,
             )
@@ -485,12 +488,27 @@ def dockerDBSteup() -> dict[str, str]:
     wait_seconds = 50
     db_ready = False
     for _ in range(wait_seconds):
-        try:
-            with socket.create_connection(("127.0.0.1", 5432), timeout=1):
-                db_ready = True
-                break
-        except OSError:
-            time.sleep(1)
+        pg_ready_check = subprocess.run(
+            [
+                "docker",
+                "exec",
+                "immortality-postgres",
+                "pg_isready",
+                "-h",
+                "127.0.0.1",
+                "-U",
+                "immortality",
+                "-d",
+                "immortality",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if pg_ready_check.returncode == 0:
+            db_ready = True
+            break
+        time.sleep(1)
 
     if db_ready:
         immortalityPrint(
@@ -498,15 +516,15 @@ def dockerDBSteup() -> dict[str, str]:
         )
     else:
         raise CLIError(
-            "PostgreSQL container started but 127.0.0.1:5432 is still unreachable. "
+            "PostgreSQL container started but is still not ready in container checks. "
             "Please check container logs first with "
             f"`{' '.join(compose_cmd)} -f {docker_compose_path} logs postgres`. "
             "If the issue persists, please set up PostgreSQL manually.",
             exit_code=1,
         )
 
-    # 配置 immortality_checkpoint 数据库
-    _setupCheckpointDBIfNeeded()
+    # 配置 immortality_checkpoints 数据库
+    _setupCheckpointsDBIfNeeded()
 
     return {
         "db_user": "immortality",

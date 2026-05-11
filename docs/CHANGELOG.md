@@ -243,3 +243,51 @@
 ### 建议 Commit Message（git-cz）
 
 - `build(python): raise minimum supported version to 3.12`
+
+## CHANGELOG - 2026-05-11 09:22 - Docker 模式 PostgreSQL 就绪检查收敛并统一 checkpoints 库名
+
+### 撰写时间
+
+- 2026-05-11 09:22
+
+### Base Commit
+
+- 82f7d2ad627e2d4e82351a779359146bffe70978
+
+### Compare Scope
+
+- working_tree_only
+
+### 背景与改动目标
+
+- 这次改动的起点是 `immortality setup` 在 Docker 模式下存在误判：前置检查显示 PostgreSQL 已就绪，但后续执行 `psql` 仍可能因为默认 Unix socket 不存在而失败。
+- 目标是让“就绪检查”和“实际数据库操作”使用同一连接语义，减少“看起来 ready、实际失败”的体验割裂，并同步文档与模板里的 checkpoint 数据库命名。
+
+### 改动概览
+
+- `src/cli/commands/index.py`：将 checkpoint 数据库初始化函数重命名为 `_setupCheckpointsDBIfNeeded`，并把数据库名统一为 `immortality_checkpoints`。
+- `src/cli/commands/index.py`：两处 `docker exec ... psql` 增加 `-h 127.0.0.1`，强制走 TCP，不再依赖容器内默认 socket。
+- `src/cli/commands/index.py`：Docker 启动后就绪判断从主机 `socket.create_connection` 改为容器内 `pg_isready` 探活，语义与后续执行链路保持一致。
+- `src/cli/assets/init-db.sh`、`src/cli/assets/.env.example`、`README.md`：数据库名从 `immortality_checkpoint` 同步为 `immortality_checkpoints`，确保脚本、配置模板和说明口径一致。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：`docker compose up` 负责拉起 `immortality-postgres`；资源模板由 `src/cli/assets/init-db.sh` 与 `src/cli/assets/.env.example` 提供。
+- 当前改动：`dockerDBSteup()` 先以 `pg_isready` 判断容器内 PostgreSQL 可用，再进入 `_setupCheckpointsDBIfNeeded()` 执行数据库存在性检查和创建。
+- 下游影响：`setupCLI()` 继续写入 `.env`，但 `CHECKPOINT_DATABASE_URI` 默认指向 `immortality_checkpoints`；文档和自动初始化脚本不再出现单复数混用。
+
+### 改动结果与业务影响
+
+- 当前收益是失败模式更可预测：如果数据库未真正就绪，会在 `pg_isready` 阶段尽早失败；如果进入 `psql`，连接方式与探活方式一致。
+- 对用户侧来说，这次优化能显著降低“容器已启动但 `psql` 报 socket 文件不存在”的概率，排障路径也更清晰。
+- 这轮改动同时完成了配置与文档的口径收口，后续新环境初始化时不易因数据库命名不一致产生偏差。
+
+### 风险与待办
+
+- 已知风险：本次未包含“旧库名 `immortality_checkpoint` 自动迁移到 `immortality_checkpoints`”逻辑，历史环境是否保留旧数据可见性取决于用户现有库状态。
+- 未验证项：尚未补充自动化测试覆盖 `pg_isready` 超时分支与 checkpoints 数据库创建分支。
+- 后续动作：建议增加最小回归验证，覆盖 Docker 首次初始化、重复执行 setup、以及容器未就绪错误提示文案。
+
+### 建议 Commit Message（git-cz）
+
+- `fix(cli): align docker postgres readiness and checkpoints db setup`
