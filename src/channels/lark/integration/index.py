@@ -212,7 +212,7 @@ def _scheduleFlush(open_id: str) -> None:
 
 def filterDuplicatedMessage(message: str, open_id: str) -> bool:
     """
-    过滤短时间内的完全重复消息
+    防抖：过滤短时间内的完全重复消息
     """
     current_time = int(time.time())
     second_threshold = (
@@ -279,6 +279,7 @@ def messageHandler(message: str, open_id: str) -> None:
     """
     消息处理入口
     """
+    # 防抖
     if filterDuplicatedMessage(message, open_id):
         return
 

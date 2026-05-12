@@ -1,0 +1,152 @@
+{
+  "current_version_id": 1,
+  "versions": [
+    {
+      "version_id": 1,
+      "status": {
+        "session_id": "6a02ed28e2f571094466cb60",
+        "commit_id": "36079dd9021f75a42730976c0ec0c65b1d94478e",
+        "generate_type": "full"
+      },
+      "catalogs": {
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/人格构建与提示词工程.md": {
+          "content_hash": "493c2d759bb7e5935880c265ce76eb7da36e52cc7e541921c2996652153fca7a",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/人格构建与提示词工程.md",
+          "chapter_number": "6"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流.md": {
+          "content_hash": "379b9ec8a7515f37007c4f75d3dee8962f56b18230891ef8dce23d21067b7da9",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流.md",
+          "chapter_number": "4"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/ConversationGraph 对话工作流.md": {
+          "content_hash": "f013bcad63fe8237bba61703bba0e5e5e83a7b498541785e0d036519f585383f",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/ConversationGraph 对话工作流.md",
+          "chapter_number": "4.1"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/数据模型与存储.md": {
+          "content_hash": "7dde5e876b7fc925e9cfa4f37b0a6d375f978ca2e85de24a63b66d518c131114",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/数据模型与存储.md",
+          "chapter_number": "7"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/快速开始.md": {
+          "content_hash": "b1d1b23be88646609bbdd7e8872a5d3e16da789c91cd8ddf3e197506d7d29764",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/快速开始.md",
+          "chapter_number": "2"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/CLI 工具参考.md": {
+          "content_hash": "f65fe8b1af596db708ef3af86cea6c00a5a451328ae24426afd40e2ad4aea90f",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/CLI 工具参考.md",
+          "chapter_number": "8"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/核心概念与架构.md": {
+          "content_hash": "e732baaa84a26e7f0683c6b98c51f16345087a453cde80376d4d491d11a27456",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/核心概念与架构.md",
+          "chapter_number": "3"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/部署与运维.md": {
+          "content_hash": "464141602731bece8bfdb780b7b3ae5178ed5e4d1c9eb546a02be570f3707e0b",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/部署与运维.md",
+          "chapter_number": "10"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/开发与贡献指南.md": {
+          "content_hash": "9ad77b3d1c17789b7e73572ffeac659bea50e35311fe5098351b6fd7593a0a5c",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/开发与贡献指南.md",
+          "chapter_number": "9"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/飞书集成与交互.md": {
+          "content_hash": "173f97db3c42e2549614240f5ad3ce804519972686b6256fd62df73b6204e532",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/飞书集成与交互.md",
+          "chapter_number": "5"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/项目概览.md": {
+          "content_hash": "52571534f6e9fadc9e20bfafc5ef9f2ae3eabf33670facbb188708949b95efec",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/项目概览.md",
+          "chapter_number": "1"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/FRBuildingGraph 人格构建工作流.md": {
+          "content_hash": "aa2c5073097d83776d9757b3dd822ddec04669dcd7eca42b9878a7908a07e01a",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/FRBuildingGraph 人格构建工作流.md",
+          "chapter_number": "4.2"
+        },
+        "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/图状态管理与持久化.md": {
+          "content_hash": "78b99b9eed172ee1af3fb9ecb31f4361305555e683c6c996c308f070026b3aff",
+          "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/图状态管理与持久化.md",
+          "chapter_number": "4.3"
+        }
+      }
+    }
+  ],
+  "status": {
+    "session_id": "6a02ed28e2f571094466cb60",
+    "commit_id": "36079dd9021f75a42730976c0ec0c65b1d94478e",
+    "generate_type": "full"
+  },
+  "catalogs": {
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/人格构建与提示词工程.md": {
+      "content_hash": "493c2d759bb7e5935880c265ce76eb7da36e52cc7e541921c2996652153fca7a",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/人格构建与提示词工程.md",
+      "chapter_number": "6"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流.md": {
+      "content_hash": "379b9ec8a7515f37007c4f75d3dee8962f56b18230891ef8dce23d21067b7da9",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流.md",
+      "chapter_number": "4"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/ConversationGraph 对话工作流.md": {
+      "content_hash": "f013bcad63fe8237bba61703bba0e5e5e83a7b498541785e0d036519f585383f",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/ConversationGraph 对话工作流.md",
+      "chapter_number": "4.1"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/数据模型与存储.md": {
+      "content_hash": "7dde5e876b7fc925e9cfa4f37b0a6d375f978ca2e85de24a63b66d518c131114",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/数据模型与存储.md",
+      "chapter_number": "7"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/快速开始.md": {
+      "content_hash": "b1d1b23be88646609bbdd7e8872a5d3e16da789c91cd8ddf3e197506d7d29764",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/快速开始.md",
+      "chapter_number": "2"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/CLI 工具参考.md": {
+      "content_hash": "f65fe8b1af596db708ef3af86cea6c00a5a451328ae24426afd40e2ad4aea90f",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/CLI 工具参考.md",
+      "chapter_number": "8"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/核心概念与架构.md": {
+      "content_hash": "e732baaa84a26e7f0683c6b98c51f16345087a453cde80376d4d491d11a27456",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/核心概念与架构.md",
+      "chapter_number": "3"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/部署与运维.md": {
+      "content_hash": "464141602731bece8bfdb780b7b3ae5178ed5e4d1c9eb546a02be570f3707e0b",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/部署与运维.md",
+      "chapter_number": "10"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/开发与贡献指南.md": {
+      "content_hash": "9ad77b3d1c17789b7e73572ffeac659bea50e35311fe5098351b6fd7593a0a5c",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/开发与贡献指南.md",
+      "chapter_number": "9"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/飞书集成与交互.md": {
+      "content_hash": "173f97db3c42e2549614240f5ad3ce804519972686b6256fd62df73b6204e532",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/飞书集成与交互.md",
+      "chapter_number": "5"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/项目概览.md": {
+      "content_hash": "52571534f6e9fadc9e20bfafc5ef9f2ae3eabf33670facbb188708949b95efec",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/项目概览.md",
+      "chapter_number": "1"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/FRBuildingGraph 人格构建工作流.md": {
+      "content_hash": "aa2c5073097d83776d9757b3dd822ddec04669dcd7eca42b9878a7908a07e01a",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/FRBuildingGraph 人格构建工作流.md",
+      "chapter_number": "4.2"
+    },
+    "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/图状态管理与持久化.md": {
+      "content_hash": "78b99b9eed172ee1af3fb9ecb31f4361305555e683c6c996c308f070026b3aff",
+      "file_path": "/Users/bytedance/Desktop/work/Immortality/.trae/deepwiki/代理图设计与工作流/图状态管理与持久化.md",
+      "chapter_number": "4.3"
+    }
+  }
+}

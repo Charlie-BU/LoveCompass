@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 class ToolAndItsArgsHandler:
+    """
+    tool 及其参数处理
+    用于自定义 tool 参数处理逻辑
+    """
     def __init__(self, tool: BaseTool, args_handler: Callable | None = None):
         self.tool = tool
         self.args_handler = args_handler  # 手动处理tool call参数的方法。接受两个参数：tool_call和messages。返回处理后的参数dict。
@@ -50,6 +54,32 @@ async def handleIfToolCall(
     llm_response: AIMessage,
     max_tool_round: int = 3,
 ) -> tuple[AIMessage, list]:
+    """
+    tool call 方法
+    用于处理 llm 给出的 tool call，调用对应的 tool
+    返回 tool call 后的 AIMessage 和全量 messages
+    
+    使用方式 demo：
+    llm_with_tools = llm.bind_tools([tool1, tool2])
+    response = await llm_with_tools.ainvoke(messages)
+    # 处理tool call
+    response = (
+        await handleIfToolCall(
+            tools_and_args_handlers=[
+                ToolAndItsArgsHandler(
+                    tool=tool1,
+                    args_handler=lambda _tool_call, _messages: {
+                        "relation_chain_id": state["request"].get("relation_chain_id")
+                    },
+                )
+            ],
+            messages=messages,
+            llm_with_tools=llm_with_tools,
+            llm_response=response,
+            max_tool_round=3,
+        )
+    )[0]
+    """
     # 为降低时间复杂度，提前构建tool_name到ToolAndItsArgsHandler的映射
     tool_map = {ta.tool.name: ta for ta in tools_and_args_handlers}
     tool_round = 0
