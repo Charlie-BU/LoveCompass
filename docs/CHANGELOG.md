@@ -388,3 +388,57 @@
 ### 建议 Commit Message（git-cz）
 
 - `feat(server): add robyn routers and expose graph http apis`
+
+## CHANGELOG - 2026-05-13 16:03 - Shared Database 分发层预埋与 Graph API 返回收口
+
+### 撰写时间
+
+- 2026-05-13 16:03
+
+### Base Commit
+
+- b4b0d783b9a16a957ca2a23d2a10c6ccfeeaf594
+
+### Compare Scope
+
+- working_tree_only
+
+### 背景与改动目标
+
+- 这次改动的起点很明确：前一轮 Robyn router 和 Graph HTTP API 已经补齐了，但 CLI / service 调用面还停留在“默认直连本地 service”的模式。只要后续要支持 shared database、多环境或者 remote service，调用方迟早需要一个统一的分发层。
+- 一开始工作区里看到的内容有两部分。一部分是运行链路本身：`src/service_dispatcher.py`、`.env.example`、`src/server/routers/graph.py`、`src/utils/request.py`、`src/agents/prompt.py` 这些文件，明显是在为“本地 service / 远程 HTTP”双模式做预埋。另一部分是 `.trae/deepwiki/` 下的一批未跟踪文档资产，它们不直接改变运行行为，但在当前工作区里确实构成了新的知识沉淀。
+- 因此这条 changelog 采用当前最新工作区口径来写：既记录 shared database 分发主线，也把 Graph API 返回结构的收口、TODO 优先级调整和 DeepWiki 文档资产一起纳入说明。
+
+### 改动概览
+
+- `src/service_dispatcher.py`：新增 service 分发层。核心能力是根据 `USE_SHARED_DATABASE` 判断走本地 service 还是远程 HTTP；本地模式直接调用 `service(**args)`，异步 service 会通过 `_runAwaitableSync()` 同步收口；共享模式则基于 `SERVICE_API_MAP` 和 `HTTP_BASE_URL` 发起请求。
+- `src/utils/request.py` 与 `src/agents/prompt.py`：把通用请求函数从 `fetch` 重命名为 `afetch`，同时 `getPrompt()` 切到新名字，语义上更清楚地表达“这是异步请求工具”，也为 dispatcher 侧复用打通了入口。
+- `src/cli/assets/.env.example`：新增 `USE_SHARED_DATABASE=False` 与 `HTTP_BASE_URL=http://124.223.93.75:1314`，把 shared mode 所需的两个关键环境变量显式写进模板。
+- `src/server/routers/graph.py`：`/graph/conversation` 不再整包返回 graph state，而是只返回 `llm_output`；`/graph/frBuilding` 增加图片 form 的 TODO 注释，并把 graph 执行结果包在 `res` 字段里返回。
+- `docs/TODOs.md`：新增“发消息带时间戳，否则 AI 不理解什么时候的消息（P00）”，同时把 `multi-env, multi-service 支持` 从 `P00` 下调到 `P1`，说明当前工作区虽然已经开始预埋，但优先级判断更谨慎了。
+- `.trae/deepwiki/`：新增一组项目知识文档，包括“项目概览、核心概念与架构、数据模型与存储、代理图设计与工作流、飞书集成与交互、部署与运维、开发与贡献指南”等内容，属于文档资产沉淀。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：`service_dispatcher.py` 直接依赖上一轮已落地的 Robyn router 契约，也就是 `/user/*`、`/fr/*`、`/feed/*`、`/knowledge/*` 这些 API 已经存在，dispatcher 才能通过 `SERVICE_API_MAP` 把 service 名映射到 HTTP 路径。它还依赖 `src.cli.utils.getCurrentUserFromLocalSession()` 提供 `access_token`，用来给远程请求补鉴权头。
+- 当前改动：shared mode 的核心不是替换业务逻辑，而是在调用入口增加一层 `dispatch`。本地模式继续保留原有 service 调用语义，减少侵入；远程模式则把参数按 GET query 或 POST JSON 发给 Robyn API。与之配套，`afetch()` 成为统一的异步 HTTP 基础设施，`getPrompt()` 这类本来就跑在 async 链路里的逻辑也顺势切到同一个工具名。
+- 下游影响：如果后续 CLI、channel 或 graph 节点开始接入 `dispatchServiceCall()`，它们就不需要再关心“当前到底连的是本地数据库还是远程服务”。另一方面，`/graph/conversation` 的返回被裁剪到 `llm_output` 后，下游调用方不再拿到整份 graph state，接口语义更聚焦，但如果有旧调用方依赖原来的 `result` 整包结构，就需要同步适配。`/graph/frBuilding` 目前仍保留顶层 `status/message` 包装，并把内部 graph 输出放在 `res` 里，说明这条 API 还没有完全和 graph 原始输出做一体化收口。
+- 文档链路这边的影响更偏长期。`.trae/deepwiki/` 这批未跟踪资产不会进入运行时，但它们把项目概览、Graph 工作流、提示词工程、飞书集成等信息整理成了可检索文档，后续无论是人读还是 agent 消费，都会比只看源码更容易建立全局上下文。
+
+### 改动结果与业务影响
+
+- 当前看，这轮工作的真正收益是把“shared database / multi-service”从一个 TODO 议题推进成了可落地的代码骨架。虽然调用入口还没有在全链路切过去，但环境变量、API 映射、鉴权头构造、同步包 async 结果这些基础件已经放好了。
+- Graph API 的返回结构也开始做取舍。`conversation` 只暴露 `llm_output`，说明接口开始从“调试友好”转向“协议清晰”；`frBuilding` 仍保留 `res` 包装，则说明这块还处于过渡状态。
+- 文档侧的收益是知识资产更完整。DeepWiki 目录里的内容覆盖项目介绍、数据模型、Graph 设计、部署与飞书交互，这些信息对后续协作和自动化分析都有帮助。
+
+### 风险与待办
+
+- 已知风险：`src/service_dispatcher.py` 目前还是未跟踪文件，而且从当前代码看还没有被业务入口正式接入。换句话说，shared mode 的分发层已经成形，但还没有走到“被真实链路消费”的阶段。
+- 已知风险：`.env.example` 直接写入 `HTTP_BASE_URL=http://124.223.93.75:1314`，虽然便于快速试用，但把真实服务地址放进模板会增加环境耦合，也会让后续部署迁移更麻烦。
+- 已知风险：`GRAPH_API_MAP` 已经在 dispatcher 里预留，但当前 `dispatchServiceCall()` 只消费 `SERVICE_API_MAP`。这意味着 graph 远程调用还停留在规划态，没有真正打通。
+- 未验证项：当前工作区没有看到围绕 dispatcher 的自动化验证，例如“共享模式下 GET/POST 参数是否正确透传”“本地模式调用 async service 是否稳定收口”“token 缺失时 auth header 构造失败如何回显”。
+- 后续动作：先决定哪些 CLI / 集成入口要优先接入 `dispatchServiceCall()`，再补最小回归验证。与此同时，建议把 `HTTP_BASE_URL` 改成占位符或显式注释配置，并确认 `.trae/deepwiki/` 是否作为正式文档资产纳入版本控制。
+
+### 建议 Commit Message（git-cz）
+
+- `feat(dispatcher): scaffold shared database service routing`

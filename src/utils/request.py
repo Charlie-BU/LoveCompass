@@ -8,7 +8,7 @@ class FetchRes(TypedDict):
     body: dict
 
 
-async def fetch(
+async def afetch(
     url,
     method="GET",
     query_params=None,

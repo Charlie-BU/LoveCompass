@@ -48,7 +48,11 @@ async def runConversationGraphRouter(request: Request):
         },
     }
     res = await graph.ainvoke(init_state, config=short_term_memory_config)
-    return {"status": 200, "message": "Run ConversationGraph success", "result": res}
+    return {
+        "status": 200,
+        "message": "Run ConversationGraph success",
+        "llm_output": res.get("llm_output", {}),
+    }
 
 
 @graph_router.post("/frBuilding", auth_required=True)
@@ -59,6 +63,7 @@ async def runFRBuildingGraphRouter(request: Request):
     body = request.json()
     fr_id = parseInt(body.get("fr_id", None))
     raw_content = body.get("raw_content", "")
+    # todo: form 处理图片
 
     if fr_id is None:
         return {"status": -1, "message": "fr_id is invalid"}
@@ -81,4 +86,8 @@ async def runFRBuildingGraphRouter(request: Request):
             return {"status": -2, "message": "FRBuildingGraph is running, please wait"}
         raise rte
 
-    return {"status": 200, "message": "Run FRBuildingGraph success", "result": res}
+    return {
+        "status": 200,
+        "message": "Run FRBuildingGraph success",
+        "res": res,
+    }

@@ -3,7 +3,7 @@ import html as html_lib
 import re
 from typing import Optional, Any, List
 
-from src.utils.request import fetch
+from src.utils.request import afetch
 
 
 def extractPromptFromPromptMinder(
@@ -75,6 +75,6 @@ async def getPrompt(
 ) -> str | None:
     if not prompt_minder_url:
         return None
-    res = await fetch(prompt_minder_url)
+    res = await afetch(prompt_minder_url)
     html = res.get("body", "")
     return extractPromptFromPromptMinder(html, variables)
