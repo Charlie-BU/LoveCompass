@@ -7,6 +7,7 @@ from src.server.auth import AuthHandler
 from src.services.user import (
     getUserById,
     getUserIdByAccessToken,
+    getUserIdByOpenId,
     userBindLark,
     userLogin,
     userModifyPassword,
@@ -50,6 +51,18 @@ async def getUserByIdRouter(request: Request):
 #     return res
 
 
+@user_router.get("/getUserIdByOpenId", auth_required=True)
+async def getUserIdByOpenIdRouter(request: Request):
+    """
+    通过飞书 openid 获取用户 id
+    """
+    open_id = request.query_params.get("open_id", None)
+    if open_id is None or not isinstance(open_id, str):
+        return {"status": -1, "message": "Open id is required"}
+    res = getUserIdByOpenId(open_id=open_id)
+    return res
+
+
 @user_router.post("/login")
 async def userLoginRouter(request: Request):
     """
@@ -60,7 +73,7 @@ async def userLoginRouter(request: Request):
     password = body.get("password", "")
     if not isinstance(username, str) or not isinstance(password, str):
         return {"status": -1, "message": "Username or password is invalid"}
-    res = userLogin(username=username, password=password)
+    res = userLogin(username=username, password=password, from_remote=True)
     return res
 
 

@@ -1,6 +1,6 @@
 ---
 name: "commit-update-writer"
-description: "基于用户指定的改动范围（默认当前工作区）分析上下游依赖并产出改动说明，追加写入 docs/CHANGELOG.md。用户要求“生成本次改动文档/更新记录/changelog”时触发。"
+description: "基于用户指定的改动范围（默认当前工作区）分析上下游依赖并产出改动说明，按时间顺序增量写入 docs/CHANGELOG.md 最上方。用户要求“生成本次改动文档/更新记录/changelog”时触发。"
 ---
 
 # Commit Update Writer
@@ -32,10 +32,10 @@ description: "基于用户指定的改动范围（默认当前工作区）分析
 2. 每次必须读取并遵循风格参考：  
    `.trae/skills/commit-update-writer/reference/language-style.md`
 3. 输出文件固定为：`docs/CHANGELOG.md`（注意拼写）。
-4. 只能**在文件末尾追加**，禁止修改/删除已有内容。
-5. 若 `docs/CHANGELOG.md` 不存在，先创建，再追加首条记录。
+4. 只能**把新记录增量插入到文件最上方**，禁止修改/删除已有历史记录内容。
+5. 若 `docs/CHANGELOG.md` 不存在，先创建，再写入首条记录。
 6. 每次必须显式写出“当前内容撰写时间”，格式固定为 `YYYY-MM-DD HH:mm`（24 小时制）。
-7. 每次输出末尾必须给出一条建议 `git commit message`，遵循 git-cz 规范（`type(scope): subject`），语义准确且长度适中（建议不超过 72 个字符）。
+7. 每次输出区块末尾必须给出一条建议 `git commit message`，遵循 git-cz 规范（`type(scope): subject`），语义准确且长度适中（建议不超过 72 个字符）。
 8. 生成正文前，必须先在草稿里写明“本次采用的 compare scope”；若与用户指令不一致，必须停止并重新确认，禁止继续写入。
 
 ## 分析范围（强制）
@@ -67,14 +67,14 @@ description: "基于用户指定的改动范围（默认当前工作区）分析
 6. 评估影响与风险
     - 功能正确性、兼容性、稳定性、性能、可维护性。
     - 明确“已验证项 / 未验证项 / 建议补充验证”。
-7. 按风格生成文档片段并追加
+7. 按风格生成文档片段并写入
     - 生成一个“本次改动记录”区块。
-    - 追加到 `docs/CHANGELOG.md` 末尾。
+    - 插入到 `docs/CHANGELOG.md` 最上方，保持整体按时间从新到旧排列。
 8. 生成建议 commit message
     - 根据本次改动主线，产出 1 条 git-cz 风格 message：`type(scope): subject`。
     - `subject` 需简洁，不写空泛词，不堆叠多主题。
 
-## 追加写入模板（必须包含）
+## 顶部增量写入模板（必须包含）
 
 ```markdown
 ## CHANGELOG - <YYYY-MM-DD HH:mm> - <一句话主题>
@@ -130,7 +130,7 @@ description: "基于用户指定的改动范围（默认当前工作区）分析
 
 ## 禁止事项
 
-- 禁止覆盖 `docs/CHANGELOG.md` 历史内容。
+- 禁止覆盖、改写或重排单条历史记录的正文内容。
 - 禁止写入 `docs/UPDATE.md`（文件名错误）或其他非目标文件（除非用户明确改口）。
 - 禁止省略 `Base Commit`（其值应来自 `HEAD~1`）。
 - 禁止省略 `Compare Scope`。

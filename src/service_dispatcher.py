@@ -17,6 +17,11 @@ SERVICE_API_MAP = {
         "path": "/user/getUserById",
         "auth_required": True,
     },
+    "getUserIdByOpenId": {
+        "method": "GET",
+        "path": "/user/getUserIdByOpenId",
+        "auth_required": True,
+    },
     "userLogin": {
         "method": "POST",
         "path": "/user/login",
@@ -222,7 +227,7 @@ GRAPH_API_MAP = {
 }
 
 
-def _isSharedDatabaseMode() -> bool:
+def isSharedDatabaseMode() -> bool:
     """
     判断当前是否使用共享数据库模式
     """
@@ -320,7 +325,7 @@ def dispatchServiceCall(
     """
     调用服务接口，按照是否是共享数据库模式分发请求到本地服务或远程 http API
     """
-    if not _isSharedDatabaseMode():
+    if not isSharedDatabaseMode():
         # 非共享数据库模式，直接调用本地 service
         logger.info(
             f"Non-shared database mode, calling local service: {service.__name__}"

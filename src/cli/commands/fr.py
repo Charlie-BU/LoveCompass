@@ -1,7 +1,6 @@
 from argparse import Namespace, ArgumentParser, Action, _SubParsersAction
 from typing import Callable
 import questionary
-import asyncio
 
 from src.cli.utils import (
     CLIError,
@@ -11,6 +10,7 @@ from src.cli.utils import (
     printTableInCLI,
 )
 from src.database.enums import FigureRole, Gender, MBTI, parseEnum
+from src.service_dispatcher import dispatchServiceCall
 from src.services.figure_and_relation import (
     addFigureAndRelation,
     getAllFigureAndRelations,
@@ -167,11 +167,14 @@ def createFRCLI(args: Namespace) -> int:
         )
 
     if mode == "ARGS_INPUT":
-        res = addFigureAndRelation(
-            user_id=user_id,
-            figure_name=name,
-            figure_gender=gender,
-            figure_role=figure_role,
+        res = dispatchServiceCall(
+            addFigureAndRelation,
+            {
+                "user_id": user_id,
+                "figure_name": name,
+                "figure_gender": gender,
+                "figure_role": figure_role,
+            },
         )
     else:
         # 模式 2：用户交互输入
@@ -231,18 +234,21 @@ def createFRCLI(args: Namespace) -> int:
         )
         hometown = _resolveText(getattr(args, "hometown", None), "Hometown (Optional)")
 
-        res = addFigureAndRelation(
-            user_id=user_id,
-            figure_name=name,
-            figure_gender=gender,
-            figure_role=figure_role,
-            figure_mbti=figure_mbti,
-            figure_birthday=birthday,
-            figure_occupation=occupation,
-            figure_education=education,
-            figure_residence=residence,
-            figure_hometown=hometown,
-            exact_relation=exact_relation,
+        res = dispatchServiceCall(
+            addFigureAndRelation,
+            {
+                "user_id": user_id,
+                "figure_name": name,
+                "figure_gender": gender,
+                "figure_role": figure_role,
+                "figure_mbti": figure_mbti,
+                "figure_birthday": birthday,
+                "figure_occupation": occupation,
+                "figure_education": education,
+                "figure_residence": residence,
+                "figure_hometown": hometown,
+                "exact_relation": exact_relation,
+            },
         )
     printServiceResInCLI(res, as_json=args.json)
     return 0 if res.get("status") == 200 else 1
@@ -253,13 +259,19 @@ def listAvailableFRsCLI(args: Namespace) -> int:
     查看当前用户可用 FR
     """
     user_id = getCurrentUserFromLocalSession().get("user_id")
-    res = getAllFigureAndRelations(user_id=user_id)
+    res = dispatchServiceCall(
+        getAllFigureAndRelations,
+        {"user_id": user_id},
+    )
     frs = res.get("figure_and_relations", [])
-    frs = [{
-        "id": fr.get("id"),
-        "figure_role": stringifyValue(fr.get("figure_role")).upper(),
-        "figure_name": fr.get("figure_name"),
-    } for fr in frs]
+    frs = [
+        {
+            "id": fr.get("id"),
+            "figure_role": stringifyValue(fr.get("figure_role")).upper(),
+            "figure_name": fr.get("figure_name"),
+        }
+        for fr in frs
+    ]
     if args.json:
         printServiceResInCLI(res, as_json=True)
     else:
@@ -282,8 +294,13 @@ def showFRCLI(args: Namespace) -> int:
         raise CLIError("query must be a non-empty string", exit_code=2)
     normalized_query = query.strip() if isinstance(query, str) else None
 
-    res = asyncio.run(
-        getFRAllContext(user_id=user_id, fr_id=fr_id, query=normalized_query)
+    res = dispatchServiceCall(
+        getFRAllContext,
+        {
+            "user_id": user_id,
+            "fr_id": fr_id,
+            "query": normalized_query,
+        },
     )
     if args.json:
         printServiceResInCLI(res, as_json=True)
@@ -326,9 +343,15 @@ def syncFeedsToFRCoreCLI(args: Namespace) -> int:
     user_id = getCurrentUserFromLocalSession().get("user_id")
     fr_id = getattr(args, "id", None)
     if fr_id is not None:
-        res = asyncio.run(syncFeedsToFRCore(user_id=user_id, fr_id=fr_id))
+        res = dispatchServiceCall(
+            syncFeedsToFRCore,
+            {"user_id": user_id, "fr_id": fr_id},
+        )
     else:
-        res = asyncio.run(syncAllFeedsToFRCore(user_id=user_id))
+        res = dispatchServiceCall(
+            syncAllFeedsToFRCore,
+            {"user_id": user_id},
+        )
 
     printServiceResInCLI(res, as_json=args.json)
     return 0 if res.get("status") == 200 else 1

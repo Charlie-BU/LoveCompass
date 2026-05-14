@@ -22,8 +22,9 @@ def createAccessToken(
     生成access token
     """
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode.update({"exp": expire})
+    if expires_delta is not None:
+        expire = datetime.now(timezone.utc) + expires_delta
+        to_encode.update({"exp": expire})
 
     ALGORITHM = os.getenv("ALGORITHM")
     SECRET_KEY = os.getenv("LOGIN_SECRET")
@@ -135,13 +136,19 @@ def getUserIdByOpenId(
 def userLogin(
     username: str,
     password: str,
+    from_remote: bool = False,
 ) -> dict:
     """
     用户登录
+    ⚠️ 注意：采用共享数据库场景下，不能直接通过 open_id 触发登录，userLoginByOpenId 不能暴露到外部；只允许用户通过 CLI 登录
+    因此，远端 userLogin 登录逻辑必须设定为永不过期
     """
     username = username.strip()
     if username == "" or password == "":
         return {"status": -1, "message": "Username or password is empty"}
+    expires_delta: timedelta | None = timedelta(hours=24)
+    if from_remote:
+        expires_delta = None
 
     with session() as db:
         user = (
@@ -160,7 +167,8 @@ def userLogin(
                 "message": "Wrong password",
             }
         access_token = createAccessToken(
-            data={"id": user.id, "username": user.username}
+            data={"id": user.id, "username": user.username},
+            expires_delta=expires_delta,
         )
         return {
             "status": 200,

@@ -6,6 +6,7 @@ from typing import Literal
 
 from src.agents.graphs.FRBuildingGraph.graph import getFRBuildingGraph
 from src.channels.lark.integration.utils import sendCard2OpenId
+from src.service_dispatcher import dispatchServiceCall
 from src.services.figure_and_relation import (
     getAllFigureAndRelations,
     getFRAllContext,
@@ -23,10 +24,16 @@ def _getCommonInfo(
     """
     获取通用信息，包括用户 ID 和 figure 姓名，同时返回错误类型
     """
-    user_id = getUserIdByOpenId(open_id).get("user_id")
+    user_id = dispatchServiceCall(
+        getUserIdByOpenId,
+        {"open_id": open_id},
+    ).get("user_id")
     if user_id is None:
         return None, "unauthorized"
-    fr = getFigureAndRelation(user_id, fr_id).get("figure_and_relation")
+    fr = dispatchServiceCall(
+        getFigureAndRelation,
+        {"user_id": user_id, "fr_id": fr_id},
+    ).get("figure_and_relation")
     if fr is None:
         return None, "fr_not_found"
     return (
@@ -81,8 +88,11 @@ def listAvailableFRsLark(open_id: str) -> None:
     """
     查看当前用户可用 FR
     """
-    user_id = getUserIdByOpenId(open_id).get("user_id")
-    if not user_id:
+    user_id = dispatchServiceCall(
+        getUserIdByOpenId,
+        {"open_id": open_id},
+    ).get("user_id")
+    if user_id is None:
         sendCard2OpenId(
             open_id=open_id,
             title="出错啦",
@@ -90,7 +100,11 @@ def listAvailableFRsLark(open_id: str) -> None:
             theme="red",
         )
         return
-    frs = getAllFigureAndRelations(user_id=user_id).get("figure_and_relations", [])
+    frs = dispatchServiceCall(
+        getAllFigureAndRelations,
+        {"user_id": user_id},
+    ).get("figure_and_relations", [])
+
     if not frs or len(frs) == 0:
         logger.warning(f"No FR found for this user")
         sendCard2OpenId(
@@ -203,10 +217,9 @@ def showFRLark(open_id: str, fr_id: int, query: str | None = None) -> None:
 
     async def _task() -> None:
         try:
-            res = await getFRAllContext(
-                user_id=user_id,
-                fr_id=fr_id,
-                query=normalized_query,
+            res = dispatchServiceCall(
+                getFRAllContext,
+                {"user_id": user_id, "fr_id": fr_id, "query": normalized_query},
             )
             if res.get("status") != 200:
                 logger.warning(
