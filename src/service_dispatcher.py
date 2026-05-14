@@ -1,10 +1,9 @@
-import asyncio
 import os
-import threading
 import inspect
 import logging
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, Awaitable, Callable
 
+from src.utils.index import runAwaitableSync
 from src.utils.request import afetch
 
 logger = logging.getLogger(__name__)
@@ -12,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 SERVICE_API_MAP = {
     # user_router
+    "getUserIdByAccessToken": {
+        "method": "POST",
+        "path": "/user/getUserIdByAccessToken",
+        "auth_required": False,
+    },
     "getUserById": {
         "method": "GET",
         "path": "/user/getUserById",
@@ -244,36 +248,6 @@ def _resolveServiceBaseURL() -> str:
     return base_url.rstrip("/")
 
 
-T = TypeVar("T")
-
-
-def _runAwaitableSync(awaitable_factory: Callable[..., Awaitable[T]]) -> T:
-    """
-    同步运行异步函数
-    """
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(awaitable_factory())
-
-    result_box: dict[str, T] = {}
-    error_box: dict[str, BaseException] = {}
-
-    def _runner() -> None:
-        try:
-            result_box["value"] = asyncio.run(awaitable_factory())
-        except BaseException as err:  # pragma: no cover - propagated to caller
-            error_box["error"] = err
-
-    worker = threading.Thread(target=_runner, daemon=True)
-    worker.start()
-    worker.join()
-
-    if "error" in error_box:
-        raise error_box["error"]
-    return result_box["value"]
-
-
 def _buildAuthHeaders(auth_required: bool) -> dict[str, str]:
     """
     构造鉴权请求头
@@ -293,7 +267,7 @@ def _requestHTTPByConfig(
     service_name: str,
     args: dict[str, Any],
     api_map: dict[str, dict[str, Any]],
-) -> dict[str, Any]:
+) -> Any:
     """
     根据 API 配置发起 HTTP 请求
     """
@@ -312,16 +286,14 @@ def _requestHTTPByConfig(
         return afetch(url, method=method, json_data=args, headers=headers)
 
     # 同步运行异步方法
-    response = _runAwaitableSync(_send)
+    response = runAwaitableSync(_send)
     body = response.get("body")
-    if not isinstance(body, dict):
-        return {"status": response.get("status_code", -1), "message": str(body)}
     return body
 
 
 def dispatchServiceCall(
     service: Callable[..., dict[str, Any]], args: dict[str, Any]
-) -> dict[str, Any]:
+) -> Any:
     """
     调用服务接口，按照是否是共享数据库模式分发请求到本地服务或远程 http API
     """
@@ -333,7 +305,7 @@ def dispatchServiceCall(
         local_result = service(**args)
         # 本地模式下，service 可能是同步或异步函数，需要统一转换为同步对象
         if inspect.isawaitable(local_result):
-            return _runAwaitableSync(lambda: local_result)
+            return runAwaitableSync(lambda: local_result)
         return local_result
 
     # 共享数据库模式，发起 HTTP 请求

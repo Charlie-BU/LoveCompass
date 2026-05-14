@@ -1,3 +1,55 @@
+## CHANGELOG - 2026-05-14 18:36 - 共享数据库模式补齐登录校验与环境诊断闭环
+
+### 撰写时间
+
+- 2026-05-14 18:36
+
+### Base Commit
+
+- 3eb9bed4c285606da39494afcea7ba1374f01cd2
+
+### Compare Scope
+
+- working_tree_only
+
+### 背景与改动目标
+
+- 这次改动延续的还是 shared database 这条主线，但目标已经从“让 dispatcher 能跑起来”收敛成“把用户真正会碰到的几个缺口补平”。上一轮把 CLI 和 Lark 入口接进 `dispatchServiceCall()` 之后，工作区里暴露出几个新问题：`doctor` 还不会区分本地数据库和远端服务，CLI 里的登录态校验仍然默认走本地 helper，同步链路缺一个可复用的 HTTP 封装，另外登录成功后本地 session 还要额外再解析一次 token 才能拿到 `user_id`。
+- 一开始最直接的修法是继续在各个入口各补一段兼容逻辑，但这样会把 shared mode 的边界散落在 CLI、router、request utils 和数据库检查里。最终这轮还是选择把这些问题收口到几条主链路：环境变量检查、健康检查、登录态校验，以及 dispatcher 所依赖的同步请求能力。
+
+### 改动概览
+
+- `src/cli/commands/index.py`：`runDoctorCheck()` 新增 `USE_SHARED_DATABASE` 与 `HTTP_BASE_URL` 检查，并按模式分流健康检查。shared mode 下改为探测 `HTTP_BASE_URL/ping`，本地模式下则通过 `checkDatabaseConnection()` 校验数据库连通性。`setupCLI()` 同时新增 `easy` 模式，会写入 `USE_SHARED_DATABASE=True`，并跳过本地数据库初始化。
+- `src/database/index.py`：抽出 `checkDatabaseConnection()`，把原来散落在 CLI 里的 `SELECT 1` 检查收回数据库模块，避免 `index.py` 继续直接依赖 SQL 细节。
+- `src/server/routers/user.py`、`src/service_dispatcher.py` 与 `src/cli/utils.py`：新增 `getUserIdByAccessToken` 的远端路由和 dispatcher 映射，CLI 校验本地 session 时不再直接调本地 helper，而是通过 `dispatchServiceCall()` 去校验 token，并在返回 `None` 时主动清理失效 session。
+- `src/services/user.py` 与 `src/cli/commands/auth.py`：`userLogin()` 现在直接返回 `user_id`，CLI 登录成功后不需要再本地二次解析 token，就可以把 `access_token` 和 `user_id` 一起写入 session。
+- `src/utils/index.py` 与 `src/utils/request.py`：把同步运行 awaitable 的能力抽成 `runAwaitableSync()`，同时新增同步版 `fetch()`，让 `doctor` 这种同步 CLI 路径也能复用同一套 HTTP 请求基础设施。
+- `docs/BOTTLENECK.md`：当前结论改写为“数据库访问已经收敛到 service 层并通过 dispatcher 分流消费”，和这轮代码状态保持一致。
+
+### 关键链路解析（含上下游）
+
+- 上游依赖：这轮改动建立在前一轮 dispatcher 已经存在的前提上。`dispatchServiceCall()` 负责判断 `USE_SHARED_DATABASE`，`SERVICE_API_MAP` 负责把 service 名映射到 Robyn 路由，`src/server/routers/index.py` 的 `/ping` 则成为 shared mode 下 `doctor` 的最小健康探针。
+- 当前改动：CLI 的三条关键链路被补成闭环。第一条是 `setup -> .env`，`easy` 模式会显式写入 `USE_SHARED_DATABASE=True`；第二条是 `doctor`，它现在会先解析 `.env`，再按模式选择检查数据库或远端 `/ping`；第三条是 `auth/session`，登录后通过 `userLogin()` 直接拿到 `user_id`，后续 `getCurrentUserFromLocalSession()` 再通过远端 `getUserIdByAccessToken` 校验 token 是否仍然可用。
+- 下游影响：`whoami`、`modify-password`、`bind-lark`、`fr` 这类依赖 `getCurrentUserFromLocalSession()` 的 CLI 命令，在 shared mode 下终于不再偷偷回落到本地 JWT 解析逻辑。换句话说，session 是否有效现在由当前运行模式对应的链路来判断，而不是默认假设本地校验一定可用。
+- 还有一个配套动作是把 `runAwaitableSync()` 从 `service_dispatcher.py` 挪到 `src/utils/index.py`。这样 dispatcher、本地 async service 收口、同步版 `fetch()` 都复用同一个同步桥接实现，后续如果还要在别的同步 CLI 命令里发异步 HTTP，请求层不会再重复造轮子。
+
+### 改动结果与业务影响
+
+- 当前看，这轮改动把 shared database 模式下最容易踩坑的几个入口补齐了。用户如果走 `easy setup`，`.env` 会明确带上模式标记；`doctor` 也会按模式给出更贴近真实链路的诊断，而不是一律检查本地 PostgreSQL。
+- 登录链路也更顺了。CLI 登录成功后不再额外本地解 token 拿 `user_id`，session 校验时则统一经过 dispatcher 对应的链路，这让 shared mode 下的行为和本地模式保持了同样的入口形态，只是底层分发目标不同。
+- 这次还有一个工程收益：同步 CLI 场景和异步 HTTP 工具之间终于有了明确桥接层。`fetch()` 和 `afetch()` 共用一套底层请求语义，`runAwaitableSync()` 则把“同步入口消费异步能力”的边界固定在工具层，而不是继续散落在业务文件里。
+
+### 风险与待办
+
+- 已补齐的风险：`doctor` 之前会把 `HTTP_BASE_URL` 当成所有模式的硬依赖，现在已经按 shared mode / local mode 分开检查；CLI 登录态校验也不再依赖本地直调 `getUserIdByAccessToken()`。
+- 已补齐的风险：`access_token` 不再经由 query string 传输，而是改成 `POST` JSON 请求体，至少避免了最显眼的 URL 泄露面。
+- 仍然保留的边界：`userLogin(from_remote=True)` 现在依旧生成无 `exp` 的 token。这个选择能让 shared mode 下的远端登录持续可用，但也意味着 token 轮换、撤销和失效治理还没有设计完，这一点不能包装成“已经彻底解决”。
+- 未验证项：当前工作区没有看到围绕 `easy setup -> doctor -> auth whoami` 这条 shared mode 主链路的自动化回归。接下来至少值得补两类验证，一类是远端 `/ping` 与 `getUserIdByAccessToken` 的 happy path / failure path，另一类是本地模式下 `doctor` 仍然能正确只检查数据库。
+
+### 建议 Commit Message（git-cz）
+
+- `feat(shared-mode): close setup doctor and auth validation loop`
+
 ## CHANGELOG - 2026-05-14 11:57 - dispatcher 接入 CLI/Lark 并补齐共享数据库登录边界
 
 ### 撰写时间

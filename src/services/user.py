@@ -173,6 +173,7 @@ def userLogin(
         return {
             "status": 200,
             "message": "Login success",
+            "user_id": user.id,
             "access_token": access_token,
         }
 

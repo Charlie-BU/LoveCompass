@@ -8,7 +8,6 @@ from pathlib import Path
 from argparse import Namespace, ArgumentParser, Action, _SubParsersAction
 from typing import Callable, Any
 from importlib import metadata, resources
-from sqlalchemy import text
 import questionary
 from datetime import datetime
 
@@ -19,6 +18,7 @@ from src.cli.constants import (
     IMMORTALITY_ENV_PATH,
 )
 from src.database.models import initDatabaseIfNeeded
+from src.utils.request import fetch
 
 
 def registerTopSubparser(
@@ -133,6 +133,7 @@ def runDoctorCheck() -> dict[str, Any]:
         )
 
     required_envs = [
+        "USE_SHARED_DATABASE",
         "DATABASE_URI",
         "CHECKPOINT_DATABASE_URI",
         "ALGORITHM",
@@ -147,6 +148,7 @@ def runDoctorCheck() -> dict[str, Any]:
         "LARK_APP_ID",
         "LARK_APP_SECRET",
         "LARK_CARD_TEMPLATE_ID",
+        "HTTP_BASE_URL",
         "FR_BUILDING_PREPROCESS",
         "FR_BUILDING_EXTRACT_FR_INTRINSIC_CANDIDATES",
         "FR_BUILDING_COMPARE_FIELD",
@@ -186,6 +188,9 @@ def runDoctorCheck() -> dict[str, Any]:
         "WAITING_SECONDS_FOR_CONVERSATION",
     ]
     env_values: dict[str, str] = {}
+
+    use_shared_database = False
+    use_shared_database_raw = ""
     if env_exists:
         try:
             for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -201,8 +206,54 @@ def runDoctorCheck() -> dict[str, Any]:
                 "Failed to parse `.env`. Please check the format (`KEY=VALUE`)."
             )
 
+        use_shared_database_raw = (
+            env_values.get("USE_SHARED_DATABASE", "") or ""
+        ).strip()
+        if use_shared_database_raw.lower() == "true":
+            use_shared_database = True
+            checks.append(
+                {
+                    "item": "env:USE_SHARED_DATABASE",
+                    "ok": True,
+                    "value": use_shared_database_raw,
+                }
+            )
+        elif use_shared_database_raw.lower() == "false":
+            checks.append(
+                {
+                    "item": "env:USE_SHARED_DATABASE",
+                    "ok": True,
+                    "value": use_shared_database_raw or "False",
+                }
+            )
+        else:
+            checks.append(
+                {
+                    "item": "env:USE_SHARED_DATABASE",
+                    "ok": False,
+                    "error": "Invalid value",
+                    "value": use_shared_database_raw,
+                }
+            )
+            healthy = False
+            guidance.append(
+                "Invalid USE_SHARED_DATABASE value. Please re-run `immortality setup`."
+            )
+
+    required_envs_to_check = required_envs
+    if use_shared_database:
+        required_envs_to_check = [
+            key
+            for key in required_envs
+            if key not in {"DATABASE_URI", "CHECKPOINT_DATABASE_URI"}
+        ]
+    else:
+        required_envs_to_check = [
+            key for key in required_envs if key != "HTTP_BASE_URL"
+        ]
+
     missing_envs: list[str] = []
-    for key in required_envs:
+    for key in required_envs_to_check:
         value = env_values.get(key, "") if env_exists else ""
         ok = isinstance(value, str) and value.strip() != ""
         checks.append({"item": f"env:{key}", "ok": ok})
@@ -257,25 +308,65 @@ def runDoctorCheck() -> dict[str, Any]:
             "Dependencies are incomplete. Please run `uv sync` (or `uv pip install -e .`)."
         )
 
-    # 4) 数据库可用性检查
-    db_ok = True
-    db_error = None
-    try:
-        from src.database.index import session  # 只用来检查数据库连接
+    # 4) 数据库可用性 / 远端服务连通性检查
+    if use_shared_database:
+        http_base_url = (env_values.get("HTTP_BASE_URL", "") or "").strip().rstrip("/")
+        ping_ok = False
+        ping_error = None
+        ping_response: Any = None
+        if http_base_url:
+            try:
+                ping_response = fetch(
+                    f"{http_base_url}/ping",
+                    method="GET",
+                    timeout=10,
+                    raise_for_status=True,
+                )
+                ping_ok = ping_response.get("body") == "pong"
+                if not ping_ok:
+                    ping_error = (
+                        f"Unexpected response body: {ping_response.get('body')!r}"
+                    )
+            except Exception as err:
+                ping_error = str(err)
+        else:
+            ping_error = "HTTP_BASE_URL is empty"
 
-        with session() as db:
-            db.execute(text("SELECT 1"))
-    except Exception as err:
-        db_ok = False
-        db_error = str(err)
-        healthy = False
-
-    checks.append({"item": "database:connectivity", "ok": db_ok, "error": db_error})
-    if not db_ok:
-        guidance.append(
-            "Database connection failed. Please check `DATABASE_URI`, network, and DB service status. "
-            "If you selected Docker mode in setup, ensure postgres container is running."
+        checks.append(
+            {
+                "item": "remote_service:ping",
+                "ok": ping_ok,
+                "url": f"{http_base_url}/ping" if http_base_url else "",
+                "response": ping_response,
+                "error": ping_error,
+            }
         )
+        healthy = healthy and ping_ok
+        if not ping_ok:
+            guidance.append(
+                "Shared database mode requires a reachable server. Please contact the server administrator to check `HTTP_BASE_URL` and the server is reachable."
+            )
+
+    else:
+        db_ok = True
+        db_error = None
+        try:
+            from src.database.index import (
+                checkDatabaseConnection,
+            )  # 只用来检查数据库连接
+
+            checkDatabaseConnection()
+        except Exception as err:
+            db_ok = False
+            db_error = str(err)
+            healthy = False
+
+        checks.append({"item": "database:connectivity", "ok": db_ok, "error": db_error})
+        if not db_ok:
+            guidance.append(
+                "Database connection failed. Please check `DATABASE_URI`, network, and DB service status. "
+                "If you selected Docker mode in setup, ensure postgres container is running."
+            )
 
     return {
         "status": 200 if healthy else -1,
@@ -565,7 +656,13 @@ def setupCLI(args: Namespace) -> int:
     database_config_mode = questionary.select(
         "Choose database configuration mode",
         choices=[
-            questionary.Choice("Docker setup (recommended)", value="docker"),
+            questionary.Choice(
+                "Easy setup (Use cloud database with encrypted data)", value="easy"
+            ),
+            questionary.Choice(
+                "Docker setup (recommended, but requires Docker installed)",
+                value="docker",
+            ),
             questionary.Choice("Manual setup", value="manual"),
         ],
     ).ask()
@@ -586,6 +683,7 @@ def setupCLI(args: Namespace) -> int:
     arg_lark_app_secret = getattr(args, "lark_app_secret", None)
     arg_lark_card_template_id = getattr(args, "lark_card_template_id", None)
 
+    use_shared_database = database_config_mode == "easy"
     if database_config_mode == "docker":
         docker_db_values = dockerDBSteup()
         arg_db_user = arg_db_user or docker_db_values["db_user"]
@@ -593,11 +691,17 @@ def setupCLI(args: Namespace) -> int:
         arg_db_host = arg_db_host or docker_db_values["db_host"]
         arg_db_port = arg_db_port or docker_db_values["db_port"]
 
-    # 若通过 docker 配置数据库，db 配置无需手动交互
-    db_user = _resolveText(arg_db_user, "db_user")
-    db_password = _resolveSecret(arg_db_password, "db_password")
-    db_host = _resolveText(arg_db_host, "db_host")
-    db_port = _resolveText(arg_db_port, "db_port")
+    # easy 模式依赖远端服务，不采集本地数据库参数，但仍写入可解析的占位连接串。
+    if use_shared_database:
+        db_user = "unused"
+        db_password = "unused"
+        db_host = "shared-mode.invalid"
+        db_port = "5432"
+    else:
+        db_user = _resolveText(arg_db_user, "db_user")
+        db_password = _resolveSecret(arg_db_password, "db_password")
+        db_host = _resolveText(arg_db_host, "db_host")
+        db_port = _resolveText(arg_db_port, "db_port")
 
     login_secret = uuid.uuid4().hex
     ark_api_key = _resolveSecret(arg_ark_api_key, "ark_api_key")
@@ -647,6 +751,13 @@ def setupCLI(args: Namespace) -> int:
     output = template
     for key, value in values.items():
         output = output.replace(f"<{key}>", value)
+    output = re.sub(
+        r"^USE_SHARED_DATABASE=.*$",
+        f"USE_SHARED_DATABASE={'True' if use_shared_database else 'False'}",
+        output,
+        count=1,
+        flags=re.MULTILINE,
+    )
 
     try:
         env_path.write_text(output, encoding="utf-8")
@@ -655,8 +766,9 @@ def setupCLI(args: Namespace) -> int:
             f"Cannot write env file `{env_path}`: {err}", exit_code=1
         ) from err
 
-    # 初始化数据库表
-    initDatabaseIfNeeded()
+    # 共享数据库模式下依赖远程 API，不初始化本地数据库表。
+    if not use_shared_database:
+        initDatabaseIfNeeded()
     printServiceResInCLI(
         {
             "status": 200,

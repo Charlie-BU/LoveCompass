@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 _engine = None
@@ -33,3 +33,9 @@ def _getSessionFactory():
 
 def session():
     return _getSessionFactory()()
+
+
+def checkDatabaseConnection():
+    with session() as db:
+        db.execute(text("SELECT 1"))
+    return True

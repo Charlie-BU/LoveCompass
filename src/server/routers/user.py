@@ -29,6 +29,26 @@ def handleException(error):
 user_router.configure_authentication(AuthHandler(token_getter=BearerGetter()))
 
 
+@user_router.post("/getUserIdByAccessToken", auth_required=False)
+async def getUserIdByAccessTokenRouter(request: Request):
+    """
+    通过 access token 获取用户 id
+    ⚠️ 不允许设置 auth_required=True，不允许通过 request 实例获取校验 access token
+    否则会从注入本地 access_token 到请求头，而 access_token 获取过程是通过 getCurrentUserFromLocalSession()
+    getCurrentUserFromLocalSession() 中又分流到这个路由，导致循环递归调用！！！
+    解决方案：无需鉴权，不注入 access_token 到请求头；用 POST 请求避免 access_token 泄露，access_token 作为 json 请求体传入
+    """
+    try:
+        token = request.json().get("token", None)
+        if token is None or not isinstance(token, str):
+            return None
+        id = getUserIdByAccessToken(token=token)
+        return id
+    except Exception as e:
+        logger.error(e)
+        return None
+
+
 @user_router.get("/getUserById", auth_required=True)
 async def getUserByIdRouter(request: Request):
     """

@@ -6,6 +6,7 @@ from tabulate import tabulate
 from rich.console import Console
 from rich.markdown import Markdown
 
+from src.service_dispatcher import dispatchServiceCall
 from src.utils.index import stringifyValue
 from src.services.user import getUserIdByAccessToken
 from src.cli.session import clearLocalSession, loadLocalSession
@@ -218,9 +219,13 @@ def getCurrentUserFromLocalSession() -> dict[str, Any]:
         raise CLIError(
             message="Please login first via `immortality auth login`", exit_code=2
         )
+
     try:
+        user_id = dispatchServiceCall(getUserIdByAccessToken, {"token": token})
+        if user_id is None:
+            raise CLIError("Your login session is expired, please login again", exit_code=3)
         return {
-            "user_id": getUserIdByAccessToken(token=token),
+            "user_id": user_id,
             "access_token": token,
         }
     except Exception:

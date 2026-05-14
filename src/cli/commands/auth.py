@@ -13,7 +13,6 @@ from src.database.enums import Gender, parseEnum
 from src.service_dispatcher import dispatchServiceCall
 from src.services.user import (
     getUserById,
-    getUserIdByAccessToken,
     userBindLark,
     userLogin,
     userModifyPassword,
@@ -127,12 +126,14 @@ def loginCLI(args: Namespace) -> int:
             raise CLIError("Password cannot be empty", exit_code=2)
 
     res = dispatchServiceCall(userLogin, {"username": username, "password": password})
+
     if res.get("status") != 200:
         clearLocalSession()
         printServiceResInCLI(res, as_json=args.json)
         return 1
 
     token = res.get("access_token")
+    user_id = res.get("user_id")
     if not isinstance(token, str) or token.strip() == "":
         printServiceResInCLI(
             {"status": -1, "message": "Login success but token is missing"},
@@ -140,7 +141,6 @@ def loginCLI(args: Namespace) -> int:
         )
         return 1
 
-    user_id = getUserIdByAccessToken(token=token)
     saveLocalSession(
         {
             "access_token": token,

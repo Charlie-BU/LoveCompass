@@ -3,12 +3,15 @@ from enum import Enum
 import json
 import math
 import os
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, TypeVar
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
+import asyncio
+import threading
 
 from src.database.models import FigureAndRelation, OriginalSource
 
+# todo: 待治理：模块顶层引入太多依赖，不是纯 utils
 
 def timeDecay(created_at: datetime) -> float:
     """
@@ -169,6 +172,36 @@ def jsonDefault(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     return str(obj)
+
+
+T = TypeVar("T")
+
+
+def runAwaitableSync(awaitable_factory: Callable[..., Awaitable[T]]) -> T:
+    """
+    同步运行异步函数
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(awaitable_factory())
+
+    result_box: dict[str, T] = {}
+    error_box: dict[str, BaseException] = {}
+
+    def _runner() -> None:
+        try:
+            result_box["value"] = asyncio.run(awaitable_factory())
+        except BaseException as err:  # pragma: no cover - propagated to caller
+            error_box["error"] = err
+
+    worker = threading.Thread(target=_runner, daemon=True)
+    worker.start()
+    worker.join()
+
+    if "error" in error_box:
+        raise error_box["error"]
+    return result_box["value"]
 
 
 async def ainvokeJsonWithRetry(
